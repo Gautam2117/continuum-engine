@@ -128,3 +128,24 @@ def test_long_plan_writes_valid_long_spec(tmp_path, monkeypatch):
     print(out)
     longs = [p for p in out["written"] if "-l" in p]
     assert longs, out
+
+
+def test_best_tier_tries_strong_models_first_and_falls_back():
+    from autopilot.llm import Provider
+    seen = []
+
+    class P(Provider):
+        def chat(self, model, system, user, temperature, max_tokens, want_json):
+            seen.append(model)
+            if model == "pro":
+                from autopilot.llm import LLMError as E
+                raise E("429 daily quota exceeded")
+            return '{"ok": true}'
+
+    prov = P("g", "http://x", "k", models=["lite"], best=["pro", "flash"])
+    llm = LLM(providers=[prov], log=lambda *_: None)
+    assert llm.complete("s", "u", tier="best") == {"ok": True}
+    assert seen == ["pro", "flash"] and llm.last_model == "g:flash"
+    seen.clear()
+    assert llm.complete("s", "u") == {"ok": True}  # bulk tier goes straight to the high-quota model
+    assert seen == ["lite"]

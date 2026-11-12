@@ -56,7 +56,8 @@ class Provider:
     name: str
     base: str
     key: str
-    models: list[str]
+    models: list[str]                                 # bulk tier: most requests per day
+    best: list[str] = field(default_factory=list)     # quality tier: strongest models first
     json_mode: bool = True
     dead: set = field(default_factory=set)  # models that hit a hard limit this run
 
@@ -77,30 +78,36 @@ def _version(name: str) -> float:
     return float(m.group(1)) if m else 0.0
 
 
-def discover_gemini(key: str) -> list[str]:
-    """Newest first. Flash-Lite has the most free requests per day, then Gemma, then Flash."""
+def discover_gemini(key: str) -> tuple[list[str], list[str]]:
+    """Returns (best, bulk). Best = strongest first (Pro, then newest Flash); bulk = Flash-Lite and Gemma, which
+    have the most free requests per day. Writing and editing use best and fall back down as quotas run out."""
     forced = os.environ.get("LLM_GEMINI_MODELS")
     if forced:
-        return [m.strip() for m in forced.split(",") if m.strip()]
+        m = [x.strip() for x in forced.split(",") if x.strip()]
+        return m, m
     try:
         data = _http(f"https://generativelanguage.googleapis.com/v1beta/models?key={key}&pageSize=200", None, {})
     except LLMError:
-        return ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash-lite"]
+        return ["gemini-2.5-pro", "gemini-3.5-flash", "gemini-2.5-flash"], ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash-lite"]
     names = [m["name"].split("/")[-1] for m in data.get("models", []) if "generateContent" in m.get("supportedGenerationMethods", [])]
-    names = [n for n in names if not re.search(r"image|tts|embedding|live|audio|vision|robotics|computer|thinking-exp", n)]
+    names = [n for n in names if not re.search(r"image|tts|embedding|live|audio|vision|robotics|computer|thinking-exp|preview-\d|exp", n)]
     pick = lambda pat: sorted([n for n in names if re.search(pat, n)], key=_version, reverse=True)  # noqa: E731
     lite = pick(r"flash-lite")
     gemma = pick(r"^gemma")
+    pro = pick(r"-pro")
     flash = [n for n in pick(r"flash") if n not in lite]
-    return (lite[:2] + gemma[:1] + flash[:1]) or ["gemini-2.5-flash-lite"]
+    bulk = (lite[:2] + gemma[:1] + flash[:1]) or ["gemini-2.5-flash-lite"]
+    best = (pro[:2] + flash[:2] + gemma[:1]) or bulk
+    return best, bulk
 
 
 def providers_from_env() -> list[Provider]:
     out: list[Provider] = []
     if k := os.environ.get("GEMINI_API_KEY"):
-        out.append(Provider("gemini", "https://generativelanguage.googleapis.com/v1beta/openai", k, discover_gemini(k)))
+        best, bulk = discover_gemini(k)
+        out.append(Provider("gemini", "https://generativelanguage.googleapis.com/v1beta/openai", k, bulk, best=best))
     if k := os.environ.get("GROQ_API_KEY"):
-        out.append(Provider("groq", "https://api.groq.com/openai/v1", k, ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]))
+        out.append(Provider("groq", "https://api.groq.com/openai/v1", k, ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"], best=["llama-3.3-70b-versatile"]))
     if k := os.environ.get("OPENROUTER_API_KEY"):
         out.append(Provider("openrouter", "https://openrouter.ai/api/v1", k, [os.environ.get("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")]))
     return out
@@ -112,18 +119,22 @@ class LLM:
         self.calls = 0
         self.log = log
         self.by_provider: dict[str, int] = {}
+        self.last_model = ""
 
     @property
     def available(self) -> bool:
         return bool(self.providers)
 
-    def complete(self, system: str, user: str, *, want_json: bool = True, temperature: float = 0.8, max_tokens: int = 6000):
-        """Returns parsed JSON when want_json, else text. Fails over across providers and models."""
+    def complete(self, system: str, user: str, *, want_json: bool = True, temperature: float = 0.8, max_tokens: int = 6000, tier: str = "bulk"):
+        """Returns parsed JSON when want_json, else text. Fails over across providers and models.
+        tier="best" tries the strongest models first (scripts, editor); "bulk" tries the highest-quota ones (topic ideas)."""
         if not self.providers:
             raise LLMError("no LLM key configured (set GEMINI_API_KEY, GROQ_API_KEY or OPENROUTER_API_KEY)")
         last = ""
         for prov in self.providers:
-            for model in prov.models:
+            best = getattr(prov, "best", [])
+            order = (best + [m for m in prov.models if m not in best]) if tier == "best" and best else prov.models
+            for model in order:
                 if model in prov.dead:
                     continue
                 for attempt in range(2):
@@ -131,6 +142,7 @@ class LLM:
                         self.calls += 1
                         text = prov.chat(model, system, user, temperature, max_tokens, want_json)
                         result = extract_json(text) if want_json else text
+                        self.last_model = f"{prov.name}:{model}"
                         self.by_provider[f"{prov.name}:{model}"] = self.by_provider.get(f"{prov.name}:{model}", 0) + 1
                         return result
                     except LLMError as e:

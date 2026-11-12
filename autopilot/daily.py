@@ -111,7 +111,7 @@ class Planner:
         )
         if fixes:
             user += "\n\nYOUR PREVIOUS ATTEMPT WAS REJECTED. Fix all of these:\n- " + "\n- ".join(fixes)
-        return self._call(self._system(channel), user, temperature=0.8)
+        return self._call(self._system(channel), user, temperature=0.8, tier="best")
 
     def draft_long(self, channel: str, topic: dict, g: dict, fixes: list[str] | None = None) -> dict:
         pb = PLAYBOOKS[channel]
@@ -120,7 +120,7 @@ class Planner:
         per = words // n_ch
         system = self._system(channel)
         base = f"TOPIC: {topic['topic']}\n\nGROUNDING (the only source of specific facts):\n{g['text'] or '(none found: use only settled knowledge)'}\n\n"
-        outline = self._call(system, base + prompts.LONG_OUTLINE.replace("{minutes}", str(round(words / 150))).replace("{chapters}", str(n_ch)), temperature=0.8)
+        outline = self._call(system, base + prompts.LONG_OUTLINE.replace("{minutes}", str(round(words / 150))).replace("{chapters}", str(n_ch)), temperature=0.8, tier="best")
         chapters = outline.get("chapters", [])[:n_ch]
         if len(chapters) < 4:
             raise LLMError("outline too short")
@@ -133,7 +133,7 @@ class Planner:
                 prompt += f"\nPrevious chapter ended with: {scenes[-1].get('say', '')}"
             if fixes:
                 prompt += "\nEditor notes to apply: " + "; ".join(fixes[:4])
-            part = self._call(system, base + prompt, temperature=0.8)
+            part = self._call(system, base + prompt, temperature=0.8, tier="best")
             scenes += part.get("scenes", [])
         return {**{k: outline.get(k) for k in ("title", "thumb", "description", "tags")}, "scenes": scenes}
 
@@ -176,7 +176,7 @@ class Planner:
         narration = "\n".join(s["say"] for s in spec["scenes"])[:9000]
         user = f"GROUNDING:\n{g['text'][:6000]}\n\nTITLE: {spec['title']}\nSCRIPT:\n{narration}"
         try:
-            return self._call(prompts.CRITIC, user, temperature=0.2, max_tokens=1200)
+            return self._call(prompts.CRITIC, user, temperature=0.2, max_tokens=1200, tier="best")
         except LLMError as e:
             self.log(f"  critic unavailable ({str(e)[:80]}); relying on hard gates")
             return {"pass": True, "skipped": True}
@@ -198,6 +198,7 @@ class Planner:
                 review = self.critic(channel, spec, g)
                 if review.get("pass", True):
                     spec["meta"]["review"] = {k: review.get(k) for k in ("hook", "originality", "accuracy")}
+                    spec["meta"]["model"] = self.llm.last_model
                     return spec
                 bad = [f"editor: {f}" for f in (review.get("fixes") or ["raise hook and accuracy"])][:5] + [f"unsupported: {c}" for c in (review.get("unsupported_claims") or [])][:3]
             self.log(f"  {spec_id}: attempt {attempt + 1} rejected ({len(bad)} issues): {bad[0][:100]}")
