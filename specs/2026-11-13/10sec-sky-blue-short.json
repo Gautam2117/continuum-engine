@@ -1,17 +1,81 @@
 {
-  "id": "2026-11-13-10sec-sky-blue-short",
-  "channel": "10SecScientist",
-  "format": "short",
-  "title": "Why is the sky blue (and not violet)? #shorts",
-  "thumb": "Why the sky is blue",
-  "description": "Sunlight hits air molecules and scatters. Shorter wavelengths scatter far more (Rayleigh scattering goes as 1/wavelength^4), so blue light at ~450 nm scatters about 6 times more than red at ~700 nm. Violet scatters even more, but sunlight carries less of it and our eyes are less sensitive to it.",
-  "tags": ["science", "physics", "sky", "rayleigh scattering", "light", "10 second science"],
-  "links": [{"label": "Learn anything faster with Learnova", "url": "https://learnova.continuumarc.tech"}],
-  "scenes": [
-    {"say": "Why is the sky blue? Ten seconds.", "show": {"type": "title", "text": "Why is the sky blue?", "kicker": "10-second science"}},
-    {"say": "Sunlight is every colour mixed together. When it hits the air, the tiny molecules scatter it in all directions.", "show": {"type": "say", "text": "Sunlight hits air. Air *scatters* it."}},
-    {"say": "But short wavelengths scatter much more. Blue light scatters about six times more than red.", "show": {"type": "bars", "title": "How much each colour scatters", "items": [{"label": "Red, 700 nm", "value": 1}, {"label": "Green, 530 nm", "value": 3}, {"label": "Blue, 450 nm", "value": 5.9, "highlight": true}], "unit": "×"}},
-    {"say": "So blue reaches your eyes from every part of the sky. Violet scatters even more, but sunlight has less of it, and your eyes barely notice it.", "show": {"type": "list", "items": ["Blue arrives from every direction", "Violet: less in sunlight", "Violet: our eyes are less sensitive"]}},
-    {"say": "Follow for science in ten seconds.", "show": {"type": "end", "text": "Science in 10 seconds. Follow."}}
-  ]
+ "id": "2026-11-13-10sec-sky-blue-short",
+ "channel": "10SecScientist",
+ "format": "short",
+ "title": "Why is the sky blue (and not violet)? #shorts",
+ "thumb": "Why the sky is blue",
+ "description": "Sunlight hits air molecules and scatters. Shorter wavelengths scatter far more (Rayleigh scattering goes as 1/wavelength^4), so blue light at ~450 nm scatters about 6 times more than red at ~700 nm. Violet scatters even more, but sunlight carries less of it and our eyes are less sensitive to it.",
+ "tags": [
+  "science",
+  "physics",
+  "sky",
+  "rayleigh scattering",
+  "light",
+  "10 second science"
+ ],
+ "links": [
+  {
+   "label": "Learn anything faster with Learnova",
+   "url": "https://learnova.continuumarc.tech"
+  }
+ ],
+ "scenes": [
+  {
+   "say": "Why is the sky blue? Ten seconds.",
+   "show": {
+    "type": "title",
+    "text": "Why is the sky blue?",
+    "kicker": "10-second science"
+   }
+  },
+  {
+   "say": "Sunlight is every colour mixed together. When it hits the air, the tiny molecules scatter it in all directions.",
+   "show": {
+    "type": "say",
+    "text": "Sunlight hits air. Air *scatters* it."
+   }
+  },
+  {
+   "say": "But short wavelengths scatter much more. Blue light scatters about six times more than red.",
+   "show": {
+    "type": "bars",
+    "title": "How much each colour scatters",
+    "items": [
+     {
+      "label": "Red, 700 nm",
+      "value": 1
+     },
+     {
+      "label": "Green, 530 nm",
+      "value": 3
+     },
+     {
+      "label": "Blue, 450 nm",
+      "value": 5.9,
+      "highlight": true
+     }
+    ],
+    "unit": "×"
+   }
+  },
+  {
+   "say": "So blue reaches your eyes from every part of the sky. Violet scatters even more, but sunlight has less of it, and your eyes barely notice it.",
+   "show": {
+    "type": "list",
+    "items": [
+     "Blue arrives from every direction",
+     "Violet: less in sunlight",
+     "Violet: our eyes are less sensitive"
+    ]
+   }
+  },
+  {
+   "say": "Follow for science in ten seconds.",
+   "show": {
+    "type": "end",
+    "text": "Science in 10 seconds. Follow."
+   }
+  }
+ ],
+ "rev": 2
 }
