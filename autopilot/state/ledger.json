@@ -1,20 +1,29 @@
 [
  {
-  "id": "2026-11-13-atlas-s2",
-  "channel": "Counterfactual Atlas",
-  "format": "short",
-  "title": "What if you fell through a tunnel in Earth? #shorts",
-  "axis": "geology and the deep Earth",
-  "slot": "14:00",
-  "publishAt": "2026-11-13T13:53:00Z"
- },
- {
-  "id": "2026-11-13-atlas-l1",
+  "id": "2026-11-14-atlas-l1",
   "channel": "Counterfactual Atlas",
   "format": "long",
-  "title": "The One-Second Solar Disappearance",
-  "axis": "astronomy and orbits",
+  "title": "What if you fell through the Earth? (38 minutes, no engine)",
+  "axis": "claude-written",
   "slot": "14:00",
-  "publishAt": "2026-11-13T14:02:00Z"
+  "publishAt": "2026-11-14T13:53:00Z"
+ },
+ {
+  "id": "2026-11-14-atlas-s1",
+  "channel": "Counterfactual Atlas",
+  "format": "short",
+  "title": "What if you drove to the Moon? #shorts",
+  "axis": "claude-written",
+  "slot": "14:00",
+  "publishAt": "2026-11-14T14:07:00Z"
+ },
+ {
+  "id": "2026-11-14-atlas-s2",
+  "channel": "Counterfactual Atlas",
+  "format": "short",
+  "title": "What if Everest sat at the bottom of the ocean? #shorts",
+  "axis": "claude-written",
+  "slot": "18:00",
+  "publishAt": "2026-11-14T17:57:00Z"
  }
 ]
