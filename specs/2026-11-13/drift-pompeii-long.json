@@ -1,0 +1,212 @@
+{
+ "id": "2026-11-13-drift-pompeii-long",
+ "channel": "History to Drift To",
+ "format": "long",
+ "title": "The Last Ordinary Day in Pompeii | Calm History for Sleep",
+ "thumb": "The last ordinary day in Pompeii",
+ "description": "A slow, calm walk through Pompeii on the day before Vesuvius erupted in 79 AD: bakeries, bathhouses, graffiti, and the town's ordinary rhythms, told gently for sleep.\n\nNarration is AI-generated. Sources include Pliny the Younger's letters and archaeological work at Pompeii.",
+ "tags": [
+  "history for sleep",
+  "sleep documentary",
+  "pompeii",
+  "roman history",
+  "calm history",
+  "ancient rome",
+  "bedtime history"
+ ],
+ "links": [
+  {
+   "label": "Wind down without your phone with HUSH",
+   "url": "https://continuumarc.tech"
+  }
+ ],
+ "scenes": [
+  {
+   "say": "Settle in. Tonight, we walk slowly through a Roman town on what its people thought was an ordinary day.",
+   "show": {
+    "type": "title",
+    "text": "The last ordinary day in Pompeii",
+    "kicker": "History to drift to"
+   }
+  },
+  {
+   "say": "Nothing here needs to be rushed. If you fall asleep somewhere along the way, that is exactly how this is meant to go. The town will still be here in the morning, in a way."
+  },
+  {
+   "say": "Pompeii sat on the Bay of Naples, in the warm south of Italy, beneath a quiet green mountain that its people did not think of as a volcano.",
+   "show": {
+    "type": "image",
+    "query": "Pompeii Vesuvius forum",
+    "caption": "The Forum of Pompeii, with Vesuvius behind it"
+   }
+  },
+  {
+   "say": "The year is seventy nine of the common era. Rome is the centre of the known world, and this small, prosperous town is one of its comfortable corners."
+  },
+  {
+   "say": "Around eleven thousand people may have lived here, though estimates vary widely. Bakers, fullers, shopkeepers, sailors, and the families who lived above their shops.",
+   "show": {
+    "type": "number",
+    "value": 11000,
+    "prefix": "~",
+    "label": "people who may have lived in Pompeii (estimates vary widely)"
+   }
+  },
+  {
+   "say": "Dawn comes first to the bakeries. Long before the streets fill, ovens are being fed with wood, and the smell of bread drifts out through open doorways."
+  },
+  {
+   "say": "In many bakeries, mills made of dark volcanic stone were turned by donkeys or by slaves to grind grain. Round loaves were stamped with a baker's mark and scored into eight wedges before baking.",
+   "show": {
+    "type": "image",
+    "query": "Pompeii bakery mill",
+    "caption": "A bakery's stone mills, still standing"
+   }
+  },
+  {
+   "say": "Archaeologists have found dozens of bakeries in the excavated part of the town. In some, loaves of bread were still sitting in the oven."
+  },
+  {
+   "say": "Out in the street, shutters are being lifted. The streets are paved with large, flat stones, and in places there are raised crossing stones, so that people could step over the water and mess without wetting their sandals.",
+   "show": {
+    "type": "image",
+    "query": "Pompeii street stepping stones",
+    "caption": "A Pompeii street with raised crossing stones"
+   }
+  },
+  {
+   "say": "Look closely and you can see ruts worn into the paving by years of cart wheels. The spacing between the stepping stones fits the width of a cart axle."
+  },
+  {
+   "say": "Along the main streets, there are small counter bars, set into the front of buildings. Hot food and wine were sold here, from large clay jars sunk into a masonry counter.",
+   "show": {
+    "type": "image",
+    "query": "Pompeii thermopolium",
+    "caption": "A thermopolium, a Roman street food counter"
+   }
+  },
+  {
+   "say": "These were called thermopolia. Someone on the way to work could stop, eat something warm, and carry on. It is not so different from a morning coffee stop today."
+  },
+  {
+   "say": "The town walls are covered in writing. Election notices painted in red, advertising which candidate a neighbour supported, and a good many messages that were scratched in by hand.",
+   "show": {
+    "type": "list",
+    "items": [
+     "Election slogans painted on shop walls",
+     "Jokes, insults, and love notes scratched into plaster",
+     "Prices, debts, and shopping lists",
+     "Quick notes left for friends"
+    ]
+   }
+  },
+  {
+   "say": "People wrote about ordinary things. Who owed money, which gladiator was admired, who had fallen in love, and who had been unkind. It is one of the warmest things the town left behind."
+  },
+  {
+   "say": "By midday the heat settles. The forum, the great open square at the centre of town, is busy with merchants, officials, and people simply passing the time.",
+   "show": {
+    "type": "image",
+    "query": "Pompeii forum ruins",
+    "caption": "The forum, the civic heart of the town"
+   }
+  },
+  {
+   "say": "Temples stand at one end. Markets and offices line the sides. This is where the town did its business, argued about its politics, and heard the news from the wider empire."
+  },
+  {
+   "say": "Not far away are the baths. Roman bathing was a daily habit, and it was as much about meeting people as it was about getting clean.",
+   "show": {
+    "type": "image",
+    "query": "Pompeii Stabian Baths",
+    "caption": "The Stabian Baths"
+   }
+  },
+  {
+   "say": "You would move from warm room to hot room to cold plunge, with conversation along the way. The heat came from furnaces beneath the floors, which warmed the rooms through hollow spaces and pipes."
+  },
+  {
+   "say": "In the afternoon, many families return home. The houses of Pompeii are built around open courtyards, with a pool in the floor to catch rain, and a small opening in the roof to let in the light.",
+   "show": {
+    "type": "image",
+    "query": "Pompeii house atrium impluvium",
+    "caption": "The atrium of a Pompeian house"
+   }
+  },
+  {
+   "say": "The wealthier homes are painted in deep reds and yellows, with gardens, fountains, and scenes of myth on the walls. The poorer homes are small and simple, and often just a room above a shop."
+  },
+  {
+   "say": "Most homes kept a little shrine for the household gods, with a painted snake or a small statue, and a lamp lit in the evening. A quiet daily gesture of care for the family."
+  },
+  {
+   "say": "There were things to remember about the ground itself. Seventeen years earlier, a strong earthquake had shaken the region and damaged much of the town. Rebuilding was still going on.",
+   "show": {
+    "type": "timeline",
+    "events": [
+     {
+      "year": "62",
+      "label": "A strong earthquake damages Pompeii and nearby towns"
+     },
+     {
+      "year": "62 to 79",
+      "label": "Rebuilding and repairs continue across the town"
+     },
+     {
+      "year": "79",
+      "label": "Vesuvius erupts"
+     }
+    ]
+   }
+  },
+  {
+   "say": "Small tremors were common in this region, and people lived with them. To the people of Pompeii, the mountain was a farm, a vineyard, a familiar shape on the horizon."
+  },
+  {
+   "say": "Its slopes were green and fertile, and grapes grew well in the volcanic soil. Pompeian wine was sold far beyond the town, and so was a salty fish sauce called garum, a favourite across the empire."
+  },
+  {
+   "say": "In the evening, lamps are lit in the windows. The streets quieten. At the amphitheatre, which could seat around twenty thousand people, the crowds have gone home, and the sand is raked.",
+   "show": {
+    "type": "image",
+    "query": "Pompeii amphitheatre",
+    "caption": "The amphitheatre of Pompeii"
+   }
+  },
+  {
+   "say": "Somewhere, a child is being put to bed. Somewhere, a cook is banking the fire. Someone is counting the day's takings and hoping tomorrow will be busier."
+  },
+  {
+   "say": "What happened next is known partly from a letter written by a young man called Pliny the Younger, who watched from across the bay and described it years afterwards to the historian Tacitus."
+  },
+  {
+   "say": "He wrote of a tall cloud rising above the mountain, shaped like an umbrella pine, a tree with a long trunk and a spreading top."
+  },
+  {
+   "say": "Today we call this kind of eruption Plinian, after him. The column of ash and pumice rose many kilometres into the sky, and then began to fall on the town downwind.",
+   "show": {
+    "type": "number",
+    "value": 30,
+    "suffix": " km",
+    "label": "approximate height of the eruption column (estimates vary)"
+   }
+  },
+  {
+   "say": "But all of that is still ahead. In this telling, it is still evening. The day has been long and the work is done."
+  },
+  {
+   "say": "A merchant closes his shop. A baker covers his dough. A neighbour calls a good night across the street."
+  },
+  {
+   "say": "We will leave the town here, in the lamplight, the way it was. Quiet, ordinary, and full of people who were simply living their lives."
+  },
+  {
+   "say": "The things they left behind, the bread, the writing on the walls, the little shrines, are why we still know their names and their days. Thank you for walking with me. Sleep well.",
+   "show": {
+    "type": "end",
+    "text": "Sleep well. Subscribe for the next quiet story.",
+    "product": "HUSH"
+   }
+  }
+ ]
+}

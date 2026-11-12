@@ -1,0 +1,64 @@
+name: Render
+
+# Every spec pushed under specs/ is rendered to an MP4 + thumbnail + upload pack and attached to a
+# GitHub release named after its date folder. Continuum Studio pulls new releases into Upload packs.
+on:
+  push:
+    branches: [main]
+    paths: ["specs/**"]
+  workflow_dispatch:
+    inputs:
+      specs:
+        description: "Glob of specs to render, e.g. specs/2026-11-13/*.json (blank = specs changed by the last push)"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: render-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      specs: ${{ steps.list.outputs.specs }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: list
+        run: python3 scripts/plan.py "${{ github.event.inputs.specs }}" "${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+
+  render:
+    needs: plan
+    if: needs.plan.outputs.specs != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 340
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix:
+        spec: ${{ fromJson(needs.plan.outputs.specs) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: System packages
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-inter fonts-crosextra-caladea fonts-dejavu-core fonts-noto-core > /dev/null
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -q -r requirements.txt
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/kokoro
+          key: kokoro-v1.0
+      - name: Render
+        run: python -m engine.render "${{ matrix.spec }}" --out out
+      - name: Attach to release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/publish.py "${{ matrix.spec }}" out

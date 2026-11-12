@@ -1,0 +1,19 @@
+{
+  "id": "2026-11-13-atlas-moon-half-short",
+  "channel": "Counterfactual Atlas",
+  "format": "short",
+  "title": "What if the Moon were twice as close? #shorts",
+  "thumb": "The Moon, twice as close",
+  "description": "Halve the distance to the Moon and the physics gets wild: a 9.7-day month, tidal pull 8 times stronger, and a Moon four times bigger in the sky.\n\nNumbers: average Earth–Moon distance 384,400 km; orbital period scales with distance^1.5 (Kepler's third law); tidal force scales with 1/distance^3.",
+  "tags": ["what if", "moon", "physics", "space", "tides", "kepler", "science"],
+  "links": [{"label": "Explore real places on your own missions with Daywild", "url": "https://daywild.continuumarc.tech"}],
+  "scenes": [
+    {"say": "What if the Moon were suddenly twice as close to Earth?", "show": {"type": "title", "text": "What if the Moon were twice as close?", "kicker": "Impossible what-if"}},
+    {"say": "Today it circles about three hundred and eighty-four thousand kilometres away. Halve that, and everything changes.", "show": {"type": "number", "from": 384400, "value": 192200, "unit": "km", "label": "Distance to the Moon, cut in half"}},
+    {"say": "Closer orbits are faster. A lunar month would shrink from twenty-seven days to under ten.", "show": {"type": "orbit", "ratio": 0.5, "a": "Today: 27.3-day orbit", "b": "Twice as close: 9.7 days"}},
+    {"say": "Tidal pull grows with the cube of closeness, so the Moon would tug on our oceans eight times harder.", "show": {"type": "bars", "title": "Tidal pull", "items": [{"label": "Today", "value": 1}, {"label": "Twice as close", "value": 8, "highlight": true}], "unit": "×"}},
+    {"say": "Coasts would face far bigger tides twice a day, and total solar eclipses would become an ordinary event.", "show": {"type": "say", "text": "Bigger tides, twice a day. *Total* *eclipses,* all the time."}},
+    {"say": "And at night, it would look four times bigger in the sky.", "show": {"type": "number", "value": 4, "unit": "×", "label": "the Moon's size in our sky (by area)"}},
+    {"say": "Follow for the next impossible what-if.", "show": {"type": "end", "text": "Follow for the next impossible what-if."}}
+  ]
+}
