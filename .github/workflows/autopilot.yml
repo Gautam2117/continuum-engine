@@ -5,19 +5,17 @@ name: Autopilot
 #  2. write scripts for every channel that is short of videos (today + next 2 days = a 2-day buffer)
 #  3. commit them, and start renders for anything new or stuck
 # Rendered videos land in releases; Continuum Studio pulls them in and schedules each at its publish time.
+# PAUSED (12 Nov 2026): the schedule is removed on purpose. Only Counterfactual Atlas is automated (3 uploads a day);
+# every other channel is made on request. Add the cron lines back only after a checked quality batch.
 on:
-  schedule:
-    - cron: "23 3 * * *"
-    - cron: "23 9 * * *"
-    - cron: "23 15 * * *"
-    - cron: "23 21 * * *"
   workflow_dispatch:
     inputs:
       days:
         description: "Days ahead to fill (today included)"
         default: "3"
       only:
-        description: "Only this channel (exact name), blank = all"
+        description: "Channel (exact name)"
+        default: "Counterfactual Atlas"
         required: false
 
 permissions:
@@ -53,9 +51,7 @@ jobs:
         timeout-minutes: 40          # a long run must still commit what it wrote; the next run continues
         continue-on-error: true
         run: |
-          ONLY=""
-          if [ -n "${{ github.event.inputs.only }}" ]; then ONLY="--only ${{ github.event.inputs.only }}"; fi
-          python3 scripts/autopilot.py plan --days "${{ github.event.inputs.days || '3' }}" $ONLY
+          python3 scripts/autopilot.py plan --days "${{ github.event.inputs.days || '3' }}" --only "${{ github.event.inputs.only || 'Counterfactual Atlas' }}"
       - name: Check the new specs
         if: always()
         run: |
