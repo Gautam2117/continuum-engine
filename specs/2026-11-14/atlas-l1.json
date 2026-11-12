@@ -43,9 +43,8 @@
   {
    "say": "First, the hole. The Earth is not a solid ball of rock. It has a thin crust, a thick mantle, a liquid outer core, and a solid inner core made mostly of iron and nickel. Your tunnel has to cross every one of them, in a perfectly straight line.",
    "show": {
-    "type": "image",
-    "query": "Earth cross section layers structure",
-    "caption": "The layers of the Earth"
+    "type": "earth",
+    "mode": "layers"
    }
   },
   {
@@ -187,10 +186,11 @@
   {
    "say": "At the very centre, you would be moving fastest. In the simple model, that is about seven point nine kilometres per second, or roughly twenty-eight thousand kilometres per hour. That is almost exactly the speed of a satellite skimming the surface of the planet.",
    "show": {
-    "type": "number",
-    "value": 7.9,
-    "unit": "km/s",
-    "label": "Peak speed at the centre (simple model)"
+    "type": "earth",
+    "mode": "fall",
+    "minutes": 42.2,
+    "vmax": 7.9,
+    "caption": "Simple model: the Earth with the same density everywhere"
    }
   },
   {
@@ -270,9 +270,8 @@
   {
    "say": "Then there is geography. For most land on Earth, the opposite side is open ocean, so most tunnels would end under the sea and flood. Spain and New Zealand are famously close to being opposite each other, but that is the exception, not the rule.",
    "show": {
-    "type": "image",
-    "query": "Antipodes map world",
-    "caption": "Antipodes: points directly opposite each other"
+    "type": "say",
+    "text": "For most land, the opposite side is *ocean.*"
    }
   },
   {
@@ -310,7 +309,8 @@
   }
  ],
  "publishAt": "2026-11-14T13:53:00Z",
- "rev": 1,
+ "rev": 2,
+ "thumb_art": "earth",
  "meta": {
   "axis": "claude-written",
   "model": "claude-sonnet-5-5"

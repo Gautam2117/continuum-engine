@@ -67,6 +67,18 @@ def compact(n: float) -> str:
     return f"{n:,.2f}".rstrip("0").rstrip(".")
 
 
+def shown(n: float) -> str:
+    """A number as people read it: 10,935 not 11K; 8.85 not 8.8500."""
+    a = abs(n)
+    if a >= 1e6:
+        return compact(n)
+    if a >= 100:
+        return f"{n:,.0f}"
+    if a >= 10:
+        return f"{n:,.1f}".rstrip("0").rstrip(".")
+    return f"{n:,.2f}".rstrip("0").rstrip(".")
+
+
 class Backdrop:
     """The channel's background: gradient + motif, slightly larger than the frame so it can drift."""
 
@@ -248,8 +260,9 @@ def scene_number(c: Ctx, dur: float, p: dict, words: list[str]) -> Iterator[Imag
         txt = prefix + (f"{v:,.{int(exact)}f}" if abs(value) < 1e7 else compact(v))
         tw = d.textlength(txt, font=nf)
         size = nf
-        if tw > c.W - 2 * c.margin:
-            size = font(s.display, int(nf.size * (c.W - 2 * c.margin) / tw))
+        uw = (d.textlength(unit, font=uf) + c.u * 2) if unit else 0
+        if tw + uw > c.W - 2 * c.margin:
+            size = font(s.display, int(nf.size * (c.W - 2 * c.margin - uw) / tw))
             tw = d.textlength(txt, font=size)
         y = c.H * 0.36
         d.text((c.margin, y), txt, font=size, fill=rgb(s.ink))
@@ -290,7 +303,7 @@ def scene_bars(c: Ctx, dur: float, p: dict, words: list[str]) -> Iterator[Image.
             bh = max(c.u * 2.2, row * 0.32)
             hi = it.get("highlight")
             d.rounded_rectangle([c.margin, by, c.margin + max(bw, c.u), by + bh], radius=bh / 2, fill=rgb(s.accent) if hi else (*rgb(s.ink), 90))
-            d.text((c.margin + bw + c.u * 1.5, by + bh / 2 - vf.size * 0.6), f"{compact(float(it['value']) * k)}{unit}", font=vf, fill=(*rgb(s.ink), int(255 * k)))
+            d.text((c.margin + bw + c.u * 1.5, by + bh / 2 - vf.size * 0.6), f"{shown(float(it['value']) * k)}{unit}", font=vf, fill=(*rgb(s.ink), int(255 * k)))
         yield img.convert("RGB")
 
 
@@ -534,6 +547,81 @@ def scene_end(c: Ctx, dur: float, p: dict, words: list[str]) -> Iterator[Image.I
         yield img.convert("RGB")
 
 
+EARTH_LAYERS = (  # (outer radius as a share of Earth's 6,371 km radius, label, how strongly it is drawn)
+    (1.0, "Mantle", 0.16),
+    (3480 / 6371, "Outer core: liquid", 0.45),
+    (1221 / 6371, "Inner core: solid", 1.0),
+)
+
+
+def draw_earth(img: Image.Image, cx: float, cy: float, R: float, s: Style, reveal: float = 1.0, labels: bool = False, fnt=None):
+    """Cut-away of the Earth: mantle, liquid outer core, solid inner core. reveal 0..1 draws the layers from the outside in."""
+    layer = Image.new("RGBA", img.size, (0, 0, 0, 0))  # drawn on its own layer so the alpha blends instead of replacing
+    d = ImageDraw.Draw(layer)
+    acc, ink, muted = rgb(s.accent), rgb(s.ink), rgb(s.muted)
+    n = len(EARTH_LAYERS)
+    for i, (frac, label, strength) in enumerate(EARTH_LAYERS):
+        k = max(0.0, min(1.0, reveal * n - i))
+        if k <= 0:
+            continue
+        r = R * frac
+        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(*acc, int(255 * strength * k)), outline=(*ink, int(200 * k)), width=max(2, int(R * 0.012)))
+        if labels and fnt is not None:
+            inner = EARTH_LAYERS[i + 1][0] if i + 1 < n else 0.0
+            ly = cy - R * (frac + inner) / 2 if inner else cy
+            lx = cx + R * 1.08
+            d.line([(cx, ly), (lx - R * 0.04, ly)], fill=(*muted, int(160 * k)), width=2)
+            d.text((lx, ly - fnt.size * 0.6), label, font=fnt, fill=(*ink, int(255 * k)))
+    img.alpha_composite(layer)
+
+
+def scene_earth(c: Ctx, dur: float, p: dict, words: list[str]) -> Iterator[Image.Image]:
+    """The Earth in cross-section. mode "layers": the layers build up. mode "fall": a tunnel through the centre with a falling
+    marker, a clock and a speed readout, in the simple uniform-density model (simple harmonic motion)."""
+    s = c.style
+    mode = p.get("mode", "layers")
+    minutes = float(p.get("minutes", 42.2))
+    vmax = float(p.get("vmax", 7.9))
+    cap = p.get("caption", "")
+    if c.vertical:
+        cx, cy, R = c.W * 0.36, c.H * 0.40, c.W * 0.27
+    else:
+        cx, cy, R = c.W * 0.32, c.H * 0.54, c.H * 0.36
+    lf = font(s.body, int(c.u * 3.1))
+    vf = font(s.display, int(c.u * 6.2))
+    cf = font(s.body, int(c.u * 2.8))
+    for i in range(int(dur * FPS)):
+        t = i / FPS
+        img, d = c.canvas(t)
+        c.badge(d)
+        reveal = ease(t / min(2.4, dur * 0.5))
+        if mode == "layers":
+            draw_earth(img, cx, cy, R, s, reveal, labels=True, fnt=lf)
+        else:
+            draw_earth(img, cx, cy, R, s, 1.0)
+            d = ImageDraw.Draw(img, "RGBA")
+            run = max(0.5, dur - 1.2)
+            tau = max(0.0, min(1.0, (t - 0.6) / run))
+            ball = -math.cos(math.pi * tau)  # -1 = top, +1 = far side
+            by = cy + R * ball
+            d.line([(cx, cy - R), (cx, cy + R)], fill=(*rgb(s.ink), 150), width=max(2, int(c.u * 0.45)))
+            r = c.u * 1.9
+            d.ellipse([cx - r, by - r, cx + r, by + r], fill=rgb(s.bg), outline=rgb(s.ink), width=max(2, int(c.u * 0.5)))
+            sec = tau * minutes * 60
+            speed = vmax * math.sin(math.pi * tau)
+            tx = cx + R * 1.25 if not c.vertical else c.margin
+            ty = cy - R * 0.55 if not c.vertical else cy + R * 1.2
+            d.text((tx, ty), f"{int(sec // 60):02d}:{int(sec % 60):02d}", font=vf, fill=rgb(s.ink))
+            d.text((tx, ty + vf.size * 1.15), "elapsed", font=cf, fill=rgb(s.muted))
+            sx = tx if not c.vertical else c.W / 2 + c.u * 4
+            sy = ty + vf.size * 2.6 if not c.vertical else ty
+            d.text((sx, sy), f"{speed:.1f} km/s", font=vf, fill=rgb(s.accent))
+            d.text((sx, sy + vf.size * 1.15), "speed", font=cf, fill=rgb(s.muted))
+        if cap:
+            d.text((c.margin, c.H - c.margin - cf.size * 1.4), cap, font=cf, fill=rgb(s.muted))
+        yield img.convert("RGB")
+
+
 SCENES = {
     "title": scene_title,
     "say": scene_say,
@@ -545,6 +633,7 @@ SCENES = {
     "list": scene_list,
     "timeline": scene_timeline,
     "verdict": scene_verdict,
+    "earth": scene_earth,
     "end": scene_end,
 }
 

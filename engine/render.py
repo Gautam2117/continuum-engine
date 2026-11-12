@@ -100,11 +100,14 @@ def thumbnail(spec: dict, style, path: pathlib.Path, image: Image.Image | None):
         for x in range(int(W * 0.25)):
             fd.line([(int(W * 0.45) + x, 0), (int(W * 0.45) + x, H)], fill=(*rgb(style.bg), int(255 * (1 - x / (W * 0.25)))))
         img.alpha_composite(fade)
+    art = spec.get("thumb_art") == "earth" and image is None
+    if art:  # drawn art instead of a stock image: the Earth in cross-section
+        S.draw_earth(img, W * 0.76, H * 0.52, H * 0.40, style, 1.0)
     d = ImageDraw.Draw(img, "RGBA")
     hook = spec.get("thumb") or spec["title"]
     if style.caps_titles:
         hook = hook.upper()
-    f, lines = S.fit_font(d, hook, style.display, int(W * (0.5 if image is not None else 0.84)), 128, 3, 48)
+    f, lines = S.fit_font(d, hook, style.display, int(W * (0.5 if (image is not None or art) else 0.84)), 128, 3, 48)
     y = H / 2 - len(lines) * f.size * 1.05 / 2
     for li, line in enumerate(lines):
         col = rgb(style.accent) if li == len(lines) - 1 else rgb(style.ink)

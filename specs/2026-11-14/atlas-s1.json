@@ -106,7 +106,7 @@
   }
  ],
  "publishAt": "2026-11-14T14:07:00Z",
- "rev": 1,
+ "rev": 2,
  "meta": {
   "axis": "claude-written",
   "model": "claude-sonnet-5-5"
