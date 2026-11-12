@@ -190,7 +190,7 @@
     "mode": "fall",
     "minutes": 42.2,
     "vmax": 7.9,
-    "caption": "Simple model: the Earth with the same density everywhere"
+    "speed_label": "speed (simple model)"
    }
   },
   {

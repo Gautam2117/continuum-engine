@@ -616,7 +616,7 @@ def scene_earth(c: Ctx, dur: float, p: dict, words: list[str]) -> Iterator[Image
             sx = tx if not c.vertical else c.W / 2 + c.u * 4
             sy = ty + vf.size * 2.6 if not c.vertical else ty
             d.text((sx, sy), f"{speed:.1f} km/s", font=vf, fill=rgb(s.accent))
-            d.text((sx, sy + vf.size * 1.15), "speed", font=cf, fill=rgb(s.muted))
+            d.text((sx, sy + vf.size * 1.15), p.get("speed_label", "speed"), font=cf, fill=rgb(s.muted))
         if cap:
             d.text((c.margin, c.H - c.margin - cf.size * 1.4), cap, font=cf, fill=rgb(s.muted))
         yield img.convert("RGB")
