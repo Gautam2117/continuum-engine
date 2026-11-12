@@ -18,6 +18,7 @@ import wave
 import numpy as np
 from PIL import Image, ImageDraw
 
+from . import emoji, stage
 from . import scenes as S
 from .fonts import font
 from .pad import pad as ambient
@@ -142,7 +143,18 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
         voice[i:i + len(audio)] += audio
         cursor += dur
     bed = ambient(len(voice) / SR, style.pad, SR, seed=len(spec["id"]))
-    mix = voice * 0.95 + bed
+    sfx = np.zeros_like(voice)
+    wh, pp = stage.whoosh(), stage.pop()
+    cursor = 0.0
+    for si, (sc, audio, dur) in enumerate(plan):
+        if si:
+            i = int((cursor - 0.02) * SR)
+            sfx[i:i + len(wh)] += wh[: len(sfx) - i]
+        if (sc.get("show") or {}).get("type") not in ("title", "end"):
+            i = int((cursor + 0.28) * SR)
+            sfx[i:i + len(pp)] += pp[: max(0, len(sfx) - i)]
+        cursor += dur
+    mix = voice * 0.95 + bed + sfx
     # gentle fade in/out
     fade = int(0.6 * SR)
     mix[:fade] *= np.linspace(0, 1, fade)
@@ -156,16 +168,29 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
         "ffmpeg", "-y", "-loglevel", "error",
         "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(S.FPS), "-i", "-",
         "-i", str(wav),
-        "-c:v", "libx264", "-preset", "veryfast", "-crf", "19", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
+        "-c:v", "libx264", "-preset", "veryfast", "-crf", "24" if fmt == "long" else "22", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
         "-c:a", "aac", "-b:a", "160k", "-shortest", str(video),
     ], stdin=subprocess.PIPE)
+    layout = stage.Layout(W, H, fmt)
     bd = S.Backdrop(style, W, H, seed=len(spec["id"]))
-    ctx = S.Ctx(style, W, H, bd, spec["channel"])
+    ctx = S.Ctx(style, W, layout.view_h, bd, spec["channel"], vertical=layout.vertical)
+    slug = style.slug
     first_image = None
-    for sc, audio, dur in plan:
+    elapsed = 0.0
+    prev_full = None
+    for si, (sc, audio, dur) in enumerate(plan):
         show = dict(sc.get("show") or {"type": "say"})
         kind = show.pop("type")
-        words = sc.get("say", "").split()
+        say = sc.get("say", "")
+        words = say.split()
+        ems = sc.get("emoji")
+        ems = [ems] if isinstance(ems, str) else (ems or emoji.pick(say))
+        if kind == "say" and ems:
+            show["hero"], ems = ems[0], []
+        if kind in ("title", "end"):
+            ems = ems[:1]
+        cfg = {"captions": not (slug == "drift" and fmt == "long"), "host": sc.get("host", True)}
+        stg = stage.Scene(layout, style, slug, spec["channel"], kind, say, dur, audio, ems, cfg, first=(si == 0))
         fn = S.SCENES[kind]
         if kind == "image":
             im = fetch_image(show)
@@ -173,12 +198,26 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
             frames = fn(ctx, dur, show, words, image=im)
         else:
             frames = fn(ctx, dur, show, words)
-        n = int(dur * S.FPS)
-        cap = fmt == "short" and kind not in ("say", "title", "end")
-        for k, frame in enumerate(frames):
-            if cap:
-                frame = S.captions(frame, ctx, words, min(1.0, k / max(1, n) * 1.05))
-            ff.stdin.write(frame.tobytes())
+        for k, vframe in enumerate(frames):
+            t = k / S.FPS
+            view = stg.camera(vframe, t)
+            stg.paint_stickers(view, t)
+            if layout.vertical:
+                full = bd.frame(t).convert("RGB")
+                full.paste(view, (0, 0))
+            else:
+                full = view
+            if prev_full is not None and t < 0.3:
+                full = stage.push(prev_full, full, stage.ease(t / 0.3), layout.vertical)
+            full = full.convert("RGBA")
+            stg.paint_host(full, t, k)
+            if stg.caps:
+                stg.caps.draw(full, t)
+            stage.progress_bar(full, style, (elapsed + t) / total, layout.vertical)
+            out_frame = full.convert("RGB")
+            ff.stdin.write(out_frame.tobytes())
+        prev_full = out_frame
+        elapsed += dur
     ff.stdin.close()
     if ff.wait() != 0:
         raise SystemExit("ffmpeg failed")

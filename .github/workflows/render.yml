@@ -46,7 +46,7 @@ jobs:
       - name: System packages
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq ffmpeg fonts-inter fonts-crosextra-caladea fonts-dejavu-core fonts-noto-core > /dev/null
+          sudo apt-get install -y -qq ffmpeg fonts-inter fonts-crosextra-caladea fonts-dejavu-core fonts-noto-core fonts-noto-color-emoji > /dev/null
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

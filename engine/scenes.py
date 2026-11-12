@@ -11,6 +11,7 @@ from typing import Iterator
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
+from . import emoji as _emoji
 from .fonts import font
 from .styles import Style, rgb
 
@@ -111,15 +112,31 @@ class Backdrop:
 
 
 class Ctx:
-    def __init__(self, style: Style, W: int, H: int, backdrop: Backdrop, channel: str):
+    def __init__(self, style: Style, W: int, H: int, backdrop: Backdrop, channel: str, vertical: bool | None = None):
+        """W x H is the viewport scenes draw into; the backdrop may be taller (Shorts keep room for captions)."""
         self.style, self.W, self.H, self.bd, self.channel = style, W, H, backdrop, channel
         self.u = min(W, H) / 100  # one unit = 1% of the short side
-        self.vertical = H > W
+        self.vertical = (H > W) if vertical is None else vertical
+        if self.vertical:
+            self.u = W / 100
         self.margin = int(self.u * (7 if self.vertical else 8))
+        rng = np.random.default_rng(11)
+        # floating bokeh: x, y0, radius (units), speed, phase, alpha
+        self.motes = [(rng.random(), rng.random(), rng.uniform(0.35, 1.3), rng.uniform(0.012, 0.04), rng.random() * 6.28, int(rng.integers(14, 38))) for _ in range(20)]
 
     def canvas(self, t: float):
-        img = self.bd.frame(t).convert("RGBA")
-        return img, ImageDraw.Draw(img, "RGBA")
+        img = self.bd.frame(t).crop((0, 0, self.W, self.H)).convert("RGBA")
+        d = ImageDraw.Draw(img, "RGBA")
+        acc, ink = rgb(self.style.accent), rgb(self.style.ink)
+        for j, (mx, my, mr, sp, ph, al) in enumerate(self.motes):
+            y = (my - sp * t) % 1.15 - 0.05
+            x = mx + math.sin(t * 0.5 + ph) * 0.02
+            r = mr * self.u
+            fade = min(1.0, y * 6, (1.1 - y) * 6) if 0 <= y <= 1.1 else 0
+            if fade <= 0:
+                continue
+            d.ellipse([x * self.W - r, y * self.H - r, x * self.W + r, y * self.H + r], fill=(*(acc if j % 3 == 0 else ink), int(al * fade)))
+        return img, d
 
     def badge(self, d: ImageDraw.ImageDraw, alpha: int = 255):
         s = self.style
@@ -168,6 +185,8 @@ def scene_say(c: Ctx, dur: float, p: dict, words: list[str]) -> Iterator[Image.I
     probe = Image.new("RGB", (10, 10))
     pd = ImageDraw.Draw(probe)
     w = c.W - 2 * c.margin
+    if p.get("hero") and not c.vertical:
+        w = int(w * 0.62)
     f, _ = fit_font(pd, " ".join(tokens), s.display, w, int(c.u * (9.5 if c.vertical else 7.5)), 5 if c.vertical else 4)
     # lay out word positions once
     space = pd.textlength(" ", font=f)
@@ -181,7 +200,8 @@ def scene_say(c: Ctx, dur: float, p: dict, words: list[str]) -> Iterator[Image.I
         lines[-1].append(idx)
         x += tw + space
     lh = f.size * 1.18
-    y0 = c.H / 2 - lh * len(lines) / 2
+    hero = p.get("hero")
+    y0 = c.H * (0.56 if c.vertical else 0.36) if hero else c.H / 2 - lh * len(lines) / 2
     pos = {}
     for li, line in enumerate(lines):
         x = 0.0
@@ -193,6 +213,13 @@ def scene_say(c: Ctx, dur: float, p: dict, words: list[str]) -> Iterator[Image.I
         t = i / FPS
         img, d = c.canvas(t)
         c.badge(d)
+        if hero:
+            k = max(0.0, 1 - math.exp(-6 * t) * math.cos(10 * t)) if t > 0 else 0.0
+            sp = _emoji.sprite(hero, max(8, int((c.W * 0.34 if c.vertical else c.H * 0.3) * max(k, 0.05))))
+            if sp is not None:
+                sp = sp.rotate(math.sin(t * 2.2) * 7, resample=Image.BICUBIC, expand=True)
+                hx, hy = (c.W / 2, c.H * 0.3) if c.vertical else (c.W * 0.8, c.H * 0.42)
+                img.paste(sp, (int(hx - sp.width / 2), int(hy - sp.height / 2 + math.sin(t * 2.6) * c.H * 0.012)), sp)
         for idx, tok in enumerate(tokens):
             appear = 0.1 + reveal_span * idx / max(1, len(tokens))
             k = ease((t - appear) / 0.35)
@@ -520,28 +547,6 @@ SCENES = {
     "verdict": scene_verdict,
     "end": scene_end,
 }
-
-
-def captions(img: Image.Image, c: Ctx, words: list[str], progress: float) -> Image.Image:
-    """Burned-in captions for Shorts: the current 4–6 word chunk, current word in the accent colour."""
-    if not words:
-        return img
-    s = c.style
-    chunk = 5
-    idx = min(len(words) - 1, int(progress * len(words)))
-    start = (idx // chunk) * chunk
-    group = words[start:start + chunk]
-    f = font(s.display, int(c.u * 6.2))
-    d = ImageDraw.Draw(img)
-    total = d.textlength(" ".join(group), font=f)
-    x = (c.W - total) / 2
-    y = c.H * 0.72
-    sw = max(2, int(c.u * 0.5))
-    for j, w in enumerate(group):
-        col = rgb(s.accent) if start + j == idx else rgb(s.ink)
-        d.text((x, y), w, font=f, fill=col, stroke_width=sw, stroke_fill=(0, 0, 0))
-        x += d.textlength(w + " ", font=f)
-    return img
 
 
 random.seed(7)
