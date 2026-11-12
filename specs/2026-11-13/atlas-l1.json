@@ -1,0 +1,332 @@
+{
+ "id": "2026-11-13-atlas-l1",
+ "channel": "Counterfactual Atlas",
+ "format": "long",
+ "title": "The One-Second Solar Disappearance",
+ "thumb": "The Sun Vanishes",
+ "description": "What happens to Earth if the Sun suddenly disappears for a single second? We explore how gravity and light travel together at the speed of light. This scenario tests the fundamental limits of spacetime curvature and causality.\n\nSources (Wikipedia, CC BY-SA):\n- Speed of gravity: https://en.wikipedia.org/wiki/Speed_of_gravity\n- Gravity: https://en.wikipedia.org/wiki/Gravity\n\nNarration is a synthetic voice. Script and visuals are produced with AI tools and checked by automated quality gates.",
+ "tags": [
+  "physics",
+  "astronomy",
+  "general relativity",
+  "solar system",
+  "gravity",
+  "speed of light",
+  "spacetime",
+  "science",
+  "what if",
+  "counterfactual",
+  "space",
+  "explained"
+ ],
+ "links": [
+  {
+   "label": "Explore real places on your own missions with Daywild",
+   "url": "https://daywild.continuumarc.tech"
+  }
+ ],
+ "publishAt": "2026-11-13T14:02:00Z",
+ "meta": {
+  "generator": "autopilot",
+  "topic": "What if the Sun vanished for one second?",
+  "axis": "astronomy and orbits",
+  "slot": "14:00",
+  "review": {
+   "hook": null,
+   "originality": null,
+   "accuracy": null
+  },
+  "model": "gemini:gemma-4-26b-a4b-it"
+ },
+ "scenes": [
+  {
+   "say": "What happens if the Sun vanishes for exactly one second?",
+   "show": {
+    "type": "title",
+    "text": "The One Second Void",
+    "kicker": "A physics experiment"
+   },
+   "emoji": "☀️"
+  },
+  {
+   "say": "For that one second, the center of our solar system becomes an empty void. But for the Earth, nothing changes. We remain in orbit, bathed in warmth, completely unaware that our star has ceased to exist.",
+   "show": {
+    "type": "image",
+    "query": "sun in space",
+    "caption": "The Sun at the center of the solar system"
+   },
+   "emoji": "🌑"
+  },
+  {
+   "say": "The reason for this delay is a fundamental constant of the universe. Both light and gravity travel at the same speed: two hundred and ninety-nine thousand seven hundred and ninety-two,four hundred and fifty-eight meters per second. This is the speed of light, or c. Because the Sun is roughly one hundred and fifty million kilometers away, it takes light about eight minutes and twenty seconds to reach us. Gravity works the same way. The gravitational waves created by the Sun's sudden disappearance travel at this exact same velocity. This means the news of the Sun's absence won't reach Earth for over eight minutes. Until then, the Earth continues its path as if nothing happened. We are effectively traveling through a ghost solar system, held in place by a gravitational pull that has already vanished, but hasn't arrived here yet. Why does the universe wait so long to react?",
+   "show": {
+    "type": "number",
+    "from": 0,
+    "value": 299792458,
+    "unit": "m/s",
+    "label": "Speed of gravity and light",
+    "prefix": "c = ",
+    "decimals": 0
+   },
+   "emoji": "⏳"
+  },
+  {
+   "say": "The delay exists because nothing in nature can travel faster than light.",
+   "show": {
+    "type": "say",
+    "text": "The universal speed limit",
+    "hero": "🚀"
+   },
+   "emoji": "🌌"
+  },
+  {
+   "say": "In physics, this constant, c, is more than just the speed of photons. It is the maximum speed for any interaction in the universe. Whether it is a particle of light or a ripple in the fabric of spacetime, the limit is absolute.",
+   "show": {
+    "type": "bars",
+    "title": "Maximum Interaction Speed",
+    "unit": "m/s",
+    "items": [
+     {
+      "label": "Light",
+      "value": 299792458,
+      "highlight": true
+     },
+     {
+      "label": "Gravity",
+      "value": 299792458
+     },
+     {
+      "label": "Information",
+      "value": 299792458
+     }
+    ]
+   },
+   "emoji": "⚖️"
+  },
+  {
+   "say": "General relativity tells us that gravity isn't an instant pull. It is a wave. When the Sun disappears, it sends a gravitational wave rippling outward through the vacuum. This wave carries the news of the Sun's absence, moving at exactly two hundred and ninety-nine thousand seven hundred and ninety-two,four hundred and fifty-eight meters per second.",
+   "show": {
+    "type": "orbit",
+    "ratio": 0.5,
+    "a": "Sun's position: Present",
+    "b": "Gravity wave: Traveling at c"
+   },
+   "emoji": "🌊"
+  },
+  {
+   "say": "Because gravity and light share this same cosmic speed limit, the two signals arrive at Earth simultaneously. The darkness and the loss of weight hit us at the exact same moment. But how much time do we actually have to prepare before that invisible wave reaches our orbit?",
+   "show": {
+    "type": "number",
+    "from": 0,
+    "value": 500,
+    "unit": "s",
+    "label": "Seconds of warning",
+    "prefix": "roughly ",
+    "decimals": 0
+   },
+   "emoji": "⏳"
+  },
+  {
+   "say": "Earth orbits roughly one hundred and fifty million kilometers away from the Sun. Light and gravity both travel at the speed of light, which is about three hundred thousand kilometers per second. This means it takes approximately five hundred seconds, or eight minutes and twenty seconds, for any change at the solar core to reach our planet. For those final eight minutes, Earth continues along its path as if nothing happened. The Sun is gone, but its gravitational influence is still locked into the curvature of spacetime across the inner solar system. We are essentially living in a temporal blind spot, coasting on a ghost force that has already been severed at the source.",
+   "show": {
+    "type": "number",
+    "from": 0,
+    "value": 150000000,
+    "unit": "km",
+    "label": "Distance to Sun",
+    "prefix": "",
+    "decimals": 0
+   },
+   "emoji": "☀️🌍"
+  },
+  {
+   "say": "To understand why we keep orbiting, imagine a tightrope walker who steps off a ledge. For a split second, their momentum carries them forward before they feel the pull of gravity. Similarly, Earth's orbital velocity maintains its current path because the information that the Sun has vanished is still traveling through the vacuum of space. The spacetime fabric in our local neighborhood remains curved, holding us in place. We are essentially riding the momentum of a Sun that no longer exists, unaware that the physical reality of our solar system has already fundamentally changed.",
+   "show": {
+    "type": "bars",
+    "title": "Signal Travel Time",
+    "unit": "seconds",
+    "items": [
+     {
+      "label": "Light",
+      "value": 500
+     },
+     {
+      "label": "Gravity",
+      "value": 500,
+      "highlight": true
+     }
+    ]
+   },
+   "emoji": "⏳🌌"
+  },
+  {
+   "say": "During this eight-minute grace period, the planets remain in their stable orbits. But this buffer is strictly finite. Once the wave of nothingness covers that one hundred and fifty million kilometer gap, the curvature of spacetime will snap back to a flat geometry. The gravitational tether will effectively evaporate in an instant. The Earth will lose its centripetal force and begin its journey into deep space. But before that happens, we must consider the final transition. What happens when that invisible wave of vanishing gravity finally hits our atmosphere and the first ripples of darkness arrive?",
+   "show": {
+    "type": "say",
+    "text": "The clock is ticking",
+    "hero": "⏰"
+   },
+   "emoji": "🌑🚀"
+  },
+  {
+   "say": "The arrival is not a slow fade. It is a sudden, total event.",
+   "show": {
+    "type": "say",
+    "text": "Total Event",
+    "hero": "🌑"
+   },
+   "emoji": "🌑"
+  },
+  {
+   "say": "At the exact same moment the last photon hits your eyes, the invisible curvature of spacetime flattens. For billions of years, the Sun's mass has bent the fabric of the universe, creating a well that keeps us trapped in orbit. When that mass vanishes, the well disappears. The wave of gravitational change travels at exactly two hundred and ninety-nine thousand seven hundred and ninety-two,four hundred and fifty-eight meters per second.",
+   "show": {
+    "type": "number",
+    "from": 0,
+    "value": 299792458,
+    "unit": "m/s",
+    "label": "Speed of gravity",
+    "prefix": "c =",
+    "decimals": 0
+   },
+   "emoji": "🌊"
+  },
+  {
+   "say": "Imagine a heavy bowling ball resting on a trampoline. That ball is the Sun, and the dip it creates is our orbit. If the ball is suddenly deleted, the fabric doesn't slowly rise. It snaps back to a flat state as the ripple passes through our position.",
+   "show": {
+    "type": "fall",
+    "height": 30,
+    "items": [
+     {
+      "label": "Massive Sun",
+      "g": 9.8
+     },
+     {
+      "label": "Empty Space",
+      "g": 0
+     }
+    ]
+   },
+   "emoji": "📉"
+  },
+  {
+   "say": "This isn't just a loss of light; it is a loss of geometry. The centripetal force that has dictated our path for four point five billion years simply ceases to exist. We are no longer circling a center. We are now travelers on a straight line, moving at thirty kilometers per second into the void.",
+   "show": {
+    "type": "bars",
+    "title": "Orbital Velocity",
+    "unit": "km/s",
+    "items": [
+     {
+      "label": "Before",
+      "value": 30
+     },
+     {
+      "label": "After",
+      "value": 30,
+      "highlight": true
+     }
+    ]
+   },
+   "emoji": "🚀"
+  },
+  {
+   "say": "The darkness is absolute, and the tether is gone. We are adrift in a universe that no longer recognizes our connection to the center. But as we fly into the cold, a deeper question remains. Can the Earth ever find its way back, or has the solar system been permanently broken?",
+   "show": {
+    "type": "end",
+    "text": "Is the damage permanent?",
+    "product": ""
+   },
+   "emoji": "❓"
+  },
+  {
+   "say": "The Sun vanished for one second, but the loss of gravity travels at light speed. Gravity is the fundamental interaction pulling Earth toward the center of our solar system. Without that force for one second, Earth stops moving in a circle and travels in a straight line. Because the Sun is one hundred and fifty million kilometers away, that gravitational ripple takes five hundred seconds to reach us. For those five hundred seconds, we remain in our normal orbit while the darkness chases the light. We are essentially coasting on momentum, unaware that the tether has been cut. It is a slow-motion departure from our home, dictated by the universal speed limit of light.",
+   "show": {
+    "type": "number",
+    "from": 0,
+    "value": 500,
+    "unit": "seconds",
+    "label": "Time for gravity to vanish",
+    "prefix": "Delay: ",
+    "decimals": 0
+   },
+   "emoji": "☀️🌑"
+  },
+  {
+   "say": "Once the missing gravity reaches Earth, our path through the galaxy shifts permanently. We have traveled in a straight line for those five hundred seconds, covering roughly fifteen thousand kilometers away from our original orbital path. When the Sun reappears, gravity resumes, but we are no longer where we started. We are now on a slightly altered trajectory, swinging wide of our perfect yearly circle. The Earth begins a new, elongated ellipse that carries us further into the cold. We are no longer tethered to the same stable path we occupied for billions of years. A single second of silence has redefined our entire journey around the star.",
+   "show": {
+    "type": "bars",
+    "title": "Orbital Deviation",
+    "unit": "km",
+    "items": [
+     {
+      "label": "Original Path",
+      "value": 0
+     },
+     {
+      "label": "New Deviation",
+      "value": 15000,
+      "highlight": true
+     }
+    ]
+   },
+   "emoji": "🌍🛰️"
+  },
+  {
+   "say": "The solar system remains, but the geometry of our existence has been fundamentally broken. We are drifting on a new course, moving at thirty kilometers per second through the void. This tiny shift in our orbit is enough to change the climate and seasons over thousands of years. We are now explorers on a path we never intended to travel. The question of our return is now answered by the math of orbital mechanics. The system is not restored; it is permanently altered by our brief moment in the dark. We are forever separated from the path we once called home.",
+   "show": {
+    "type": "end",
+    "text": "The path is permanently altered.",
+    "product": "Counterfactual Atlas"
+   },
+   "emoji": "🌌⌛"
+  },
+  {
+   "say": "The timeline is precise. Exactly eight minutes and twenty seconds after the disappearance, the light and the gravity arrive at Earth simultaneously.",
+   "show": {
+    "type": "timeline",
+    "events": [
+     {
+      "year": "T+0s",
+      "label": "Sun vanishes"
+     },
+     {
+      "year": "T+500s",
+      "label": "Darkness approaches"
+     },
+     {
+      "year": "T+500s",
+      "label": "Gravity wave arrives"
+     }
+    ]
+   },
+   "emoji": "⏳"
+  },
+  {
+   "say": "For one second, the universe forgets the Sun existed. The photon stream stops. The curvature of spacetime flattens. In that single second, the fundamental connection between our world and its star is severed.",
+   "show": {
+    "type": "say",
+    "text": "A 1-second gap in reality.",
+    "hero": "🌑"
+   },
+   "emoji": "🌌"
+  },
+  {
+   "say": "When the second ends, the physics do not reset. The Sun is gone, but Earth continues its journey. Our velocity remains thirty kilometers per second, but our path has shifted. We are no longer in a perfect circle, but a slightly wider ellipse. The gravitational pull that once held us in a stable dance has been replaced by a new, permanent trajectory. The one-second void was not a glitch in the system; it was a ripple that re-wrote the geometry of our solar system. We are not returning to the old orbit. We are simply moving forward in a new one.",
+   "show": {
+    "type": "orbit",
+    "ratio": 0.5,
+    "a": "Original: Circular orbit",
+    "b": "After: Slightly elliptical"
+   },
+   "emoji": "🛰️"
+  },
+  {
+   "say": "The void has passed, but the silence remains.",
+   "show": {
+    "type": "end",
+    "text": "The geometry has changed forever.",
+    "product": "Counterfactual Atlas"
+   },
+   "emoji": "✨"
+  }
+ ]
+}
