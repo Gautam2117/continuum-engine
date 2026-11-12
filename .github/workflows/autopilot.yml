@@ -50,14 +50,19 @@ jobs:
         run: python3 scripts/autopilot.py learn
       - name: Plan
         id: plan
+        timeout-minutes: 40          # a long run must still commit what it wrote; the next run continues
+        continue-on-error: true
         run: |
           ONLY=""
           if [ -n "${{ github.event.inputs.only }}" ]; then ONLY="--only ${{ github.event.inputs.only }}"; fi
           python3 scripts/autopilot.py plan --days "${{ github.event.inputs.days || '3' }}" $ONLY
       - name: Check the new specs
+        if: always()
         run: |
-          if [ -n "${{ steps.plan.outputs.new }}" ]; then python3 scripts/validate.py --strict ${{ steps.plan.outputs.new }}; fi
+          NEW="$(git ls-files --others --exclude-standard specs | grep '\.json$' || true)"
+          if [ -n "$NEW" ]; then python3 scripts/validate.py --strict $NEW; fi
       - name: Commit
+        if: always()
         run: |
           git config user.name "continuum-autopilot"
           git config user.email "autopilot@users.noreply.github.com"
@@ -68,8 +73,10 @@ jobs:
           fi
       - name: Find specs that never rendered
         id: heal
+        if: always()
         run: python3 scripts/autopilot.py heal
       - name: Start renders
+        if: always()
         run: |
           TODO="${{ steps.plan.outputs.new }} ${{ steps.heal.outputs.heal }}"
           TODO="$(echo $TODO | xargs -n1 | sort -u | xargs)"
