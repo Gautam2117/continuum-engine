@@ -1,5 +1,5 @@
 {
- "at": "2026-11-12T15:52:37+00:00",
+ "at": "2026-11-12T16:00:05+00:00",
  "days": [
   "2026-11-12",
   "2026-11-13",
@@ -10,8 +10,8 @@
  ],
  "written": 0,
  "failed": [
-  "2026-11-12-atlas-l1: all providers failed; last: gemini/gemini-3.8-flash: 403 [{\n  \"error\": {\n    \"code\": 403,\n    \"message\": \"The Gemini API free tier is not available for this project. To use the Gemini API, please set up billing to upgrade to the paid tier at https://aistudio.google.com/billing. For more information, see https://ai.google.dev/gemini-api/docs/troubleshootin"
+  "2026-11-12-atlas-s1: all providers failed; last: gemini/gemini-3.8-flash: 403 [{\n  \"error\": {\n    \"code\": 403,\n    \"message\": \"Gemini API has not been used in project 830117264691 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/generativelanguage.googleapis.com/overview?project=830117264691 then retry. If you enabled this API rec"
  ],
- "calls": 4,
+ "calls": 5,
  "by_model": {}
 }
