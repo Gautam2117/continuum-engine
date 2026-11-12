@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import datetime as dt
 import json
+import os
+import time
 import pathlib
 import re
 
@@ -67,11 +69,14 @@ def exemplar(channel: str, fmt: str) -> str:
 class Planner:
     def __init__(self, llm: LLM, *, max_calls: int = 400, log=print):
         self.llm, self.max_calls, self.log = llm, max_calls, log
+        self.deadline = time.monotonic() + float(os.environ.get("AUTOPILOT_MAX_MINUTES", "34")) * 60
         self.topics: dict[tuple, list[dict]] = {}
 
     def _call(self, system: str, user: str, **kw):
         if self.llm.calls >= self.max_calls:
             raise LLMError("call budget for this run is used up")
+        if time.monotonic() > self.deadline:
+            raise LLMError("call budget: time limit for this run reached; the next run continues")
         return self.llm.complete(system, user, **kw)
 
     # ---- topics ---------------------------------------------------------------------------------
@@ -212,6 +217,7 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
     planner = Planner(llm, max_calls=max_calls, log=log)
     out = {"written": [], "skipped": [], "failed": []}
     ledger = insights.load("ledger.json", [])
+    strikes = 0
     for day in days:
         folder = SPECS / day.isoformat()
         for channel, pb in PLAYBOOKS.items():
@@ -237,12 +243,16 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
                     except LLMError as e:
                         out["failed"].append(f"{sid}: {e}")
                         log(f"  {sid}: stopped ({str(e)[:140]})")
-                        if "budget" in str(e) or "all providers failed" in str(e):
+                        if "budget" in str(e):
+                            return out
+                        strikes += 1
+                        if strikes >= 4:  # four spec failures in a row: the models are down, stop and let the next run retry
                             return out
                         continue
                     if not spec:
                         out["failed"].append(f"{sid}: rejected by quality gates")
                         continue
+                    strikes = 0
                     folder.mkdir(parents=True, exist_ok=True)
                     path = folder / f"{sid[11:]}.json"
                     path.write_text(json.dumps(spec, indent=1, ensure_ascii=False) + "\n")

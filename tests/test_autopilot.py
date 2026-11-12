@@ -144,8 +144,43 @@ def test_best_tier_tries_strong_models_first_and_falls_back():
 
     prov = P("g", "http://x", "k", models=["lite"], best=["pro", "flash"])
     llm = LLM(providers=[prov], log=lambda *_: None)
+    llm.sleep = lambda s: None
     assert llm.complete("s", "u", tier="best") == {"ok": True}
     assert seen == ["pro", "flash"] and llm.last_model == "g:flash"
     seen.clear()
     assert llm.complete("s", "u") == {"ok": True}  # bulk tier goes straight to the high-quota model
     assert seen == ["lite"]
+
+
+def test_busy_errors_are_retried_and_do_not_kill_the_model():
+    from autopilot.llm import Provider
+    calls = []
+
+    class P(Provider):
+        def chat(self, model, system, user, temperature, max_tokens, want_json):
+            calls.append(model)
+            if len(calls) < 3:
+                raise LLMError('503 {"status": "UNAVAILABLE", "message": "high demand"}')
+            return '{"ok": true}'
+
+    prov = P("g", "http://x", "k", models=["flash"])
+    waits = []
+    llm = LLM(providers=[prov], log=lambda *_: None)
+    llm.sleep = waits.append
+    assert llm.complete("s", "u") == {"ok": True}
+    assert calls == ["flash", "flash", "flash"] and "flash" not in prov.dead and len(waits) == 2
+
+
+def test_free_tier_limit_zero_marks_model_dead_quickly():
+    from autopilot.llm import Provider
+
+    class P(Provider):
+        def chat(self, model, system, user, temperature, max_tokens, want_json):
+            if model == "pro":
+                raise LLMError("429 You exceeded your current quota: limit: 0")
+            return '{"ok": true}'
+
+    prov = P("g", "http://x", "k", models=["lite"], best=["pro"])
+    llm = LLM(providers=[prov], log=lambda *_: None)
+    llm.sleep = lambda s: (_ for _ in ()).throw(AssertionError("should not wait"))
+    assert llm.complete("s", "u", tier="best") == {"ok": True} and "pro" in prov.dead
