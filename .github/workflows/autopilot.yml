@@ -1,0 +1,76 @@
+name: Autopilot
+
+# The always-on brain. Runs four times a day on GitHub's servers, so it keeps going when nobody is online:
+#  1. pull real analytics from Continuum Studio
+#  2. write scripts for every channel that is short of videos (today + next 2 days = a 2-day buffer)
+#  3. commit them, and start renders for anything new or stuck
+# Rendered videos land in releases; Continuum Studio pulls them in and schedules each at its publish time.
+on:
+  schedule:
+    - cron: "23 3 * * *"
+    - cron: "23 9 * * *"
+    - cron: "23 15 * * *"
+    - cron: "23 21 * * *"
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Days ahead to fill (today included)"
+        default: "3"
+      only:
+        description: "Only this channel (exact name), blank = all"
+        required: false
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: autopilot
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q pillow numpy num2words
+      - name: Learn from real results
+        run: python3 scripts/autopilot.py learn
+      - name: Plan
+        id: plan
+        run: |
+          ONLY=""
+          if [ -n "${{ github.event.inputs.only }}" ]; then ONLY="--only ${{ github.event.inputs.only }}"; fi
+          python3 scripts/autopilot.py plan --days "${{ github.event.inputs.days || '3' }}" $ONLY
+      - name: Check the new specs
+        run: |
+          if [ -n "${{ steps.plan.outputs.new }}" ]; then python3 scripts/validate.py --strict ${{ steps.plan.outputs.new }}; fi
+      - name: Commit
+        run: |
+          git config user.name "continuum-autopilot"
+          git config user.email "autopilot@users.noreply.github.com"
+          git add specs autopilot/state
+          if git diff --cached --quiet; then echo "nothing to commit"; else
+            git commit -m "Autopilot: $(date -u +%Y-%m-%dT%H:%MZ)"
+            git pull --rebase -q origin main && git push -q origin HEAD:main
+          fi
+      - name: Find specs that never rendered
+        id: heal
+        run: python3 scripts/autopilot.py heal
+      - name: Start renders
+        run: |
+          TODO="${{ steps.plan.outputs.new }} ${{ steps.heal.outputs.heal }}"
+          TODO="$(echo $TODO | xargs -n1 | sort -u | xargs)"
+          if [ -n "$TODO" ]; then gh workflow run render.yml -f specs="$TODO"; echo "render started for: $TODO"; fi

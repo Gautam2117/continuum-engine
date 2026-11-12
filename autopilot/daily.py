@@ -1,0 +1,253 @@
+"""The daily planner: writes tomorrow's (and the next two days') specs for every channel that is short of videos.
+
+Order of truth: a spec already in specs/<date>/ (Claude wrote it, or an earlier run did) always wins. This only
+fills gaps, so the factory keeps running with or without Claude, a laptop or a human."""
+from __future__ import annotations
+
+import datetime as dt
+import json
+import pathlib
+import re
+
+from engine.spec_check import problems
+
+from . import insights, prompts
+from .ground import ground
+from .llm import LLM, LLMError
+from .normalize import speakable
+from .playbooks import PLAYBOOKS
+from .slots import choose, slot_key
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+SPECS = ROOT / "specs"
+DISCLOSURE = "Narration is a synthetic voice. Script and visuals are produced with AI tools and checked by automated quality gates."
+
+
+def _tokens(s: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9]+", s.lower()) if len(w) > 2}
+
+
+def too_similar(title: str, others: list[str], limit: float = 0.6) -> bool:
+    a = _tokens(title)
+    return any(a and (len(a & _tokens(o)) / len(a | _tokens(o))) >= limit for o in others)
+
+
+def recent_titles(channel: str) -> list[str]:
+    titles = [e["title"] for e in insights.load("ledger.json", []) if e["channel"] == channel]
+    for p in SPECS.glob("*/*.json"):
+        try:
+            s = json.loads(p.read_text())
+        except json.JSONDecodeError:
+            continue
+        if s.get("channel") == channel:
+            titles.append(s.get("title", ""))
+    return titles
+
+
+def exemplar(channel: str, fmt: str) -> str:
+    """A compact real spec to copy the shape from (same channel if there is one, otherwise any)."""
+    best = None
+    for p in sorted(SPECS.glob("*/*.json"), reverse=True):
+        try:
+            s = json.loads(p.read_text())
+        except json.JSONDecodeError:
+            continue
+        if s.get("format") != fmt:
+            continue
+        if s.get("channel") == channel:
+            best = s
+            break
+        best = best or s
+    if not best:
+        return ""
+    keep = {"title": best["title"], "thumb": best.get("thumb"), "scenes": best["scenes"][: 6 if fmt == "short" else 5]}
+    return "EXAMPLE OF THE SHAPE (different topic; do not copy content):\n" + json.dumps(keep, ensure_ascii=False)[:2800]
+
+
+class Planner:
+    def __init__(self, llm: LLM, *, max_calls: int = 400, log=print):
+        self.llm, self.max_calls, self.log = llm, max_calls, log
+        self.topics: dict[tuple, list[dict]] = {}
+
+    def _call(self, system: str, user: str, **kw):
+        if self.llm.calls >= self.max_calls:
+            raise LLMError("call budget for this run is used up")
+        return self.llm.complete(system, user, **kw)
+
+    # ---- topics ---------------------------------------------------------------------------------
+    def pick_topic(self, channel: str, fmt: str) -> dict:
+        pb = PLAYBOOKS[channel]
+        pool = self.topics.get((channel, fmt))
+        if not pool:
+            axes = insights.axis_weights(channel, pb["axes"])
+            recent = recent_titles(channel)[-40:]
+            user = (
+                f"Channel: {channel}\nPromise: {pb['promise']}\nAudience: {pb['audience']}\nFormat: {fmt}\n"
+                f"Subject areas (prefer earlier ones, but rotate): {json.dumps(axes)}\n"
+                f"Already made (do NOT repeat or paraphrase): {json.dumps(recent)}\n{insights.guidance(channel, fmt)}\n\n"
+                'Brainstorm 8 video topics most likely to hold attention. Return JSON: {"topics":[{"topic":"...","axis":"one subject area","wiki_query":"2-4 words to find a Wikipedia article with the facts","why":"one line"}]} ranked best first.'
+            )
+            data = self._call("You are a sharp YouTube strategist. Reply with JSON only.", user, temperature=0.9)
+            pool = [t for t in data.get("topics", []) if t.get("topic") and not too_similar(t["topic"], recent)]
+            if not pool:
+                raise LLMError("no fresh topics")
+            self.topics[(channel, fmt)] = pool
+        return pool.pop(0)
+
+    # ---- drafting --------------------------------------------------------------------------------
+    def _system(self, channel: str) -> str:
+        pb = PLAYBOOKS[channel]
+        return (
+            prompts.CRAFT
+            + f"\n\nCHANNEL: {channel}\nPromise: {pb['promise']}\nAudience: {pb['audience']}\nVoice: {pb['voice']}\nHook: {pb['hook']}\n"
+            + f"Never: {'; '.join(pb['avoid'])}\nPreferred visuals: {', '.join(pb['scene_bias'])}"
+        )
+
+    def draft_short(self, channel: str, topic: dict, g: dict, fixes: list[str] | None = None) -> dict:
+        pb = PLAYBOOKS[channel]
+        user = (
+            f"TOPIC: {topic['topic']}\n\nGROUNDING (the only source of specific facts):\n{g['text'] or '(none found: use only settled textbook knowledge and say roughly)'}\n\n"
+            + prompts.SHORT_SPEC.replace("{words}", str(pb["short_words"])) + "\n\n" + exemplar(channel, "short")
+        )
+        if fixes:
+            user += "\n\nYOUR PREVIOUS ATTEMPT WAS REJECTED. Fix all of these:\n- " + "\n- ".join(fixes)
+        return self._call(self._system(channel), user, temperature=0.8)
+
+    def draft_long(self, channel: str, topic: dict, g: dict, fixes: list[str] | None = None) -> dict:
+        pb = PLAYBOOKS[channel]
+        words = pb["long_words"]
+        n_ch = 6 if words < 1500 else 8
+        per = words // n_ch
+        system = self._system(channel)
+        base = f"TOPIC: {topic['topic']}\n\nGROUNDING (the only source of specific facts):\n{g['text'] or '(none found: use only settled knowledge)'}\n\n"
+        outline = self._call(system, base + prompts.LONG_OUTLINE.replace("{minutes}", str(round(words / 150))).replace("{chapters}", str(n_ch)), temperature=0.8)
+        chapters = outline.get("chapters", [])[:n_ch]
+        if len(chapters) < 4:
+            raise LLMError("outline too short")
+        scenes: list[dict] = []
+        for i, ch in enumerate(chapters, 1):
+            first = "This chapter opens the video: first scene type \"title\", then deliver the promise inside 20 seconds. " if i == 1 else ""
+            last = "This is the last chapter: answer the title, then finish with an \"end\" scene. " if i == len(chapters) else ""
+            prompt = prompts.CHAPTER.replace("{i}", str(i)).replace("{n}", str(len(chapters))).replace("{name}", ch.get("name", "")).replace("{words}", str(per)).replace("{scenes}", str(max(3, per // 55))).replace("{first}", first).replace("{last}", last).replace("{beats}", ch.get("beats", "")).replace("{loop}", ch.get("open_loop", ""))
+            if scenes:
+                prompt += f"\nPrevious chapter ended with: {scenes[-1].get('say', '')}"
+            if fixes:
+                prompt += "\nEditor notes to apply: " + "; ".join(fixes[:4])
+            part = self._call(system, base + prompt, temperature=0.8)
+            scenes += part.get("scenes", [])
+        return {**{k: outline.get(k) for k in ("title", "thumb", "description", "tags")}, "scenes": scenes}
+
+    # ---- finishing and gates ---------------------------------------------------------------------
+    def finish(self, channel: str, fmt: str, raw: dict, topic: dict, g: dict, spec_id: str, when: dt.datetime) -> dict:
+        pb = PLAYBOOKS[channel]
+        scenes = []
+        for sc in raw.get("scenes", []):
+            if not isinstance(sc, dict):
+                continue
+            say = speakable(str(sc.get("say", "")).strip())
+            show = sc.get("show") if isinstance(sc.get("show"), dict) else None
+            item: dict = {"say": say}
+            if show and show.get("type") and (show["type"] != "say" or show.get("hero") or show.get("text")):
+                item["show"] = show
+            if sc.get("emoji"):
+                item["emoji"] = sc["emoji"]
+            if say:
+                scenes.append(item)
+        if scenes and (scenes[0].get("show") or {}).get("type") != "title":
+            scenes[0]["show"] = {"type": "title", "text": raw.get("thumb") or raw.get("title", "")[:48], "kicker": channel}
+        if scenes and (scenes[-1].get("show") or {}).get("type") != "end":
+            scenes.append({"say": "That is the whole story. Come back tomorrow for another one.", "show": {"type": "end", "text": "New video every day"}})
+        title = str(raw.get("title", "")).strip().strip('"')[:100]
+        if fmt == "short" and "#shorts" not in title.lower() and len(title) <= 90:
+            title += " #shorts"
+        desc = str(raw.get("description", "")).strip()
+        srcs = "\n".join(f"- {s['title']}: {s['url']}" for s in g["sources"])
+        desc = (desc + ("\n\nSources (Wikipedia, CC BY-SA):\n" + srcs if srcs else "") + (f"\n\n{pb['disclose']}" if pb.get("disclose") else "") + f"\n\n{DISCLOSURE}").strip()
+        tags = [str(t) for t in (raw.get("tags") or [])][:12]
+        tags = list(dict.fromkeys(tags + pb["tags"]))[:15]
+        return {
+            "id": spec_id, "channel": channel, "format": fmt, "title": title, "thumb": str(raw.get("thumb") or "")[:60] or title[:40],
+            "description": desc, "tags": tags, "links": pb["links"], "publishAt": when.strftime("%Y-%m-%dT%H:%M:00Z"),
+            "meta": {"generator": "autopilot", "topic": topic["topic"], "axis": topic.get("axis", ""), "slot": slot_key(when)},
+            "scenes": scenes,
+        }
+
+    def critic(self, channel: str, spec: dict, g: dict) -> dict:
+        narration = "\n".join(s["say"] for s in spec["scenes"])[:9000]
+        user = f"GROUNDING:\n{g['text'][:6000]}\n\nTITLE: {spec['title']}\nSCRIPT:\n{narration}"
+        try:
+            return self._call(prompts.CRITIC, user, temperature=0.2, max_tokens=1200)
+        except LLMError as e:
+            self.log(f"  critic unavailable ({str(e)[:80]}); relying on hard gates")
+            return {"pass": True, "skipped": True}
+
+    def make(self, channel: str, fmt: str, spec_id: str, when: dt.datetime) -> dict | None:
+        pb = PLAYBOOKS[channel]
+        topic = self.pick_topic(channel, fmt)
+        g = ground(topic.get("wiki_query") or topic["topic"]) if pb.get("grounded") else {"text": "", "sources": []}
+        draft = self.draft_short if fmt == "short" else self.draft_long
+        fixes: list[str] = []
+        titles = recent_titles(channel)
+        for attempt in range(3):
+            raw = draft(channel, topic, g, fixes or None)
+            spec = self.finish(channel, fmt, raw, topic, g, spec_id, when)
+            bad = problems(spec, spec_id[:10], strict=True)
+            if too_similar(spec["title"], titles, 0.7):
+                bad.append("title is too close to an earlier video; choose a different angle")
+            if not bad:
+                review = self.critic(channel, spec, g)
+                if review.get("pass", True):
+                    spec["meta"]["review"] = {k: review.get(k) for k in ("hook", "originality", "accuracy")}
+                    return spec
+                bad = [f"editor: {f}" for f in (review.get("fixes") or ["raise hook and accuracy"])][:5] + [f"unsupported: {c}" for c in (review.get("unsupported_claims") or [])][:3]
+            self.log(f"  {spec_id}: attempt {attempt + 1} rejected ({len(bad)} issues): {bad[0][:100]}")
+            fixes = bad
+        return None
+
+
+def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only: list[str] | None = None, max_calls: int = 400, log=print) -> dict:
+    """Fill every channel's quota on each date. Returns {'written': [paths], 'skipped': [...], 'failed': [...]}."""
+    now = now or dt.datetime.now(dt.timezone.utc)
+    planner = Planner(llm, max_calls=max_calls, log=log)
+    out = {"written": [], "skipped": [], "failed": []}
+    ledger = insights.load("ledger.json", [])
+    for day in days:
+        folder = SPECS / day.isoformat()
+        for channel, pb in PLAYBOOKS.items():
+            if only and channel not in only:
+                continue
+            for fmt in ("long", "short"):
+                want = pb["cadence"].get(fmt, 0)
+                have = 0
+                for p in folder.glob("*.json") if folder.exists() else []:
+                    try:
+                        s = json.loads(p.read_text())
+                    except json.JSONDecodeError:
+                        continue
+                    have += s.get("channel") == channel and s.get("format") == fmt
+                missing = want - have
+                if missing <= 0:
+                    continue
+                slots = choose(channel, fmt, missing, day, insights.slot_stats(channel, fmt), now)
+                for k, when in enumerate(slots):
+                    sid = f"{day.isoformat()}-{pb['slug']}-{fmt[0]}{have + k + 1}"
+                    try:
+                        spec = planner.make(channel, fmt, sid, when)
+                    except LLMError as e:
+                        out["failed"].append(f"{sid}: {e}")
+                        log(f"  {sid}: stopped ({str(e)[:140]})")
+                        if "budget" in str(e) or "all providers failed" in str(e):
+                            return out
+                        continue
+                    if not spec:
+                        out["failed"].append(f"{sid}: rejected by quality gates")
+                        continue
+                    folder.mkdir(parents=True, exist_ok=True)
+                    path = folder / f"{sid[11:]}.json"
+                    path.write_text(json.dumps(spec, indent=1, ensure_ascii=False) + "\n")
+                    ledger.append({"id": sid, "channel": channel, "format": fmt, "title": spec["title"], "axis": spec["meta"]["axis"], "slot": spec["meta"]["slot"], "publishAt": spec["publishAt"]})
+                    insights.save("ledger.json", ledger[-1500:])
+                    rel = str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
+                    out["written"].append(rel)
+                    log(f"  wrote {rel}: {spec['title']}")
+    return out

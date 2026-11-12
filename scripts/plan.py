@@ -8,7 +8,7 @@ pattern = sys.argv[1] if len(sys.argv) > 1 else ""
 before = sys.argv[2] if len(sys.argv) > 2 else ""
 
 if pattern.strip():
-    specs = sorted(glob.glob(pattern))
+    specs = sorted({f for part in pattern.split() for f in glob.glob(part)})
 else:
     if before and set(before) != {"0"}:
         out = subprocess.run(["git", "diff", "--name-only", "--diff-filter=AM", before, "HEAD", "--", "specs"], capture_output=True, text=True)
