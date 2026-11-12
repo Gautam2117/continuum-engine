@@ -1,0 +1,318 @@
+{
+ "id": "2026-11-14-atlas-l1",
+ "channel": "Counterfactual Atlas",
+ "format": "long",
+ "title": "What if you fell through the Earth? (38 minutes, no engine)",
+ "thumb": "Fall through the Earth",
+ "description": "What if you could fall straight through the centre of the Earth? A walk through the real numbers: about 38 minutes in a model built from seismic data (42 minutes if the Earth had uniform density), a peak speed near 8 km/s, and the heat, air and rotation problems that would stop you.\n\nNumbers: Earth radius 6,371 km; period of oscillation in a uniform-density Earth = 2*pi*sqrt(R/g) = about 84.4 min, so one-way fall = about 42.2 min; peak speed = sqrt(g*R) = about 7.9 km/s; equatorial ground speed = 2*pi*R / one sidereal day = about 1,670 km/h. Speed of a skydiver in air is an approximate figure.\n\nSources:\n- Klotz, A. R. (2015), The Gravity Tunnel in a Non-Uniform Earth, American Journal of Physics 83, 231 (arXiv:1308.1342)\n- Kola Superdeep Borehole depth (12,262 m) and bottom temperature (about 180 C versus 100 C expected)\n- Earth's inner core: temperature about 5,200 C and pressure about 3.6 million atmospheres (NASA, National Geographic, USGS summaries)\n\nNarration is a synthetic (AI-generated) voice. Visuals are animated graphics and Wikimedia Commons images.",
+ "tags": [
+  "what if",
+  "science",
+  "physics",
+  "earth",
+  "explained",
+  "gravity",
+  "gravity tunnel",
+  "kola borehole"
+ ],
+ "links": [
+  {
+   "label": "Explore real places on your own missions with Daywild",
+   "url": "https://daywild.continuumarc.tech"
+  }
+ ],
+ "scenes": [
+  {
+   "say": "What if you jumped into a hole that runs straight through the centre of the Earth? You would come out the other side in roughly thirty-eight minutes, with no engine at all.",
+   "show": {
+    "type": "title",
+    "text": "What if you fell through the Earth?",
+    "kicker": "Impossible what-if"
+   }
+  },
+  {
+   "say": "Thirty-eight minutes, for a journey of twelve thousand, seven hundred and forty-two kilometres. No fuel, no steering, no brakes. Only gravity. Let us do it properly, with real numbers, and find out what would stop you.",
+   "show": {
+    "type": "number",
+    "value": 38,
+    "unit": "min",
+    "label": "Falling through the real Earth, one way",
+    "from": 0
+   }
+  },
+  {
+   "say": "First, the hole. The Earth is not a solid ball of rock. It has a thin crust, a thick mantle, a liquid outer core, and a solid inner core made mostly of iron and nickel. Your tunnel has to cross every one of them, in a perfectly straight line.",
+   "show": {
+    "type": "image",
+    "query": "Earth cross section layers structure",
+    "caption": "The layers of the Earth"
+   }
+  },
+  {
+   "say": "How do we even know what is down there, when we cannot drill past twelve kilometres? Earthquakes. They send waves through the whole planet, and instruments on the far side record them. One kind, the shear wave, cannot travel through liquid, and that is a key clue that the outer core is molten.",
+   "show": {
+    "type": "say",
+    "text": "We know the inside of the Earth from *earthquake* waves."
+   }
+  },
+  {
+   "say": "Now the bad news. The deepest hole humans have ever drilled is the Kola Superdeep Borehole, in Russia. It reached twelve point two six two kilometres. Your tunnel would need to be about a thousand times longer.",
+   "show": {
+    "type": "number",
+    "value": 12.262,
+    "decimals": 3,
+    "unit": "km",
+    "label": "Deepest hole ever drilled: Kola Superdeep Borehole"
+   }
+  },
+  {
+   "say": "The Soviet drillers worked on that hole for about nineteen years, and in the end they stopped because of the heat. They had expected around one hundred degrees Celsius at the bottom. They found about one hundred and eighty.",
+   "show": {
+    "type": "timeline",
+    "events": [
+     {
+      "year": "1970",
+      "label": "Drilling begins on the Kola Peninsula"
+     },
+     {
+      "year": "1989",
+      "label": "Deepest point reached: 12,262 metres"
+     },
+     {
+      "year": "Early 1990s",
+      "label": "Project ends, with the bottom far hotter than expected"
+     }
+    ]
+   }
+  },
+  {
+   "say": "That record hole covers about two tenths of one percent of the way to the centre. After half a century of deep drilling, we have barely scratched the surface. So for this what-if, you will have to imagine a tunnel that somehow survives.",
+   "show": {
+    "type": "bars",
+    "title": "Distance to the centre of the Earth",
+    "items": [
+     {
+      "label": "Kola borehole",
+      "value": 12.262
+     },
+     {
+      "label": "Centre of the Earth",
+      "value": 6371,
+      "highlight": true
+     }
+    ],
+    "unit": " km"
+   }
+  },
+  {
+   "say": "Going down, you would cross four main layers. The crust, a thin skin of rock. The mantle, about twenty-nine hundred kilometres of hot, slowly flowing rock. The liquid outer core. And finally the solid inner core, a ball of iron about twelve hundred kilometres in radius.",
+   "show": {
+    "type": "list",
+    "items": [
+     "Crust: a thin skin of rock",
+     "Mantle: about 2,900 km of hot, flowing rock",
+     "Outer core: liquid iron and nickel",
+     "Inner core: solid iron, radius about 1,220 km"
+    ]
+   }
+  },
+  {
+   "say": "The inner core is estimated to be around fifty-two hundred degrees Celsius, about as hot as the surface of the Sun. The pressure there is roughly three point six million times the air pressure at sea level. Iron stays solid at that heat only because the pressure is so enormous.",
+   "show": {
+    "type": "number",
+    "value": 5200,
+    "unit": "°C",
+    "label": "Estimated temperature of the inner core"
+   }
+  },
+  {
+   "say": "So let us cheat. The tunnel is lined with a perfect heat shield, and every bit of air has been pumped out. You stand at the edge, and you step off.",
+   "show": {
+    "type": "say",
+    "text": "A perfect *heat* *shield.* No air. One step."
+   }
+  },
+  {
+   "say": "The reason gravity weakens inside a planet comes from a result Isaac Newton proved. Inside a hollow shell of matter, the pull of the shell cancels out. As you descend, all the rock above you becomes such a shell, and it pulls you in no net direction. Only the ball of rock below you still counts.",
+   "show": {
+    "type": "say",
+    "text": "Inside a shell, the pull *cancels.* Only the rock below you counts."
+   }
+  },
+  {
+   "say": "At first, you fall like any dropped object, gaining nine point eight metres per second, every second. But deeper down, something changes. In a simple model where the Earth has the same density everywhere, gravity gets weaker as you descend, because the rock above you starts pulling you back up.",
+   "show": {
+    "type": "bars",
+    "title": "Gravity inside the Earth (simple model)",
+    "items": [
+     {
+      "label": "At the surface",
+      "value": 100
+     },
+     {
+      "label": "Halfway to the centre",
+      "value": 50,
+      "highlight": true
+     }
+    ],
+    "unit": "%"
+   }
+  },
+  {
+   "say": "The real Earth is not uniform. Its dense iron core packs a lot of mass near the middle, so gravity stays close to its surface strength for most of the way down. In 2015, physicist Alexander Klotz used seismic data to model exactly this, and found the fall takes thirty-eight minutes and eleven seconds.",
+   "show": {
+    "type": "say",
+    "text": "Real Earth: gravity barely drops until the *core.*"
+   }
+  },
+  {
+   "say": "The textbook answer, which assumes the same density everywhere, is forty-two minutes and twelve seconds. Using the real structure of the planet, the fall is about four minutes shorter.",
+   "show": {
+    "type": "bars",
+    "title": "Fall time through the Earth",
+    "items": [
+     {
+      "label": "Uniform-density textbook model",
+      "value": 42.2
+     },
+     {
+      "label": "Real Earth, seismic model",
+      "value": 38.2,
+      "highlight": true
+     }
+    ],
+    "unit": " min"
+   }
+  },
+  {
+   "say": "At the very centre, you would be moving fastest. In the simple model, that is about seven point nine kilometres per second, or roughly twenty-eight thousand kilometres per hour. That is almost exactly the speed of a satellite skimming the surface of the planet.",
+   "show": {
+    "type": "number",
+    "value": 7.9,
+    "unit": "km/s",
+    "label": "Peak speed at the centre (simple model)"
+   }
+  },
+  {
+   "say": "Through the whole fall, you would feel weightless, like an astronaut, because you are in free fall. And at the exact centre, gravity itself drops to zero, because the planet pulls on you equally from every side.",
+   "show": {
+    "type": "say",
+    "text": "Weightless the whole way. At the centre, *zero* gravity."
+   }
+  },
+  {
+   "say": "After the centre, the pull reverses and starts slowing you down. With no air and no friction, you would reach the far side with exactly zero speed, hovering at the opening. If nobody grabbed the edge, you would fall straight back, and keep oscillating, one full cycle about every eighty-four minutes in the simple model.",
+   "show": {
+    "type": "list",
+    "items": [
+     "Second half: gravity slows you down",
+     "You arrive with zero speed",
+     "Then you fall back: a full cycle every 84 min"
+    ]
+   }
+  },
+  {
+   "say": "Here is a neat way to check the numbers. A satellite skimming the surface, if there were no air and no mountains, would circle the planet once every eighty-four minutes. The fall through the Earth takes exactly half of that. Real satellites orbit higher, and so more slowly. The International Space Station, about four hundred kilometres up, needs roughly ninety-two minutes.",
+   "show": {
+    "type": "bars",
+    "title": "Time to circle the Earth once",
+    "items": [
+     {
+      "label": "Surface-skimming orbit",
+      "value": 84.4
+     },
+     {
+      "label": "International Space Station",
+      "value": 92.7,
+      "highlight": true
+     }
+    ],
+    "unit": " min"
+   }
+  },
+  {
+   "say": "Here is a stranger fact. In the simple model, a straight tunnel between any two points on the surface takes the same forty-two minutes, whether it links two neighbouring towns or runs to the other side of the world. In the real Earth, trips come out between about thirty-eight and forty-two minutes.",
+   "show": {
+    "type": "list",
+    "items": [
+     "Short tunnel between two towns: about 42 min",
+     "Tunnel through the centre: about 38 min (real Earth)",
+     "Distance barely changes the time"
+    ]
+   }
+  },
+  {
+   "say": "If your goal is to reach another point on the surface as fast as possible, a straight tunnel is not actually the quickest. In a uniform Earth, the fastest path is a curve called a hypocycloid, which dips deeper and speeds up more. Klotz found that the real Earth gives a similar curve, only a little deeper, and a little faster still.",
+   "show": {
+    "type": "say",
+    "text": "The fastest tunnel is a *curve,* not a straight line."
+   }
+  },
+  {
+   "say": "Now remove the magic. Air would be the first problem. A tunnel full of air would drag on you, and a falling skydiver tops out at around two hundred kilometres per hour. Instead of eight kilometres per second, you would crawl, and the trip would stretch from minutes to hours, or longer. Engineers who study this idea always assume a vacuum tube.",
+   "show": {
+    "type": "number",
+    "value": 200,
+    "unit": "km/h",
+    "label": "Skydiver speed limit in air, instead of 28,000",
+    "from": 28000
+   }
+  },
+  {
+   "say": "The second problem is that the Earth spins. At the equator, the ground moves sideways at about sixteen hundred and seventy kilometres per hour. Deeper layers move more slowly, so as you fall, you would drift sideways relative to the tunnel and scrape the wall. Only a tunnel along the axis, from pole to pole, avoids this.",
+   "show": {
+    "type": "number",
+    "value": 1670,
+    "unit": "km/h",
+    "label": "Sideways ground speed at the equator"
+   }
+  },
+  {
+   "say": "Then there is geography. For most land on Earth, the opposite side is open ocean, so most tunnels would end under the sea and flood. Spain and New Zealand are famously close to being opposite each other, but that is the exception, not the rule.",
+   "show": {
+    "type": "image",
+    "query": "Antipodes map world",
+    "caption": "Antipodes: points directly opposite each other"
+   }
+  },
+  {
+   "say": "Fiction has played with this too. The 2012 film Total Recall imagines a gravity train called The Fall, running through the centre of the Earth between Western Europe and Australia. The physics behind it is real. The engineering is not, at least not yet.",
+   "show": {
+    "type": "say",
+    "text": "A *gravity* *train,* in fiction. Real physics, impossible engineering."
+   }
+  },
+  {
+   "say": "So what would actually happen? Honestly, nothing could survive the first few thousand metres. But the physics is real, and it points to something engineers have genuinely proposed: gravity trains, running through vacuum tunnels between distant cities, powered mostly by falling.",
+   "show": {
+    "type": "say",
+    "text": "Nothing survives the *trip.* But the physics is real."
+   }
+  },
+  {
+   "say": "To recap. Fall through the Earth, and in the ideal case it takes about thirty-eight minutes. You reach nearly eight kilometres per second at the centre, you feel weightless the whole way, and you arrive at the far side at a dead stop. Then you fall straight back.",
+   "show": {
+    "type": "list",
+    "items": [
+     "About 38 minutes, one way",
+     "Peak speed near 8 km/s",
+     "Weightless throughout",
+     "Stops dead at the far side"
+    ]
+   }
+  },
+  {
+   "say": "Follow for the next impossible what-if.",
+   "show": {
+    "type": "end",
+    "text": "Follow for the next impossible what-if."
+   }
+  }
+ ],
+ "publishAt": "2026-11-14T13:53:00Z",
+ "rev": 1,
+ "meta": {
+  "axis": "claude-written",
+  "model": "claude-sonnet-5-5"
+ }
+}

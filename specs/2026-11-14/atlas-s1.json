@@ -1,0 +1,114 @@
+{
+ "id": "2026-11-14-atlas-s1",
+ "channel": "Counterfactual Atlas",
+ "format": "short",
+ "title": "What if you drove to the Moon? #shorts",
+ "thumb": "Drive to the Moon",
+ "description": "What if you could drive to the Moon? At 100 km/h without stopping, the trip is about 160 days. A passenger jet would take about 18 days. Apollo 11 took roughly three days to reach lunar orbit.\n\nNumbers: average Earth-Moon distance 384,400 km; time = distance / speed (384,400 / 100 = 3,844 hours = 160.2 days; at 120 km/h = 133.5 days; at 900 km/h = 17.8 days). Fuel estimate assumes a car using 7 litres per 100 km (384,400 km x 0.07 = about 26,900 litres) and ignores that no real car could make the trip.\n\nSources:\n- Average lunar distance: NASA\n- Apollo 11 transit time to lunar orbit, about three days: NASA and Smithsonian National Air and Space Museum\n\nNarration is a synthetic (AI-generated) voice. Visuals are animated graphics and Wikimedia Commons images.",
+ "tags": [
+  "what if",
+  "moon",
+  "space",
+  "science",
+  "distance"
+ ],
+ "links": [
+  {
+   "label": "Explore real places on your own missions with Daywild",
+   "url": "https://daywild.continuumarc.tech"
+  }
+ ],
+ "scenes": [
+  {
+   "say": "What if you could drive to the Moon? It would take over five months.",
+   "show": {
+    "type": "title",
+    "text": "What if you drove to the Moon?",
+    "kicker": "Impossible what-if"
+   }
+  },
+  {
+   "say": "The Moon is, on average, three hundred and eighty-four thousand, four hundred kilometres away.",
+   "show": {
+    "type": "number",
+    "value": 384400,
+    "unit": "km",
+    "label": "Average distance to the Moon",
+    "from": 0
+   }
+  },
+  {
+   "say": "At one hundred kilometres per hour, without ever stopping, that is one hundred and sixty days.",
+   "show": {
+    "type": "number",
+    "value": 160,
+    "unit": "days",
+    "label": "Driving non-stop at 100 km/h",
+    "from": 0
+   }
+  },
+  {
+   "say": "At one hundred and twenty, about one hundred and thirty-three. In a jet at nine hundred, about eighteen.",
+   "show": {
+    "type": "bars",
+    "title": "Travel time to the Moon",
+    "items": [
+     {
+      "label": "Car at 100 km/h",
+      "value": 160
+     },
+     {
+      "label": "Car at 120 km/h",
+      "value": 133
+     },
+     {
+      "label": "Jet at 900 km/h",
+      "value": 18,
+      "highlight": true
+     }
+    ],
+    "unit": " days"
+   }
+  },
+  {
+   "say": "A typical car using seven litres per hundred kilometres would burn roughly twenty-seven thousand litres of fuel on the way.",
+   "show": {
+    "type": "number",
+    "value": 26900,
+    "unit": "litres",
+    "label": "Fuel at 7 L per 100 km",
+    "from": 0
+   }
+  },
+  {
+   "say": "Apollo astronauts needed roughly three days to reach lunar orbit.",
+   "show": {
+    "type": "number",
+    "value": 3,
+    "unit": "days",
+    "label": "Apollo 11, launch to lunar orbit",
+    "from": 0
+   }
+  },
+  {
+   "say": "So the Moon is a short trip for a rocket, and an impossible commute for a car.",
+   "show": {
+    "type": "say",
+    "text": "A short trip for a rocket. An *impossible* commute for a car."
+   }
+  },
+  {
+   "say": "Follow for the next impossible what-if.",
+   "show": {
+    "type": "end",
+    "text": "Follow for the next impossible what-if."
+   }
+  }
+ ],
+ "publishAt": "2026-11-14T14:07:00Z",
+ "rev": 1,
+ "meta": {
+  "axis": "claude-written",
+  "model": "claude-sonnet-5-5"
+ }
+}

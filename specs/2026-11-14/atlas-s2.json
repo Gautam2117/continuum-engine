@@ -1,0 +1,123 @@
+{
+ "id": "2026-11-14-atlas-s2",
+ "channel": "Counterfactual Atlas",
+ "format": "short",
+ "title": "What if Everest sat at the bottom of the ocean? #shorts",
+ "thumb": "Everest underwater",
+ "description": "What if Mount Everest sat on the floor of the Mariana Trench? Its summit would still be about two kilometres underwater: Challenger Deep is estimated at 10,935 m, Everest is 8,848.86 m tall, leaving about 2,086 m of water.\n\nNumbers: 10,935 m - 8,848.86 m = 2,086 m. Depth estimates of Challenger Deep vary by tens of metres between surveys (about 10,900 to 11,000 m). The Kola Superdeep Borehole, 12,262 m, is deeper than the trench is deep.\n\nSources:\n- NOAA estimate of Challenger Deep depth (Greenaway et al. 2021, Deep Sea Research Part I)\n- Everest height 8,848.86 m, joint China-Nepal survey 2020\n- Kola Superdeep Borehole depth\n\nNarration is a synthetic (AI-generated) voice. Visuals are animated graphics and Wikimedia Commons images.",
+ "tags": [
+  "what if",
+  "everest",
+  "mariana trench",
+  "ocean",
+  "science"
+ ],
+ "links": [
+  {
+   "label": "Explore real places on your own missions with Daywild",
+   "url": "https://daywild.continuumarc.tech"
+  }
+ ],
+ "scenes": [
+  {
+   "say": "What if Everest sat on the ocean floor? Its peak would still be two kilometres underwater.",
+   "show": {
+    "type": "title",
+    "text": "Everest at the bottom of the ocean",
+    "kicker": "Impossible what-if"
+   }
+  },
+  {
+   "say": "The deepest spot in the sea, Challenger Deep, is about ten thousand, nine hundred and thirty-five metres down, says NOAA.",
+   "show": {
+    "type": "number",
+    "value": 10935,
+    "unit": "m",
+    "label": "Depth of Challenger Deep (NOAA estimate)",
+    "from": 0
+   }
+  },
+  {
+   "say": "Everest stands eight thousand, eight hundred and forty-nine metres tall.",
+   "show": {
+    "type": "number",
+    "value": 8849,
+    "unit": "m",
+    "label": "Height of Mount Everest",
+    "from": 0
+   }
+  },
+  {
+   "say": "Put its base on the trench floor, and its summit would sit about two thousand metres below the surface.",
+   "show": {
+    "type": "bars",
+    "title": "Metres",
+    "items": [
+     {
+      "label": "Challenger Deep",
+      "value": 10935
+     },
+     {
+      "label": "Everest",
+      "value": 8849,
+      "highlight": true
+     }
+    ],
+    "unit": " m"
+   }
+  },
+  {
+   "say": "That is two kilometres of open water above the tallest mountain on Earth.",
+   "show": {
+    "type": "number",
+    "value": 2086,
+    "unit": "m",
+    "label": "Water above Everest's summit",
+    "from": 0
+   }
+  },
+  {
+   "say": "Depth estimates vary by tens of metres, but the conclusion holds.",
+   "show": {
+    "type": "say",
+    "text": "Estimates vary by tens of metres. The *conclusion* doesn't."
+   }
+  },
+  {
+   "say": "And humans have drilled even deeper into rock. The Kola borehole reached twelve point two six two kilometres.",
+   "show": {
+    "type": "bars",
+    "title": "Kilometres",
+    "items": [
+     {
+      "label": "Everest",
+      "value": 8.85
+     },
+     {
+      "label": "Challenger Deep",
+      "value": 10.94
+     },
+     {
+      "label": "Kola borehole",
+      "value": 12.26,
+      "highlight": true
+     }
+    ],
+    "unit": " km"
+   }
+  },
+  {
+   "say": "Follow for the next impossible what-if.",
+   "show": {
+    "type": "end",
+    "text": "Follow for the next impossible what-if."
+   }
+  }
+ ],
+ "publishAt": "2026-11-14T17:57:00Z",
+ "rev": 1,
+ "meta": {
+  "axis": "claude-written",
+  "model": "claude-sonnet-5-5"
+ }
+}
