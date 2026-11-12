@@ -29,6 +29,17 @@ def _tokens(s: str) -> set[str]:
     return {w for w in re.findall(r"[a-z0-9]+", s.lower()) if len(w) > 2}
 
 
+def as_obj(data, list_key: str) -> dict:
+    """Models sometimes answer with a bare list. Treat it as the value of list_key; reject anything else."""
+    if isinstance(data, dict):
+        return data
+    if isinstance(data, list):
+        if len(data) == 1 and isinstance(data[0], dict) and list_key in data[0]:
+            return data[0]
+        return {list_key: data}
+    raise LLMError("reply was not a JSON object")
+
+
 def too_similar(title: str, others: list[str], limit: float = 0.6) -> bool:
     a = _tokens(title)
     return any(a and (len(a & _tokens(o)) / len(a | _tokens(o))) >= limit for o in others)
@@ -92,8 +103,8 @@ class Planner:
                 f"Already made (do NOT repeat or paraphrase): {json.dumps(recent)}\n{insights.guidance(channel, fmt)}\n\n"
                 'Brainstorm 8 video topics most likely to hold attention. Return JSON: {"topics":[{"topic":"...","axis":"one subject area","wiki_query":"2-4 words to find a Wikipedia article with the facts","why":"one line"}]} ranked best first.'
             )
-            data = self._call("You are a sharp YouTube strategist. Reply with JSON only.", user, temperature=0.9)
-            pool = [t for t in data.get("topics", []) if t.get("topic") and not too_similar(t["topic"], recent)]
+            data = as_obj(self._call("You are a sharp YouTube strategist. Reply with JSON only.", user, temperature=0.9), "topics")
+            pool = [t for t in data.get("topics", []) if isinstance(t, dict) and t.get("topic") and not too_similar(t["topic"], recent)]
             if not pool:
                 raise LLMError("no fresh topics")
             self.topics[(channel, fmt)] = pool
@@ -116,7 +127,7 @@ class Planner:
         )
         if fixes:
             user += "\n\nYOUR PREVIOUS ATTEMPT WAS REJECTED. Fix all of these:\n- " + "\n- ".join(fixes)
-        return self._call(self._system(channel), user, temperature=0.8, tier="best")
+        return as_obj(self._call(self._system(channel), user, temperature=0.8, tier="best"), "scenes")
 
     def draft_long(self, channel: str, topic: dict, g: dict, fixes: list[str] | None = None) -> dict:
         pb = PLAYBOOKS[channel]
@@ -125,8 +136,8 @@ class Planner:
         per = words // n_ch
         system = self._system(channel)
         base = f"TOPIC: {topic['topic']}\n\nGROUNDING (the only source of specific facts):\n{g['text'] or '(none found: use only settled knowledge)'}\n\n"
-        outline = self._call(system, base + prompts.LONG_OUTLINE.replace("{minutes}", str(round(words / 150))).replace("{chapters}", str(n_ch)), temperature=0.8, tier="best")
-        chapters = outline.get("chapters", [])[:n_ch]
+        outline = as_obj(self._call(system, base + prompts.LONG_OUTLINE.replace("{minutes}", str(round(words / 150))).replace("{chapters}", str(n_ch)), temperature=0.8, tier="best"), "chapters")
+        chapters = [c for c in outline.get("chapters", []) if isinstance(c, dict)][:n_ch]
         if len(chapters) < 4:
             raise LLMError("outline too short")
         scenes: list[dict] = []
@@ -138,8 +149,8 @@ class Planner:
                 prompt += f"\nPrevious chapter ended with: {scenes[-1].get('say', '')}"
             if fixes:
                 prompt += "\nEditor notes to apply: " + "; ".join(fixes[:4])
-            part = self._call(system, base + prompt, temperature=0.8, tier="best")
-            scenes += part.get("scenes", [])
+            part = as_obj(self._call(system, base + prompt, temperature=0.8, tier="best"), "scenes")
+            scenes += [x for x in part.get("scenes", []) if isinstance(x, dict)]
         return {**{k: outline.get(k) for k in ("title", "thumb", "description", "tags")}, "scenes": scenes}
 
     # ---- finishing and gates ---------------------------------------------------------------------
@@ -181,8 +192,8 @@ class Planner:
         narration = "\n".join(s["say"] for s in spec["scenes"])[:9000]
         user = f"GROUNDING:\n{g['text'][:6000]}\n\nTITLE: {spec['title']}\nSCRIPT:\n{narration}"
         try:
-            return self._call(prompts.CRITIC, user, temperature=0.2, max_tokens=1200, tier="best")
-        except LLMError as e:
+            return as_obj(self._call(prompts.CRITIC, user, temperature=0.2, max_tokens=1200, tier="best"), "fixes")
+        except (LLMError, AttributeError, TypeError) as e:
             self.log(f"  critic unavailable ({str(e)[:80]}); relying on hard gates")
             return {"pass": True, "skipped": True}
 
@@ -223,7 +234,7 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
         for channel, pb in PLAYBOOKS.items():
             if only and channel not in only:
                 continue
-            for fmt in ("long", "short"):
+            for fmt in ("short", "long"):  # Shorts first: far cheaper per video when the free quota is tight
                 want = pb["cadence"].get(fmt, 0)
                 have = 0
                 for p in folder.glob("*.json") if folder.exists() else []:
@@ -240,8 +251,8 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
                     sid = f"{day.isoformat()}-{pb['slug']}-{fmt[0]}{have + k + 1}"
                     try:
                         spec = planner.make(channel, fmt, sid, when)
-                    except LLMError as e:
-                        out["failed"].append(f"{sid}: {e}")
+                    except (LLMError, AttributeError, TypeError, KeyError, ValueError) as e:
+                        out["failed"].append(f"{sid}: {type(e).__name__}: {e}")
                         log(f"  {sid}: stopped ({str(e)[:140]})")
                         if "budget" in str(e):
                             return out

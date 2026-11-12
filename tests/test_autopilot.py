@@ -184,3 +184,13 @@ def test_free_tier_limit_zero_marks_model_dead_quickly():
     llm = LLM(providers=[prov], log=lambda *_: None)
     llm.sleep = lambda s: (_ for _ in ()).throw(AssertionError("should not wait"))
     assert llm.complete("s", "u", tier="best") == {"ok": True} and "pro" in prov.dead
+
+
+def test_list_replies_do_not_crash_the_planner():
+    assert daily.as_obj([{"topics": [1]}], "topics") == {"topics": [1]}
+    assert daily.as_obj([{"say": "a"}], "scenes") == {"scenes": [{"say": "a"}]}
+    try:
+        daily.as_obj("text", "scenes")
+        raise AssertionError("should reject")
+    except LLMError:
+        pass
