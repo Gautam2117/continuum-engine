@@ -37,6 +37,16 @@ STYLES: dict[str, Style] = {s.slug: s for s in [
     Style("gotz", "#06080a", "#0f1a12", "#ecfff0", "#94b8a0", "#39ff88", "Inter Display:style=Black", "Inter:style=Bold", "am_echo", motif="scan", pad="bright", caps_titles=True),
     Style("aditi", "#140d10", "#2b1620", "#fff0f6", "#cfa3b8", "#ff7ab6", "Caladea:style=Bold", "Inter:style=Light", "af_jessica", motif="film", pad="warm"),
     Style("felix", "#07060c", "#1a0f22", "#f4eeff", "#a99bc2", "#b46bff", "Inter Display:style=Black", "Inter:style=Bold", "am_liam", motif="scan", pad="deep", caps_titles=True),
+    # Second wave of explainer channels: each has its own palette, typefaces, voice and pacing.
+    Style("whap10", "#100d08", "#2a1d0a", "#fff6e6", "#c9b48a", "#ffb020", "Inter Display:style=ExtraBold", "Inter:style=Medium", "am_eric", speed=1.06, motif="grid", pad="bright"),
+    Style("drives", "#0c0e11", "#1b222b", "#eef2f6", "#9aa7b5", "#ff7a1a", "Inter Display:style=Black", "Inter:style=Medium", "bm_lewis", speed=1.0, motif="scan", pad="deep", caps_titles=True),
+    Style("exists", "#0b1012", "#0f2a2e", "#effffd", "#93bfba", "#2ee6c8", "Inter Display:style=Bold", "Inter:style=Regular", "af_sarah", speed=1.04, motif="grid", pad="bright"),
+    Style("anomaly", "#060a08", "#0c1f17", "#e9fff4", "#86b8a0", "#9dff4a", "Inter Display:style=Black", "Inter:style=Light", "am_onyx", speed=0.97, motif="scan", pad="deep"),
+    Style("gears", "#120f0b", "#2a2116", "#f6efe3", "#b9a98f", "#d9b04a", "DejaVu Serif:style=Bold", "Inter:style=Regular", "bm_daniel", speed=0.98, motif="paper", pad="warm"),
+    Style("fool", "#0f0a16", "#231040", "#f7f0ff", "#b6a0dc", "#ff4fa3", "Inter Display:style=Black", "Inter:style=SemiBold", "af_nicole", speed=1.08, motif="grain", pad="bright"),
+    Style("drawn", "#f3efe6", "#e4dccb", "#1c1a17", "#6b6558", "#d6452b", "Caladea:style=Bold", "Caladea", "bf_emma", speed=0.96, motif="paper", pad="warm"),
+    Style("beyond", "#08080e", "#14122a", "#f1f0ff", "#9d9ac8", "#8aa4ff", "Caladea:style=Bold", "Inter:style=Light", "bf_isabella", speed=0.92, motif="stars", pad="deep"),
+    Style("lowbat", "#0d0f14", "#1a1d2a", "#eceff8", "#98a0bb", "#ffb86b", "Inter Display:style=Medium", "Inter:style=Light", "bf_lily", speed=0.86, motif="grain", pad="warm"),
 ]}
 
 # Channel title → style slug (only channels the engine renders or assists with so far).
@@ -54,6 +64,15 @@ CHANNEL_STYLE = {
     "GOTZ": "gotz",
     "Aditi Raichand": "aditi",
     "Felix": "felix",
+    "What Happens in 10": "whap10",
+    "What Drives It": "drives",
+    "OH, THIS EXISTS": "exists",
+    "What If Anomaly": "anomaly",
+    "Gears Unseen": "gears",
+    "Brain Fool Lab": "fool",
+    "Drawn Out Minds": "drawn",
+    "Think Beyond This": "beyond",
+    "The Low Battery Show": "lowbat",
 }
 
 # Channels whose videos need footage the engine can't make (gameplay, app capture, a persona on camera).
