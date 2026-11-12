@@ -102,6 +102,36 @@ def cmd_heal(a) -> int:
     return 0
 
 
+def cmd_register(a) -> int:
+    """Add hand- or Claude-written specs to the ledger so their results feed the learning loop."""
+    from autopilot.slots import slot_key
+    ledger = insights.load("ledger.json", [])
+    known = {e["id"] for e in ledger}
+    n = 0
+    for f in a.files:
+        s = json.loads(pathlib.Path(f).read_text())
+        if s["id"] in known:
+            continue
+        when = dt.datetime.fromisoformat(s["publishAt"].replace("Z", "+00:00")) if s.get("publishAt") else None
+        ledger.append({"id": s["id"], "channel": s["channel"], "format": s["format"], "title": s["title"], "axis": (s.get("meta") or {}).get("axis", "claude-written"), "slot": slot_key(when) if when else "", "publishAt": s.get("publishAt")})
+        n += 1
+    insights.save("ledger.json", ledger[-1500:])
+    print(f"registered {n} spec(s)")
+    return 0
+
+
+def cmd_slots(a) -> int:
+    """Best publish times for a channel on a date, as ISO UTC lines (used by Claude-written specs too)."""
+    from autopilot.playbooks import PLAYBOOKS
+    from autopilot.slots import choose
+    now = dt.datetime.now(dt.timezone.utc)
+    day = dt.date.fromisoformat(a.date)
+    n = a.count or PLAYBOOKS[a.channel]["cadence"][a.format]
+    for when in choose(a.channel, a.format, n, day, insights.slot_stats(a.channel, a.format), now, min_lead_h=a.lead):
+        print(when.strftime("%Y-%m-%dT%H:%M:00Z"))
+    return 0
+
+
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -112,5 +142,15 @@ if __name__ == "__main__":
     p.set_defaults(fn=cmd_plan)
     sub.add_parser("learn").set_defaults(fn=cmd_learn)
     sub.add_parser("heal").set_defaults(fn=cmd_heal)
+    r = sub.add_parser("register")
+    r.add_argument("files", nargs="+")
+    r.set_defaults(fn=cmd_register)
+    q = sub.add_parser("slots")
+    q.add_argument("--channel", required=True)
+    q.add_argument("--format", required=True, choices=["long", "short"])
+    q.add_argument("--date", required=True)
+    q.add_argument("--count", type=int, default=0)
+    q.add_argument("--lead", type=float, default=4.5)
+    q.set_defaults(fn=cmd_slots)
     args = ap.parse_args()
     sys.exit(args.fn(args))
