@@ -1,31 +1,44 @@
 # Continuum Engine
 
-Zero-cost video renderer for Continuum Arc channels. Specs in `specs/<date>/*.json` are rendered on GitHub Actions (Kokoro TTS + Pillow + ffmpeg). Each render is published as a release containing the video, thumbnail and upload pack, which Continuum Studio pulls into its Upload packs page.
+Zero-paid-spend video planning, rendering and technical review for Continuum Arc.
+Source specs live in `specs/<date>/*.json`; review outputs are private-to-the-workflow
+GitHub Actions artifacts, not automatic public YouTube uploads. No API keys or
+channel credentials live in this public repository.
 
-No secrets live in this repository.
+## Actual production stages
 
+1. `Autopilot` runs every six hours when repository variable
+   `AUTOPILOT_NETWORK_REVIEW=1`. It queries Studio feedback, attempts to fill
+   per-channel slots and writes **ephemeral review inventory**. Missing or
+   rejected scripts are reported, not counted as delivered videos. GitHub
+   free-model provider quotas can prevent the 50 daily target being filled.
+2. `Render (technical review only)` and `Render preview` produce MP4, thumbnail,
+   pack, media probe, source spec and checksums. They validate script structure,
+   editorial score receipts, media decoding and audible audio.
+3. A person **watches and checks the exact video**, and separately commits an
+   approval tied to the spec hash and technical review artifact. Instructions:
+   [`approvals/README.md`](approvals/README.md).
+4. Only the manually dispatched `Promote approved review` workflow may attach
+   those exact, checked, owner-approved media bytes to a GitHub release.
+   `scripts/publish.py` refuses unapproved packs even if called directly.
+5. Continuum Studio accepts **only approved** release packs. YouTube uploads
+   remain manually gated until both `YOUTUBE_MANUAL_UPLOADS=0` and
+   `YOUTUBE_AUTO_PUBLISH_ENABLED=1`, after a full backlog audit and private test.
 
-## Autopilot (runs with no laptop, no Claude, no human)
+A successful scheduled workflow is not evidence of video creation, YouTube
+publication, viewers, or income. `Continuum Network Health` runs daily and
+tracks missing specs, technical artifacts and provider errors in one GitHub issue.
 
-`.github/workflows/autopilot.yml` runs four times a day on GitHub's servers:
+**Channel cadence configured:** Counterfactual Atlas 1 long + 2 Shorts per day;
+47 other non-creator-led channels 1 episode per day each, with their own playbooks
+and staggered long-form days. Felix and GOTZ stay creator-led. This is a planning
+target, **not a verified publishing or monetization claim**. Quality, factual
+support, artistic uniqueness, rights and YouTube's inauthentic-content policy
+still determine which finished work is fit for release.
 
-1. **learn** pulls real per-video analytics from Continuum Studio (`/api/autopilot/feedback`).
-2. **plan** fills each channel's quota for today and the next two days, so a two-day buffer always exists.
-   Topic, then Wikipedia grounding, then draft, then hard quality gates, then an editor pass. A spec already in
-   `specs/<date>/` (for example written by Claude) always wins; the Autopilot only fills gaps.
-3. **commit and render**: new specs are committed and rendered; specs that never rendered are found and retried.
-4. Continuum Studio pulls finished videos from the releases and schedules each at its `publishAt`.
+## Development checks
 
-Publish times start from audience-geography priors and are learned per channel (see `autopilot/slots.py`).
-
-### One-time setup (repo Settings, Secrets and variables, Actions)
-
-| Secret | What for |
-|---|---|
-| `GEMINI_API_KEY` | Free key from Google AI Studio. Writes the scripts. |
-| `AUTOPILOT_SECRET` | Same value as the `AUTOPILOT_SECRET` setting in the Studio's Vercel project. Lets the Autopilot read analytics. |
-| `GROQ_API_KEY` (optional) | Second free provider, used when Gemini's daily limit is reached. |
-| `OPENROUTER_API_KEY` (optional) | Third. |
-
-Without `GEMINI_API_KEY` (or another key) the Autopilot generates nothing; videos already specified still render and publish.
-Check `autopilot/state/heartbeat.json` to see when it last ran and what it did.
+```bash
+python -m pytest -q tests
+python scripts/validate.py --strict specs/2026-11-14/atlas-s1.json
+```
