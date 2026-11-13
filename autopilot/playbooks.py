@@ -215,7 +215,7 @@ PLAYBOOKS: dict[str, dict] = {
         titles=["The Charger Is Two Inches Too Far", "One Last Trip to the Kitchen"],
         avoid=["ambient compilations", "life advice", "borrowed characters", "explaining the punchline"],
         scene_bias=["title", "pip", "end"], grounded=False, fiction=True,
-        rule='Use recurring Pip. Stage a phone reach mishap with action, escalation and reversal. Use at least four {"type":"pip","action":"notice|reach|slip|reset"} scenes. Use optional phone state "far" after the slip and "dead" for a black screen. Choose exactly one action per scene and match the narration to the staged action.' ,
+        rule='Use recurring Pip. The set contains a couch, lamp, table and phone. Build the joke through a reach, a slide and a reversal. Keep all narrated and implied actions within those props and poses. No cables, chargers, sockets, falls or spare objects. Use only title, pip and end visuals. Use at least four {"type":"pip","action":"notice|reach|slip|reset"} scenes. Use field "phone", default "near". Slip begins near and ends far. Mark every later shot "phone":"far" until the optional "dead" state. The phone stays dead afterward. Choose exactly one action per scene and match the narration to the staged action.',
         tags=["stickman", "original animation", "comedy", "shorts"], links=[CTA_ARC],
     ),
 }

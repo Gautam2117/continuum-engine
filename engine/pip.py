@@ -4,6 +4,28 @@ import math
 from PIL import Image, ImageDraw
 
 ACTIONS = ("notice", "reach", "slip", "reset")
+PHONE_STATES = ("near", "far", "dead")
+
+
+def continuity_issues(scenes):
+    """Track the position and power of the phone across consecutive shots."""
+    issues = []
+    phone = "near"
+    for index, scene in enumerate(scenes):
+        shot = scene.get("show") or {}
+        if shot.get("type") != "pip":
+            continue
+        state = shot.get("phone", "near")
+        if state != phone and not (phone == "far" and state == "dead"):
+            issues.append(f"scene {index}: phone continuity requires {phone}; far may transition to dead")
+        if shot.get("action") == "slip":
+            if state != "near":
+                issues.append(f"scene {index}: slip requires the phone to start near")
+            phone = "far"
+        else:
+            phone = state
+    return issues
+
 
 
 def pip(ctx, duration, show, words):

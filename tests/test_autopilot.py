@@ -378,3 +378,17 @@ def test_pip_reach_moves_and_phone_state_changes():
     assert frames[0].tobytes() != frames[len(frames) // 2].tobytes()
     dead = next(pip(ctx, 0.5, {"action": "reset", "phone": "dead"}, []))
     assert frames[0].getpixel((205, 220)) != dead.getpixel((205, 220))
+
+
+def test_pip_phone_stays_far_after_slip_and_dead_after_blackout():
+    from engine.pip import continuity_issues
+
+    def shot(action, **fields):
+        return {"show": {"type": "pip", "action": action, **fields}}
+
+    slip = shot("slip")
+    far = shot("reach", phone="far")
+    dead = shot("reset", phone="dead")
+    assert not continuity_issues([slip, far, dead, dead])
+    assert continuity_issues([slip, shot("reset")])
+    assert continuity_issues([slip, dead, far])
