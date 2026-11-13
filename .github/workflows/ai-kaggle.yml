@@ -1,0 +1,96 @@
+name: AI motion on Kaggle GPU
+
+# Image-to-video with Wan 2.2 TI2V-5B (Apache 2.0) on Kaggle's free GPU, for persona and cinematic channels.
+# Give a public image URL (or a repo path) and a motion prompt; the clip comes back as a workflow artifact.
+on:
+  workflow_dispatch:
+    inputs:
+      image:
+        description: "Image URL, or a path in this repo (e.g. lab/samples/clay_street.jpg)"
+        required: true
+      prompt:
+        description: "What moves (camera and subject), one or two sentences"
+        required: true
+      frames:
+        description: "Frames at 24 fps (4k+1): 49 = 2 s, 81 = 3.4 s, 121 = 5 s"
+        default: "49"
+      steps:
+        description: "Diffusion steps"
+        default: "30"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-kaggle
+  cancel-in-progress: false
+
+jobs:
+  ai:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      KUSER: ${{ secrets.KAGGLE_USERNAME || 'continuumarc' }}
+      KSECRET: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q kaggle six
+      - name: Kaggle credentials
+        run: |
+          if [ -z "$KSECRET" ]; then echo "::error::Add the KAGGLE_KEY repository secret first."; exit 1; fi
+          echo "::add-mask::$KSECRET"
+          echo "KAGGLE_USERNAME=$KUSER" >> "$GITHUB_ENV"
+          if echo "$KSECRET" | grep -Eq '^[0-9a-f]{32}$'; then
+            mkdir -p ~/.kaggle && printf '{"username":"%s","key":"%s"}' "$KUSER" "$KSECRET" > ~/.kaggle/kaggle.json && chmod 600 ~/.kaggle/kaggle.json
+          else
+            echo "KAGGLE_API_TOKEN=$KSECRET" >> "$GITHUB_ENV"
+          fi
+      - name: Push the job to Kaggle
+        env:
+          IMG: ${{ github.event.inputs.image }}
+          PROMPT: ${{ github.event.inputs.prompt }}
+        run: |
+          case "$IMG" in
+            http*) URL="$IMG";;
+            *) URL="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}/$IMG";;
+          esac
+          mkdir -p job
+          python3 - "$URL" <<'PY'
+          import os, sys
+          s = open("kaggle/ai/i2v.py").read()
+          s = s.replace("__IMAGE_URL__", sys.argv[1]).replace("__PROMPT__", os.environ["PROMPT"].replace('"""', "'"))
+          s = s.replace("__FRAMES__", "${{ github.event.inputs.frames }}").replace("__STEPS__", "${{ github.event.inputs.steps }}")
+          open("job/script.py", "w").write(s)
+          PY
+          cat > job/kernel-metadata.json <<META
+          {"id": "${KAGGLE_USERNAME}/continuum-ai", "title": "continuum-ai", "code_file": "script.py",
+           "language": "python", "kernel_type": "script", "is_private": true,
+           "enable_gpu": true, "enable_internet": true, "dataset_sources": [], "competition_sources": [], "kernel_sources": []}
+          META
+          kaggle kernels push -p job
+      - name: Wait for Kaggle
+        run: |
+          for i in $(seq 1 340); do
+            st="$(kaggle kernels status "${KAGGLE_USERNAME}/continuum-ai" 2>&1 || true)"
+            echo "$st"
+            case "$st" in
+              *COMPLETE*) exit 0;;
+              *ERROR*|*CANCEL*) exit 1;;
+            esac
+            sleep 60
+          done
+          exit 1
+      - name: Collect
+        if: always()
+        run: kaggle kernels output "${KAGGLE_USERNAME}/continuum-ai" -p dl || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ai-clip
+          path: |
+            dl/clip.mp4
+            dl/*.log
+          if-no-files-found: warn
