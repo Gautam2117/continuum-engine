@@ -581,9 +581,11 @@ SCENES = {"earth_tunnel": scene_earth_tunnel, "moon_drive": scene_moon_drive, "e
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import clay  # noqa: E402
 import titles  # noqa: E402
+import worlds  # noqa: E402
 
 SCENES.update(clay.scenes(sys.modules[__name__]))
 SCENES.update(titles.scenes(sys.modules[__name__]))
+SCENES.update(worlds.scenes(sys.modules[__name__]))
 
 
 # ------------------------------------------------------------------ render

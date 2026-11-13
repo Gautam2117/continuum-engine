@@ -117,6 +117,12 @@ def scene_b3d(c: Ctx, dur: float, p: dict, words: list[str]) -> Iterator[Image.I
             al = int(255 * fade_in)
             col = acc if L.get("hl") else ink
             style_ = L.get("style", "label")
+            if style_ in ("cardtitle", "cardbody"):
+                f_ = val_f if style_ == "cardtitle" else lab_f
+                lines = wrap(d, txt, f_, int(c.W * (0.5 if c.vertical else 0.22)))[:3]
+                for li, ln in enumerate(lines):
+                    d.text((x, y + li * f_.size * 1.15), ln, font=f_, fill=(*(acc if L.get("hl") else (ink if style_ == "cardtitle" else muted)), al), anchor="lm")
+                continue
             if style_ == "bubble":
                 # sticker-style speech bubble above the head, with a tail pointing at the speaker
                 bf = tag_f
