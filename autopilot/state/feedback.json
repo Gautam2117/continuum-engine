@@ -1,5 +1,5 @@
 {
- "generatedAt": "2026-11-13T19:09:22.906Z",
+ "generatedAt": "2026-11-13T19:53:42.466Z",
  "channels": [
   {
    "title": "10SecScientist",
@@ -265,7 +265,7 @@
      "publishedAt": "2026-11-01T14:10:27Z",
      "durationSec": 11,
      "format": "short",
-     "views": 1021,
+     "views": 1027,
      "minutes": 27,
      "avgPct": 87.5,
      "subsGained": 0
@@ -1997,7 +1997,7 @@
      "publishedAt": "2026-10-27T04:42:04Z",
      "durationSec": 6,
      "format": "short",
-     "views": 2643,
+     "views": 2674,
      "minutes": 112,
      "avgPct": 115.8,
      "subsGained": 6
