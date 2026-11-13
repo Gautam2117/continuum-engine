@@ -39,7 +39,9 @@ concurrency:
 
 jobs:
   run:
-    if: inputs.render_from == '' && (github.event_name != 'schedule' || vars.AUTOPILOT_NETWORK_REVIEW == '1')
+    if: >-
+      inputs.render_from == '' &&
+      (github.event_name != 'schedule' || vars.AUTOPILOT_NETWORK_REVIEW == '1')
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
@@ -84,7 +86,7 @@ jobs:
           if [ -n "$NEW" ]; then python3 scripts/validate.py --strict $NEW; fi
       - name: Commit
         id: commit
-        if: ${{ !cancelled() && steps.validate.outcome == 'success' && !inputs.preview && github.event_name != 'schedule' }}
+        if: ${{ !cancelled() && steps.validate.outcome == 'success' && !inputs.preview && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
         run: |
           git config user.name "continuum-autopilot"
           git config user.email "autopilot@users.noreply.github.com"
@@ -105,7 +107,7 @@ jobs:
           TODO="$(printf '%s\n' "$TODO" | xargs -n1 | sort -u | xargs)"
           if [ -n "$TODO" ]; then gh workflow run render.yml -f specs="$TODO"; echo "render started for: $TODO"; fi
       - name: Save preview evidence
-        if: ${{ !cancelled() && (inputs.preview || github.event_name == 'schedule') && steps.plan.outcome != 'skipped' }}
+        if: ${{ !cancelled() && (inputs.preview || github.event_name == 'schedule' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch)) && steps.plan.outcome != 'skipped' }}
         run: |
           mkdir -p preview
           if [ -f autopilot/state/heartbeat.json ]; then
@@ -114,7 +116,7 @@ jobs:
           git ls-files -z --others --exclude-standard specs |
             while IFS= read -r -d '' file; do cp --parents "$file" preview/; done
       - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() && (inputs.preview || github.event_name == 'schedule') && steps.plan.outcome != 'skipped' }}
+        if: ${{ !cancelled() && (inputs.preview || github.event_name == 'schedule' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch)) && steps.plan.outcome != 'skipped' }}
         with:
           name: autopilot-preview
           path: preview/
