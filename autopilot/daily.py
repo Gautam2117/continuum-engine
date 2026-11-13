@@ -386,8 +386,15 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
                 if missing <= 0:
                     continue
                 slots = choose(channel, fmt, missing, day, insights.slot_stats(channel, fmt), now, occupied=tuple(occupied))
-                for k, when in enumerate(slots):
-                    sid = f"{day.isoformat()}-{pb['slug']}-{fmt[0]}{have + k + 1}"
+                prefix = f"{pb['slug']}-{fmt[0]}"
+                serial = 0
+                for when in slots:
+                    while True:
+                        serial += 1
+                        path = folder / f"{prefix}{serial}.json"
+                        if not path.exists():
+                            break
+                    sid = f"{day.isoformat()}-{path.stem}"
                     try:
                         spec = planner.make(channel, fmt, sid, when)
                     except (LLMError, AttributeError, TypeError, KeyError, ValueError) as e:
@@ -405,7 +412,6 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
                     strikes = 0
                     occupied.append(when)
                     folder.mkdir(parents=True, exist_ok=True)
-                    path = folder / f"{sid[11:]}.json"
                     path.write_text(json.dumps(spec, indent=1, ensure_ascii=False) + "\n")
                     ledger.append({"id": sid, "channel": channel, "format": fmt, "title": spec["title"], "axis": spec["meta"]["axis"], "slot": spec["meta"]["slot"], "publishAt": spec["publishAt"]})
                     insights.save("ledger.json", ledger[-1500:])

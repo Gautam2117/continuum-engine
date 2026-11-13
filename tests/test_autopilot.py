@@ -403,3 +403,26 @@ def test_planner_fills_omitted_phone_state_but_preserves_explicit_errors():
     fill_phone_states(scenes)
     assert [scene["show"]["phone"] for scene in scenes] == ["near", "far", "dead", "dead", "near"]
     assert continuity_issues(scenes) == ["scene 4: phone continuity requires dead; far may transition to dead"]
+
+
+def test_planning_fills_a_missing_slot_without_overwriting_an_existing_second_spec(tmp_path, monkeypatch):
+    monkeypatch.setattr(daily, "SPECS", tmp_path / "specs")
+    monkeypatch.setattr(insights, "STATE", tmp_path / "state")
+    date = dt.date(2026, 11, 14)
+    folder = daily.SPECS / date.isoformat()
+    folder.mkdir(parents=True)
+    existing = folder / "atlas-s2.json"
+    original = json.dumps({"channel": "Counterfactual Atlas", "format": "short"})
+    existing.write_text(original)
+
+    def make(self, channel, fmt, sid, when):
+        if fmt == "long":
+            return None
+        return {"id": sid, "title": "Fresh short", "meta": {"axis": "space", "slot": "14:00"},
+                "publishAt": when.isoformat()}
+
+    monkeypatch.setattr(daily.Planner, "make", make)
+    now = dt.datetime(2026, 11, 13, tzinfo=dt.timezone.utc)
+    result = daily.plan([date], llm_with(Scripted()), now, only=["Counterfactual Atlas"])
+    assert result["written"] == [str(folder / "atlas-s1.json")]
+    assert existing.read_text() == original
