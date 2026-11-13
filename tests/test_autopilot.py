@@ -306,3 +306,22 @@ def test_slot_selection_spaces_formats_around_existing_uploads():
     long = choose("Counterfactual Atlas", "long", 1, day, {}, now, occupied=tuple(shorts))
     assert len(shorts) == 2 and len(long) == 1
     assert all(abs((long[0] - other).total_seconds()) >= 10800 for other in shorts)
+
+
+def test_review_inventory_restores_future_specs_without_overwriting_release(tmp_path):
+    from scripts.review_inventory import restore
+
+    source = tmp_path / "inventory"
+    destination = tmp_path / "specs"
+    for day in ("2026-11-13", "2026-11-14"):
+        (source / day).mkdir(parents=True)
+        for name in ("atlas-s1", "atlas-l1"):
+            (source / day / f"{name}.json").write_text(json.dumps({"id": f"{day}-{name}"}))
+    release = destination / "2026-11-14" / "atlas-l1.json"
+    release.parent.mkdir(parents=True)
+    release.write_text("tracked release")
+    today = dt.date(2026, 11, 14)
+    assert restore(source, destination, today) == 1
+    assert restore(source, destination, today) == 0
+    assert release.read_text() == "tracked release"
+    assert not (destination / "2026-11-13").exists()

@@ -34,7 +34,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: ${{ (github.event_name == 'schedule' || inputs.preview || inputs.render_from != '') && format('autopilot-review-{0}', github.run_id) || 'autopilot' }}
+  group: ${{ github.event_name == 'schedule' && 'autopilot-network-review' || ( inputs.preview || inputs.render_from != '') && format('autopilot-review-{0}', github.run_id) || 'autopilot' }}
   cancel-in-progress: false
 
 jobs:
@@ -66,6 +66,16 @@ jobs:
       - run: pip install -q pillow numpy num2words
       - name: Learn from real results
         run: python3 scripts/autopilot.py learn
+      - name: Restore recurring review inventory
+        if: github.event_name == 'schedule'
+        run: |
+          prior="$(gh run list --workflow autopilot.yml --event schedule --status completed --limit 15 --json databaseId --jq '.[].databaseId')"
+          for run in $prior; do
+            if gh run download "$run" -n autopilot-preview -D previous-review; then
+              python3 scripts/review_inventory.py
+              break
+            fi
+          done
       - name: Plan
         id: plan
         timeout-minutes: 40          # a long run must still commit what it wrote; the next run continues
@@ -107,16 +117,26 @@ jobs:
           TODO="$(printf '%s\n' "$TODO" | xargs -n1 | sort -u | xargs)"
           if [ -n "$TODO" ]; then gh workflow run render.yml -f specs="$TODO"; echo "render started for: $TODO"; fi
       - name: Save preview evidence
-        if: ${{ !cancelled() && (inputs.preview || github.event_name == 'schedule' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch)) && steps.plan.outcome != 'skipped' }}
+        id: preview
+        if: ${{ !cancelled() && steps.validate.outcome == 'success' && (inputs.preview || github.event_name == 'schedule' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch)) && steps.plan.outcome != 'skipped' }}
         run: |
           mkdir -p preview
           if [ -f autopilot/state/heartbeat.json ]; then
             cp autopilot/state/heartbeat.json preview/
           fi
           git ls-files -z --others --exclude-standard specs |
-            while IFS= read -r -d '' file; do cp --parents "$file" preview/; done
+            while IFS= read -r -d '' file; do
+              if [ "$GITHUB_EVENT_NAME" = schedule ]; then
+                destination="preview/inventory/${file#specs/}"
+                mkdir -p "$(dirname "$destination")"
+                cp "$file" "$destination"
+              fi
+              if [ ! -f "previous-review/inventory/${file#specs/}" ]; then
+                cp --parents "$file" preview/
+              fi
+            done
       - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() && (inputs.preview || github.event_name == 'schedule' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch)) && steps.plan.outcome != 'skipped' }}
+        if: ${{ !cancelled() && steps.validate.outcome == 'success' && (inputs.preview || github.event_name == 'schedule' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch)) && steps.plan.outcome != 'skipped' }}
         with:
           name: autopilot-preview
           path: preview/
