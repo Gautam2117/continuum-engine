@@ -108,7 +108,7 @@ def discover_gemini(key: str) -> tuple[list[str], list[str]]:
     except LLMError:
         return ["gemini-2.5-pro", "gemini-3.5-flash", "gemini-2.5-flash"], ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash-lite"]
     names = [m["name"].split("/")[-1] for m in data.get("models", []) if "generateContent" in m.get("supportedGenerationMethods", [])]
-    names = [n for n in names if not re.search(r"image|tts|embedding|live|audio|vision|robotics|computer|thinking-exp|preview-\d|exp", n)]
+    names = [n for n in names if not re.search(r"image|tts|embedding|live|audio|vision|robotics|computer|thinking-exp|preview-\d|exp|customtools|reward|rerank", n)]
     pick = lambda pat: sorted([n for n in names if re.search(pat, n)], key=_version, reverse=True)  # noqa: E731
     lite = pick(r"flash-lite")
     gemma = pick(r"^gemma")
@@ -119,7 +119,7 @@ def discover_gemini(key: str) -> tuple[list[str], list[str]]:
     return best, bulk
 
 
-_NOT_CHAT = r"whisper|guard|tts|embed|moderation|vision-preview|orpheus|playai|distil-whisper|safeguard|prompt-guard|ocr|image|audio|transcri"
+_NOT_CHAT = r"whisper|guard|tts|embed|moderation|vision-preview|orpheus|playai|distil-whisper|safeguard|prompt-guard|ocr|image|audio|transcri|reward|rerank|customtools"
 
 
 def discover_openai_compat(base: str, key: str, fallback: list[str], prefer: list[str] | None = None) -> list[str]:

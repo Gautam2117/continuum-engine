@@ -67,6 +67,39 @@ def test_extract_json_tolerates_fences():
     assert extract_json('Here you go:\n```json\n{"a": 1}\n```') == {"a": 1}
 
 
+def test_provider_discovery_excludes_non_chat_models(monkeypatch):
+    from autopilot import llm as router
+
+    def fake_http(url, body, headers, timeout=120):
+        return {"data": [{"id": name} for name in (
+            "nvidia/nemotron-4-340b-reward",
+            "nvidia/nemotron-4-340b-instruct",
+            "some-reranker-v2",
+            "openai/gpt-oss-120b",
+        )]}
+
+    monkeypatch.setattr(router, "_http", fake_http)
+    found = router.discover_openai_compat("https://example.com/v1", "secret", [])
+    assert "nvidia/nemotron-4-340b-instruct" in found
+    assert "openai/gpt-oss-120b" in found
+    assert not any("reward" in name or "rerank" in name for name in found)
+
+
+def test_gemini_discovery_excludes_specialized_tool_models(monkeypatch):
+    from autopilot import llm as router
+
+    monkeypatch.delenv("LLM_GEMINI_MODELS", raising=False)
+    monkeypatch.setattr(router, "_http", lambda *args, **kwargs: {"models": [
+        {"name": "models/gemini-3.1-pro-preview-customtools", "supportedGenerationMethods": ["generateContent"]},
+        {"name": "models/gemini-3.1-pro-preview", "supportedGenerationMethods": ["generateContent"]},
+        {"name": "models/gemini-3.5-flash-lite", "supportedGenerationMethods": ["generateContent"]},
+    ]})
+    best, bulk = router.discover_gemini("secret")
+    assert "gemini-3.1-pro-preview" in best
+    assert "gemini-3.5-flash-lite" in bulk
+    assert not any("customtools" in model for model in best + bulk)
+
+
 def test_speakable_numbers_and_years():
     assert speakable("In 1883, 36,000 died: 8x louder, 40% less") == "In eighteen eighty-three, thirty-six thousand died: eight times louder, forty percent less"
 

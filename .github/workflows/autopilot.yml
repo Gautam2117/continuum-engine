@@ -77,10 +77,13 @@ jobs:
         if: github.event_name == 'schedule'
         run: |
           prior="$(gh run list --workflow autopilot.yml --event schedule --status completed --limit 15 --json databaseId --jq '.[].databaseId')"
+          # Restore from multiple recent runs: an empty/latest preview must not
+          # hide accepted future specs that exist in an older preview artifact.
           for run in $prior; do
+            rm -rf previous-review
+            mkdir -p previous-review
             if gh run download "$run" -n autopilot-preview -D previous-review; then
               python3 scripts/review_inventory.py
-              break
             fi
           done
       - name: Plan
