@@ -17,7 +17,7 @@ Decision: no Higgsfield or other paid generators. Every channel gets the best-fi
 - **Rendering:**
   - GitHub (clay/Workbench, about 1.4 s per frame) for daily videos.
   - Kaggle (Cycles GPU) for hero videos.
-  - Kaggle Wan 2.2 TI2V-5B (ai-kaggle.yml) for persona and cinematic motion from a still: built; first test run in progress.
+  - Kaggle Wan 2.2 TI2V-5B (ai-kaggle.yml) for persona and cinematic motion from a still: **verified** — about 12 minutes per 2-second clip at 608×640, text encoder on the second T4. Use it for photoreal or painterly stills; clay and 3D channels stay on Blender (Wan smears toy limbs).
 - **Autopilot:** Atlas may use the world-sim scenes whenever a topic fits; other channels are made on request using the presets in lab/3d-kit.md.
 - **Still to do:**
   - real animal and creature models for Wild Creature Files (Quaternius CC0 / TRELLIS);
