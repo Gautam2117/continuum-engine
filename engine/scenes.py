@@ -622,12 +622,69 @@ def scene_earth(c: Ctx, dur: float, p: dict, words: list[str]) -> Iterator[Image
         yield img.convert("RGB")
 
 
+def scene_tide(c: Ctx, dur: float, p: dict, words: list[str]) -> Iterator[Image.Image]:
+    """Original animated coastal cross-section (qualitative, not a height forecast).
+
+    Unlike footage, this diagram has no third-party assets or attribution
+    requirements. Its wave amplitudes are illustrative, never measured data.
+    """
+    s = c.style
+    left = c.margin
+    shore = int(c.W * 0.81)
+    base = int(c.H * 0.57)
+    title = str(p.get("title") or "Coastlines reshape the tide")[:70]
+    tf = font(s.display, max(18, int(c.u * 6.2)))
+    mf = font(s.body, max(14, int(c.u * 2.6)))
+    lf = font(s.body, max(13, int(c.u * 3.1)))
+    for i in range(max(1, int(dur * FPS))):
+        t = i / FPS
+        phase = 2 * math.pi * t / max(3.0, dur * 0.72)
+        img, d = c.canvas(t)
+        c.badge(d)
+        title_lines = wrap(d, title, tf, c.W - 2 * c.margin)
+        for idx, line in enumerate(title_lines[:2]):
+            d.text((left, c.H * 0.22 + idx * tf.size * 1.1), line, font=tf, fill=rgb(s.ink))
+        # A baseline is an illustration of mean sea level, not an observed level.
+        d.line([(left, base), (shore, base)], fill=(*rgb(s.muted), 120), width=max(2, int(c.u * .25)))
+        points = []
+        for x in range(left, shore + 6, max(3, int(c.u * .45))):
+            u = min(1.0, max(0.0, (x - left) / max(1, shore - left)))
+            swell = 0.021 * c.H * (1.0 + .6 * u * u)
+            y = base + swell * math.sin(phase - u * 1.4 * math.pi)
+            points.append((min(x, shore), y))
+        # Opaque water body keeps text above it legible on all channel palettes.
+        d.polygon(points + [(shore, c.H * .83), (left, c.H * .83)],
+                  fill=(*rgb(s.accent), 55))
+        d.line(points, fill=rgb(s.accent), width=max(3, int(c.u * .50)), joint="curve")
+        # Coast and bay funnel: schematic geometry, no invented measurement.
+        coast = [(shore - c.u * 2, c.H * .84),
+                 (shore - c.u * 1.7, base + c.u * 3),
+                 (shore + c.u * 2.2, base - c.u * 2),
+                 (c.W * .94, c.H * .41), (c.W, c.H * .39),
+                 (c.W, c.H * .88), (shore, c.H * .88)]
+        d.polygon(coast, fill=(*rgb(s.muted), 220))
+        d.line(coast[:5], fill=rgb(s.ink), width=max(2, int(c.u * .26)))
+        d.text((left, base - c.u * 7), "OPEN OCEAN", font=mf, fill=rgb(s.muted))
+        d.text((max(left, shore - c.u * 17), base - c.u * 10), "COASTAL SHAPE", font=mf, fill=rgb(s.ink))
+        # Continuous annotation makes this explainer useful with the sound off.
+        panel_top = c.H * .875
+        d.rounded_rectangle([left, panel_top, c.W - left, c.H * .965],
+                            radius=c.u * 1.5, fill=(*rgb(s.bg2), 225),
+                            outline=(*rgb(s.accent), 150), width=max(2, int(c.u * .2)))
+        d.text((left + c.u * 2.2, panel_top + c.u * 1.6),
+               "BAY SHAPE  ·  WATER DEPTH  ·  RESONANCE", font=lf, fill=rgb(s.ink))
+        d.text((left + c.u * 2.2, panel_top + c.u * 6.0),
+               "Schematic, not a prediction of local tide height", font=mf, fill=rgb(s.muted))
+        yield img.convert("RGB")
+
+
 SCENES = {
     "title": scene_title,
     "say": scene_say,
     "number": scene_number,
     "bars": scene_bars,
     "orbit": scene_orbit,
+    "tide": scene_tide,
     "fall": scene_fall,
     "image": scene_image,
     "persona": scene_image,  # a still of a disclosed AI persona; render.py loads it from the private character sheets

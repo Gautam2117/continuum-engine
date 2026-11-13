@@ -4,7 +4,7 @@
   "format": "short",
   "title": "What If the Moon Moved Twice as Close? The 8× Tide Surprise #shorts",
   "thumb": "8× TIDAL PULL",
-  "description": "An evidence-based, idealized what-if: move the Moon to half its current average orbital distance while keeping its mass constant. Lunar tide-generating force scales with distance to the inverse third power, so the forcing rises eightfold. Actual local water heights do NOT become eight times larger by a simple rule; ocean geometry and resonance matter. With an ideal circular orbit and unchanged Earth-Moon masses, Kepler's third law predicts an orbital period around 9.7 days versus 27.32 today. This hypothetical is not a real forecast.\n\nSources:\nNASA Moon facts, mean distance 384,400 km: https://science.nasa.gov/moon/facts/\nNASA Moon fact sheet, sidereal period 27.3217 days: https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html\nNOAA on inverse-cube tide-generating forces: https://oceanservice.noaa.gov/education/tutorial_tides/tides02_cause.html\nNASA on Kepler's third law: https://science.nasa.gov/solar-system/orbits-and-keplers-laws/\n\nDerived calculations: 384,400 / 2 = 192,200 km; (384,400 / 192,200)^3 = 8; 27.3217 × (0.5)^(3/2) ≈ 9.66 days.\n\nOriginal graphics, synthetic narration. No real-world disaster or measured coastal tide height is asserted.",
+  "description": "An evidence-based, idealized what-if: move the Moon to half its current average orbital distance while keeping its mass constant. Lunar tide-generating force scales with distance to the inverse third power, so the forcing rises eightfold. Actual local water heights do NOT become eight times larger by a simple rule; ocean geometry and resonance matter. With an ideal circular orbit and unchanged Earth-Moon masses, Kepler's third law predicts an orbital period around 9.7 days versus 27.32 today. This hypothetical is not a real forecast.\n\nSources:\nNASA Moon facts, mean distance 384,400 km: https://science.nasa.gov/moon/facts/\nNASA Moon fact sheet, sidereal period 27.3217 days: https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html\nNOAA on inverse-cube tide-generating forces: https://oceanservice.noaa.gov/education/tutorial_tides/tides02_cause.html\nNASA on Kepler's third law: https://science.nasa.gov/solar-system/orbits-and-keplers-laws/\n\nDerived calculations: 384,400 / 2 = 192,200 km; (384,400 / 192,200)^3 = 8; 27.3217 × (0.5)^(3/2) ≈ 9.66 days.\n\nOriginal 3D and animated coastal diagrams, synthetic narration. The coast and wave motion are a qualitative illustration, not a numerical tide-height forecast. No real-world disaster or measured coastal tide height is asserted.",
   "tags": [
     "what if",
     "moon",
@@ -137,9 +137,8 @@
     {
       "say": "Coastline shape, ocean-basin depth, and resonance change how local tides respond.",
       "show": {
-        "type": "image",
-        "query": "Bay of Fundy extreme tidal change coastline",
-        "caption": "Ocean basins shape the actual tide"
+        "type": "tide",
+        "title": "WHY ONE COAST IS NOT ANOTHER"
       }
     },
     {
