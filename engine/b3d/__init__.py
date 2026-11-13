@@ -27,7 +27,7 @@ from PIL import Image
 HERE = pathlib.Path(__file__).resolve().parent
 MAIN = HERE / "blender_main.py"
 SCENE_NAMES = ("earth_tunnel", "moon_drive", "everest_flood", "bars3d", "orbit3d", "fall3d")
-VERSION = "11"  # bump when blender_main.py changes in a way that should invalidate cached frames
+VERSION = "12"  # bump when blender_main.py changes in a way that should invalidate cached frames
 
 
 @functools.lru_cache(maxsize=1)
@@ -77,6 +77,9 @@ def render_clip(scene: str, params: dict, frames: int, size: tuple[int, int], pa
         jp.write_text(json.dumps(job))
         print(f"b3d: rendering {scene} ({frames} frames, {engine}) → {out}", file=sys.stderr, flush=True)
         r = subprocess.run([py, str(MAIN), str(jp)], capture_output=True, text=True, timeout=60 * 60 * 3)
+        for line in (r.stdout or "").splitlines():
+            if line.startswith("b3d:"):
+                print(line, file=sys.stderr, flush=True)
         if r.returncode != 0 or not (out / "done.json").exists():
             print(f"b3d: render failed ({r.returncode}):\n{(r.stderr or r.stdout)[-2000:]}", file=sys.stderr, flush=True)
             return None

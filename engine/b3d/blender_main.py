@@ -579,6 +579,34 @@ SCENES = {"earth_tunnel": scene_earth_tunnel, "moon_drive": scene_moon_drive, "e
 
 # ------------------------------------------------------------------ render
 
+def use_gpu(sc) -> bool:
+    """Switch Cycles to an NVIDIA/AMD GPU when one is present (Kaggle T4s). Prints what it chose."""
+    try:
+        prefs = bpy.context.preferences.addons["cycles"].preferences
+    except Exception as e:  # noqa: BLE001
+        print(f"b3d: no cycles prefs ({e}); CPU", flush=True)
+        return False
+    for kind in ("OPTIX", "CUDA", "HIP"):
+        try:
+            prefs.compute_device_type = kind
+            try:
+                prefs.refresh_devices()
+            except Exception:  # noqa: BLE001
+                prefs.get_devices()
+            gpus = [d for d in prefs.devices if d.type == kind]
+            if not gpus:
+                continue
+            for d in prefs.devices:
+                d.use = d.type == kind
+            sc.cycles.device = "GPU"
+            print(f"b3d: Cycles GPU {kind}: {', '.join(d.name for d in gpus)}", flush=True)
+            return True
+        except Exception as e:  # noqa: BLE001
+            print(f"b3d: {kind} unavailable ({e})", flush=True)
+    print("b3d: Cycles on CPU", flush=True)
+    return False
+
+
 def setup_engine(engine: str, samples: int, pal: dict):
     sc = bpy.context.scene
     if engine == "CYCLES":
@@ -587,23 +615,8 @@ def setup_engine(engine: str, samples: int, pal: dict):
         sc.cycles.use_denoising = True
         sc.cycles.max_bounces = 4
         sc.cycles.device = "CPU"
-        try:  # use a GPU when there is one (Kaggle)
-            prefs = bpy.context.preferences.addons["cycles"].preferences
-            for kind in ("OPTIX", "CUDA"):
-                try:
-                    prefs.compute_device_type = kind
-                    prefs.get_devices()
-                    gpus = [d for d in prefs.devices if d.type == kind]
-                    if gpus:
-                        for d in prefs.devices:
-                            d.use = d.type == kind
-                        sc.cycles.device = "GPU"
-                        print(f"b3d: Cycles on {kind} ({len(gpus)} device)", flush=True)
-                        break
-                except Exception:  # noqa: BLE001
-                    continue
-        except Exception:  # noqa: BLE001
-            pass
+        sc.render.use_persistent_data = True
+        use_gpu(sc)
         sc.view_settings.view_transform = "AgX"
         sc.view_settings.look = "AgX - Medium High Contrast" if "AgX - Medium High Contrast" in [i.identifier for i in sc.view_settings.bl_rna.properties["look"].enum_items] else "None"
     elif engine == "EEVEE":

@@ -1,0 +1,48 @@
+{
+  "id": "2026-11-14-b3d-gpu-test",
+  "channel": "Counterfactual Atlas",
+  "format": "short",
+  "title": "GPU test",
+  "description": "Kaggle GPU render test. Not for upload.",
+  "tags": [
+    "test"
+  ],
+  "scenes": [
+    {
+      "say": "What if the Moon were twice as close?",
+      "show": {
+        "type": "b3d",
+        "scene": "bars3d",
+        "params": {
+          "items": [
+            {
+              "label": "Today",
+              "value": 1
+            },
+            {
+              "label": "Twice as close",
+              "value": 8,
+              "highlight": true
+            }
+          ],
+          "unit": "x"
+        },
+        "title": {
+          "text": "What if the Moon were twice as close?",
+          "hl": "twice"
+        },
+        "fallback": {
+          "type": "say",
+          "text": "Twice as close"
+        }
+      }
+    },
+    {
+      "say": "Tides would be eight times stronger.",
+      "show": {
+        "type": "end",
+        "text": "Test"
+      }
+    }
+  ]
+}
