@@ -281,6 +281,18 @@ class Planner:
         review = as_obj(self._call(prompts.CRITIC, user, temperature=0.2, max_tokens=1200, tier="best"), "fixes")
         if type(review.get("pass")) is not bool:
             raise LLMError("editor response is missing a valid pass decision")
+        for key in ("fixes", "unsupported_claims"):
+            values = review.get(key)
+            if not isinstance(values, list) or any(not isinstance(value, str) or not value.strip() for value in values):
+                raise LLMError(f"editor response has an invalid {key} list")
+        minimums = {"hook": 6, "originality": 6, "accuracy": 7}
+        for key, minimum in minimums.items():
+            score = review.get(key)
+            if type(score) is not int or not 1 <= score <= 10:
+                raise LLMError(f"editor response has an invalid {key} score")
+            if score < minimum:
+                review["pass"] = False
+                review["fixes"].append(f"Improve {key}: scored {score}, needs {minimum}")
         return review
 
     def make(self, channel: str, fmt: str, spec_id: str, when: dt.datetime) -> dict | None:

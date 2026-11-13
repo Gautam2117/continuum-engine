@@ -358,3 +358,12 @@ def test_review_verification_rejects_missing_audio_and_wrong_dimensions(tmp_path
         verify(spec, pack, {**probe, "streams": [video]}, thumbnail)
     with pytest.raises(ValueError, match="dimensions"):
         verify(spec, pack, {**probe, "streams": [{**video, "width": 1920}, audio]}, thumbnail)
+
+
+def test_editor_cannot_pass_scores_below_threshold(monkeypatch):
+    planner = daily.Planner(llm_with(Scripted()))
+    review = {"pass": True, "hook": 8, "originality": 6, "accuracy": 5, "fixes": [], "unsupported_claims": []}
+    monkeypatch.setattr(planner, "_call", lambda *a, **k: review)
+    result = planner.critic("Counterfactual Atlas", short_script(), {"text": ""})
+    assert result["pass"] is False
+    assert result["fixes"] == ["Improve accuracy: scored 5, needs 7"]
