@@ -457,6 +457,11 @@ def test_review_rejects_silent_3d_and_image_fallbacks(tmp_path):
     with pytest.raises(ValueError, match="licensed image"):
         verify(spec, pack, probe, thumb)
     pack["renderEvidence"]["imageFallbackScenes"] = []
+    with __import__("pytest").raises(ValueError, match="Image attribution"):
+        verify(spec, pack, probe, thumb)
+    credit = "File:Moon.jpg | NASA | Public domain | https://commons.wikimedia.org/wiki/File:Moon.jpg"
+    pack["description"] = credit
+    pack["renderEvidence"]["licensedImageAssets"] = [{"credit": credit, "author": "NASA", "license": "Public domain", "title": "File:Moon.jpg", "sourceUrl": "https://commons.wikimedia.org/wiki/File:Moon.jpg"}]
     verify(spec, pack, probe, thumb)
 
 

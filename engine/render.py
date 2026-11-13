@@ -13,12 +13,14 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+import urllib.error
 import wave
 
 import numpy as np
 from PIL import Image, ImageDraw
 
 from . import emoji, stage
+from .asset_rights import provenance
 from . import scenes as S
 from .fonts import font
 from .pad import pad as ambient
@@ -68,33 +70,48 @@ def fetch_persona(p: dict, spec_id: str, scene_no: int) -> Image.Image | None:
 
 
 def fetch_image(p: dict) -> Image.Image | None:
-    """Public-domain / CC image from Wikimedia Commons by URL or search query. Never fatal."""
-    url = p.get("image_url")
+    """Retrieve an explicitly commercial-use compatible Commons still and its credit.
+
+    Do not fetch arbitrary model-supplied image_url addresses: they bypass licence
+    validation and can be copyright-incompatible or point at internal services.
+    """
+    if p.get("image_url"):
+        print("  unverified direct image URL blocked; provide a Wikimedia query", file=sys.stderr)
+        return None
+    query = p.get("query")
+    if not isinstance(query, str) or not query.strip():
+        return None
     try:
-        if not url and p.get("query"):
-            q = urllib.parse.urlencode({
-                "action": "query", "format": "json", "generator": "search", "gsrnamespace": 6,
-                "gsrsearch": f"{p['query']} filetype:bitmap", "gsrlimit": 5, "prop": "imageinfo",
-                "iiprop": "url|extmetadata", "iiurlwidth": 2000,
-            })
-            req = urllib.request.Request(f"https://commons.wikimedia.org/w/api.php?{q}", headers={"User-Agent": UA})
-            data = json.load(_open(req, 20))
-            pages = sorted((data.get("query") or {}).get("pages", {}).values(), key=lambda x: x.get("index", 99))
-            for pg in pages:
-                info = (pg.get("imageinfo") or [{}])[0]
-                meta = info.get("extmetadata", {})
-                lic = (meta.get("LicenseShortName", {}).get("value") or "").lower()
-                if any(ok in lic for ok in ("public domain", "cc0", "cc by", "pd")):
-                    url = info.get("thumburl") or info.get("url")
-                    artist = meta.get("Artist", {}).get("value", "")
-                    p.setdefault("credit", f"Wikimedia Commons · {lic.upper()}" + (f" · {strip_html(artist)[:60]}" if artist else ""))
-                    break
-        if not url:
-            return None
-        req = urllib.request.Request(url, headers={"User-Agent": UA})
-        return Image.open(io.BytesIO(_open(req, 30).read()))
-    except Exception as e:  # noqa: BLE001 — an image is never worth failing a render
-        print(f"  image unavailable ({e}); using a text scene", file=sys.stderr)
+        q = urllib.parse.urlencode({
+            "action": "query", "format": "json", "generator": "search", "gsrnamespace": 6,
+            "gsrsearch": f"{query[:160]} filetype:bitmap", "gsrlimit": 8, "prop": "imageinfo",
+            "iiprop": "url|extmetadata", "iiurlwidth": 2000,
+        })
+        req = urllib.request.Request(f"https://commons.wikimedia.org/w/api.php?{q}", headers={"User-Agent": UA})
+        data = json.load(_open(req, 20))
+        pages = sorted((data.get("query") or {}).get("pages", {}).values(), key=lambda x: x.get("index", 99))
+        for page in pages:
+            for info in page.get("imageinfo") or []:
+                proof = provenance(page, info)
+                if not proof:
+                    continue
+                req = urllib.request.Request(proof["downloadUrl"], headers={"User-Agent": UA})
+                try:
+                    payload = _open(req, 30).read(12 * 1024 * 1024 + 1)
+                    if len(payload) > 12 * 1024 * 1024:
+                        continue
+                    with Image.open(io.BytesIO(payload)) as photo:
+                        photo.load()
+                        image = photo.convert("RGB")
+                except (OSError, ValueError, TimeoutError, urllib.error.HTTPError):
+                    continue
+                p["credit"] = proof["credit"]
+                p["assetProvenance"] = {k: v for k, v in proof.items() if k != "downloadUrl"}
+                return image
+        print("  no Commons image with verified commercial-use licence available", file=sys.stderr)
+        return None
+    except (OSError, ValueError, TimeoutError, urllib.error.URLError, KeyError) as error:
+        print(f"  licensed image lookup unavailable ({error}); review held", file=sys.stderr)
         return None
 
 
@@ -217,6 +234,7 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
     ctx = S.Ctx(style, W, layout.view_h, bd, spec["channel"], vertical=layout.vertical)
     slug = style.slug
     first_image = None
+    asset_provenance: list[dict] = []
     elapsed = 0.0
     prev_full = None
     b3d_requested = b3d_rendered = 0
@@ -244,6 +262,8 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
             first_image = first_image or im
             if im is None:
                 (persona_fallback_scenes if kind == "persona" else image_fallback_scenes).append(si)
+            elif kind == "image" and isinstance(show.get("assetProvenance"), dict):
+                asset_provenance.append({"scene": si, **show["assetProvenance"]})
             frames = fn(ctx, dur, show, words, image=im)
         else:
             if kind == "b3d":
@@ -285,9 +305,9 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
     desc = spec.get("description", "").strip()
     if links:
         desc += "\n\n" + "\n".join(f"{l['label']}: {l['url']}" for l in links)
-    credits = [sc["show"].get("credit") for sc, _, _ in plan if (sc.get("show") or {}).get("credit")]
+    credits = [asset["credit"] for asset in asset_provenance]
     if credits:
-        desc += "\n\nImages: " + "; ".join(dict.fromkeys(credits))
+        desc += "\n\nImage attributions (Wikimedia Commons):\n" + "\n".join(dict.fromkeys(credits))
     pack = {
         "id": spec["id"],
         "channel": spec["channel"],
@@ -304,6 +324,7 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
             "b3dFallbackScenes": b3d_fallback_scenes,
             "imageFallbackScenes": image_fallback_scenes,
             "personaFallbackScenes": persona_fallback_scenes,
+            "licensedImageAssets": asset_provenance,
         },
         "footageNeeded": spec["channel"] in FOOTAGE_LED,
     }

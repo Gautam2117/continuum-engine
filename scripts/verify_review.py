@@ -24,6 +24,15 @@ def verify(spec: dict, pack: dict, probe: dict, thumbnail: Path) -> None:
         raise ValueError("Required licensed image was unavailable; creative review is not complete")
     if expected_personas and (not isinstance(evidence.get("personaFallbackScenes"), list) or evidence["personaFallbackScenes"]):
         raise ValueError("Required persona still was unavailable; creative review is not complete")
+    if expected_images:
+        assets = evidence.get("licensedImageAssets")
+        if not isinstance(assets, list) or len(assets) != expected_images:
+            raise ValueError("Image attribution and provenance incomplete; release not permitted")
+        for asset in assets:
+            if not isinstance(asset, dict) or not all(asset.get(key) for key in ("credit", "author", "sourceUrl", "license", "title")):
+                raise ValueError("Image attribution and provenance incomplete; release not permitted")
+            if asset["credit"] not in pack.get("description", ""):
+                raise ValueError("Image attribution missing from final YouTube description")
     dimensions = {"long": (1920, 1080), "short": (1080, 1920)}[spec["format"]]
     streams = probe["streams"]
     video = next((s for s in streams if s["codec_type"] == "video"), {})
