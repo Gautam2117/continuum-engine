@@ -160,7 +160,7 @@ def providers_from_env() -> list[Provider]:
     if k := os.environ.get("GITHUB_MODELS_TOKEN"):
         out.append(Provider("github", "https://models.github.ai/inference", k, ["openai/gpt-4.1-mini", "openai/gpt-4o-mini"], best=["openai/gpt-4.1"]))
     if k := os.environ.get("OPENROUTER_API_KEY"):
-        out.append(Provider("openrouter", "https://openrouter.ai/api/v1", k, [os.environ.get("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")]))
+        out.append(Provider("openrouter", "https://openrouter.ai/api/v1", k, [os.environ.get("OPENROUTER_MODEL", "openrouter/free")]))
     return out
 
 
