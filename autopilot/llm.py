@@ -31,6 +31,8 @@ def _http(url: str, body: dict | None, headers: dict, timeout: int = 120) -> dic
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read())
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        raise LLMError("provider reply was not valid JSON") from e
     except urllib.error.HTTPError as e:
         raise LLMError(f"{e.code} {e.read().decode(errors='replace')[:300]}") from e
     except (urllib.error.URLError, TimeoutError) as e:
@@ -39,19 +41,29 @@ def _http(url: str, body: dict | None, headers: dict, timeout: int = 120) -> dic
 
 def extract_json(text: str):
     """Parse the first JSON value in a model reply, tolerating code fences and chatter around it."""
+    if not isinstance(text, str):
+        raise LLMError("reply was not valid JSON")
     t = text.strip()
     t = re.sub(r"^```(?:json)?\s*|\s*```$", "", t, flags=re.I)
     try:
         return json.loads(t)
     except json.JSONDecodeError:
         pass
-    for open_, close in (("{", "}"), ("[", "]")):
-        a, b = t.find(open_), t.rfind(close)
-        if a != -1 and b > a:
-            try:
-                return json.loads(t[a:b + 1])
-            except json.JSONDecodeError:
-                continue
+    for fence in re.finditer(r"```(?:json)?\s*([\s\S]*?)```", text, flags=re.I):
+        try:
+            return json.loads(fence.group(1))
+        except json.JSONDecodeError:
+            continue
+    decoder = json.JSONDecoder()
+    start = re.search(r"[{\[]", t)
+    if start:
+        try:
+            value, end = decoder.raw_decode(t, start.start())
+        except json.JSONDecodeError:
+            pass
+        else:
+            if not t[end:].lstrip().startswith(("}", "]", ",")):
+                return value
     raise LLMError("reply was not valid JSON")
 
 
@@ -76,7 +88,7 @@ class Provider:
         try:
             return data["choices"][0]["message"]["content"] or ""
         except (KeyError, IndexError, TypeError) as e:
-            raise LLMError(f"unexpected reply shape: {str(data)[:200]}") from e
+            raise LLMError("unexpected provider reply shape") from e
 
 
 def _version(name: str) -> float:

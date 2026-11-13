@@ -455,3 +455,8 @@ def test_inventory_reports_network_coverage_without_counting_invalid_specs(tmp_p
     assert len({row["channel"] for row in rows}) == 48
     assert sum(row["target"] for row in rows) == 50
     assert sum(row["missing"] for row in rows) == 49
+
+
+def test_extract_json_handles_fenced_script_with_trailing_bracketed_notes():
+    reply = 'Draft follows:\n```json\n{"scenes": [{"say": "Hi"}]}\n```\n[notes] {unrelated}'
+    assert extract_json(reply) == {"scenes": [{"say": "Hi"}]}
