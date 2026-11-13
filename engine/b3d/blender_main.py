@@ -577,6 +577,14 @@ def scene_fall3d(p: dict, frames: int, pal: dict):
 SCENES = {"earth_tunnel": scene_earth_tunnel, "moon_drive": scene_moon_drive, "everest_flood": scene_everest_flood,
           "bars3d": scene_bars3d, "orbit3d": scene_orbit3d, "fall3d": scene_fall3d}
 
+# Kits in their own files; they get this module's helpers passed in (no second copy of the registries).
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import clay  # noqa: E402
+import titles  # noqa: E402
+
+SCENES.update(clay.scenes(sys.modules[__name__]))
+SCENES.update(titles.scenes(sys.modules[__name__]))
+
 
 # ------------------------------------------------------------------ render
 

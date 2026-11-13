@@ -65,7 +65,11 @@ def scene_b3d(c: Ctx, dur: float, p: dict, words: list[str]) -> Iterator[Image.I
     s = c.style
     n = max(1, int(dur * FPS))
     pal = {"bg": s.bg, "panel": s.bg2, "ink": s.ink, "accent": s.accent}
-    clip = b3d.render_clip(p.get("scene", ""), dict(p.get("params") or {}), n, (c.W, c.H), pal, fps=FPS)
+    params = dict(p.get("params") or {})
+    if p.get("scene") == "title3d" and "font" not in params:
+        from .fonts import font_file
+        params["font"] = font_file(s.display)
+    clip = b3d.render_clip(p.get("scene", ""), params, n, (c.W, c.H), pal, fps=FPS)
     if clip is None:
         from .scenes import SCENES
         fb = dict(p.get("fallback") or {"type": "say"})
@@ -113,6 +117,21 @@ def scene_b3d(c: Ctx, dur: float, p: dict, words: list[str]) -> Iterator[Image.I
             al = int(255 * fade_in)
             col = acc if L.get("hl") else ink
             style_ = L.get("style", "label")
+            if style_ == "bubble":
+                # sticker-style speech bubble above the head, with a tail pointing at the speaker
+                bf = tag_f
+                lines = wrap(d, txt, bf, int(c.W * 0.42))
+                lh = bf.size * 1.18
+                bw = max(d.textlength(ln, font=bf) for ln in lines) + c.u * 3.2
+                bh = lh * len(lines) + c.u * 2.0
+                bx = min(max(c.u * 1.5, x - bw / 2), c.W - bw - c.u * 1.5)
+                by = y - bh - c.u * 2.2
+                d.polygon([(x - c.u * 1.0, by + bh - 2), (x + c.u * 1.0, by + bh - 2), (x, y - c.u * 0.6)], fill=(255, 255, 255, al))
+                d.rounded_rectangle([bx, by, bx + bw, by + bh], radius=c.u * 1.6, fill=(255, 255, 255, al),
+                                    outline=(*acc, al), width=max(2, int(c.u * 0.25)))
+                for li, ln in enumerate(lines):
+                    d.text((bx + bw / 2, by + c.u * 1.0 + li * lh), ln, font=bf, fill=(20, 20, 24, al), anchor="mt")
+                continue
             if style_ == "tag":
                 tw = d.textlength(txt, font=tag_f)
                 bw = tw + c.u * 2.4
