@@ -426,3 +426,18 @@ def test_planning_fills_a_missing_slot_without_overwriting_an_existing_second_sp
     result = daily.plan([date], llm_with(Scripted()), now, only=["Counterfactual Atlas"])
     assert result["written"] == [str(folder / "atlas-s1.json")]
     assert existing.read_text() == original
+
+
+def test_episode_budget_is_distinct_from_run_budget():
+    import pytest
+
+    llm = llm_with(Scripted())
+    planner = daily.Planner(llm, max_calls=3)
+    planner.episode_call_limit = 0
+    with pytest.raises(daily.EpisodeCallLimit):
+        planner._call("system", "user")
+    planner.episode_call_limit = 4
+    llm.calls = 3
+    with pytest.raises(LLMError, match="call budget for this run") as error:
+        planner._call("system", "user")
+    assert not isinstance(error.value, daily.EpisodeCallLimit)

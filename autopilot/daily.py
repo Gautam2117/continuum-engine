@@ -93,15 +93,28 @@ def exemplar(channel: str, fmt: str) -> str:
     return "EXAMPLE OF THE SHAPE (different topic; do not copy content):\n" + json.dumps(keep, ensure_ascii=False)[:2800]
 
 
+class EpisodeCallLimit(LLMError):
+    pass
+
+
 class Planner:
     def __init__(self, llm: LLM, *, max_calls: int = 400, log=print):
         self.llm, self.max_calls, self.log = llm, max_calls, log
         self.deadline = time.monotonic() + float(os.environ.get("AUTOPILOT_MAX_MINUTES", "34")) * 60
+        self.episode_call_limit: int | None = None
         self.topics: dict[tuple, list[dict]] = {}
         self.long_outlines: dict[tuple[str, str], dict] = {}
 
     def _call(self, system: str, user: str, **kw):
-        return self.llm.complete(system, user, max_calls=self.max_calls, deadline=self.deadline, **kw)
+        limit = self.max_calls
+        if self.episode_call_limit is not None:
+            limit = min(limit, self.episode_call_limit)
+        try:
+            return self.llm.complete(system, user, max_calls=limit, deadline=self.deadline, **kw)
+        except LLMError as error:
+            if limit < self.max_calls and self.llm.calls >= limit and str(error) == "call budget for this run is used up":
+                raise EpisodeCallLimit("provider attempt limit reached for this episode") from error
+            raise
 
     # ---- topics ---------------------------------------------------------------------------------
     def pick_topic(self, channel: str, fmt: str) -> dict:
@@ -395,6 +408,7 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
                         if not path.exists():
                             break
                     sid = f"{day.isoformat()}-{path.stem}"
+                    planner.episode_call_limit = llm.calls + (18 if fmt == "short" else 36)
                     try:
                         spec = planner.make(channel, fmt, sid, when)
                     except (LLMError, AttributeError, TypeError, KeyError, ValueError) as e:
@@ -402,6 +416,8 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
                         log(f"  {sid}: stopped ({str(e)[:140]})")
                         if "budget" in str(e):
                             return out
+                        if isinstance(e, EpisodeCallLimit):
+                            continue
                         strikes += 1
                         if strikes >= 4:  # four spec failures in a row: the models are down, stop and let the next run retry
                             return out
