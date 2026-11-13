@@ -187,7 +187,7 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
         say = sc.get("say", "")
         words = say.split()
         ems = sc.get("emoji")
-        ems = [ems] if isinstance(ems, str) else (ems or emoji.pick(say))
+        ems = [ems] if isinstance(ems, str) else (ems if ems is not None else emoji.pick(say))
         if kind == "say" and ems:
             show["hero"], ems = ems[0], []
         if kind in ("title", "end"):

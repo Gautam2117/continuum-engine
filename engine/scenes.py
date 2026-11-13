@@ -639,3 +639,9 @@ SCENES = {
 
 
 random.seed(7)
+
+
+# Motion-first scenes (plunge, journey, descent, ...) live in action.py; register them here.
+from . import action as _action  # noqa: E402
+
+SCENES.update(_action.SCENES)
