@@ -7,11 +7,13 @@ channel credentials live in this public repository.
 
 ## Actual production stages
 
-1. `Autopilot` runs every six hours when repository variable
-   `AUTOPILOT_NETWORK_REVIEW=1`. It queries Studio feedback, attempts to fill
-   per-channel slots and writes **ephemeral review inventory**. Missing or
-   rejected scripts are reported, not counted as delivered videos. GitHub
-   free-model provider quotas can prevent the 50 daily target being filled.
+1. `Autopilot` runs as a **manual software QA workflow**, not as a recurring
+   content factory. Its former hosted schedule is intentionally paused due to
+   GitHub Actions use restrictions. The repo variable `AUTOPILOT_NETWORK_REVIEW`
+   is set to `0`. A compliant, always-on execution host is not yet attached;
+   see [`docs/PRODUCTION_HOSTING.md`](docs/PRODUCTION_HOSTING.md).
+   Provider quotas can also prevent even the configured 50 daily slot target
+   being filled. No completed video should be inferred from a planned spec.
 2. `Render (technical review only)` and `Render preview` produce MP4, thumbnail,
    pack, media probe, source spec and checksums. They validate script structure,
    editorial score receipts, media decoding and audible audio.

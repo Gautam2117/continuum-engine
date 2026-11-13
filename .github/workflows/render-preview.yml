@@ -49,7 +49,9 @@ jobs:
           receipts = Path("available-reviews.txt")
           available = set(receipts.read_text().splitlines()) if receipts.exists() else set()
           paths = list(Path("preview/specs").glob("*/*.json"))
-          specs = pending_specs(paths, available)[:100]
+          # This reusable workflow is for isolated software QA, not a bulk
+          # video-production service on GitHub-hosted runners.
+          specs = pending_specs(paths, available)[:1]
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
               print("specs=" + json.dumps(specs), file=out)
           if not specs:
@@ -62,7 +64,7 @@ jobs:
     timeout-minutes: 90
     strategy:
       fail-fast: false
-      max-parallel: 3
+      max-parallel: 1
       matrix:
         spec: ${{ fromJSON(needs.plan.outputs.specs) }}
     env:

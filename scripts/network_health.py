@@ -14,10 +14,17 @@ from pathlib import Path
 ARTIFACT_PATTERN = re.compile(r"^review-(\d{4}-\d{2}-\d{2})-([a-z0-9-]+)-[0-9a-f]{64}$")
 
 
-def report(heartbeat: dict | None, artifact_names: list[str], run_id: str) -> tuple[str, bool]:
+def report(heartbeat: dict | None, artifact_names: list[str], run_id: str, *, hosted_enabled: bool = True) -> tuple[str, bool]:
     url = f"https://github.com/Gautam2117/continuum-engine/actions/runs/{run_id}" if run_id else "Not available"
     intro = ["# Continuum Network Health", "", "Scope: 48 automated channels. Felix and GOTZ remain creator-led.",
              "This report measures scheduled specifications and **technical review artifacts only**. It does not confirm YouTube uploads, creative acceptance or monetization.", "", f"Autopilot run: {url}", ""]
+    if not hosted_enabled:
+        return "\n".join(intro + [
+            "**Production blocked:** Bulk hosted planning and render fanout are intentionally paused.",
+            "GitHub Actions can be used for isolated software QA, not as the continuous production compute service.",
+            "A compliant always-on worker has not been connected; 50 daily published videos are NOT verified.",
+            "See docs/PRODUCTION_HOSTING.md for the hosting trade-offs and rollout gates.", ""
+        ]), True
     if not heartbeat or not isinstance(heartbeat.get("spec_inventory"), list):
         return "\n".join(intro + ["**Needs attention:** No usable scheduled inventory heartbeat exists. Check the Autopilot schedule and its preview artifact.", ""]), True
     rows = heartbeat["spec_inventory"]
@@ -64,7 +71,8 @@ def main():
     except (OSError, ValueError):
         heartbeat = None
     artifacts = args.artifacts.read_text().splitlines() if args.artifacts.is_file() else []
-    body, alert = report(heartbeat, artifacts, args.run_id)
+    body, alert = report(heartbeat, artifacts, args.run_id,
+                         hosted_enabled=os.environ.get("HOSTED_REVIEW_ENABLED", "1") == "1")
     args.output.write_text(body + "\n")
     print(f"Network health: {'attention required' if alert else 'technical inventory filled'}")
     if p := os.environ.get("GITHUB_OUTPUT"):

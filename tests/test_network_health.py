@@ -35,3 +35,9 @@ def test_provider_failures_are_reported_even_when_specs_are_filled():
     beat["failed"] = ["this provider failed"]
     body, alert = report(beat, artifacts(), "99")
     assert alert and "Planning failures recorded: **1**" in body
+
+
+def test_paused_hosting_is_reported_without_false_production_claims():
+    body, alert = report(rows(1), artifacts(), "99", hosted_enabled=False)
+    assert alert and "intentionally paused" in body
+    assert "50 daily published videos are NOT verified" in body
