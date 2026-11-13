@@ -14,6 +14,16 @@ def verify(spec: dict, pack: dict, probe: dict, thumbnail: Path) -> None:
     for key in ("id", "channel", "format", "publishAt"):
         if pack.get(key) != spec.get(key):
             raise ValueError(f"Pack {key} differs from the spec")
+    expected3d = sum((scene.get("show") or {}).get("type") == "b3d" for scene in spec["scenes"])
+    expected_images = sum((scene.get("show") or {}).get("type") == "image" for scene in spec["scenes"])
+    expected_personas = sum((scene.get("show") or {}).get("type") == "persona" for scene in spec["scenes"])
+    evidence = pack.get("renderEvidence") or {}
+    if expected3d and (evidence.get("b3dRequested") != expected3d or evidence.get("b3dRendered") != expected3d):
+        raise ValueError("Requested 3D scene silently fell back to 2D; creative review is not complete")
+    if expected_images and (not isinstance(evidence.get("imageFallbackScenes"), list) or evidence["imageFallbackScenes"]):
+        raise ValueError("Required licensed image was unavailable; creative review is not complete")
+    if expected_personas and (not isinstance(evidence.get("personaFallbackScenes"), list) or evidence["personaFallbackScenes"]):
+        raise ValueError("Required persona still was unavailable; creative review is not complete")
     dimensions = {"long": (1920, 1080), "short": (1080, 1920)}[spec["format"]]
     streams = probe["streams"]
     video = next((s for s in streams if s["codec_type"] == "video"), {})

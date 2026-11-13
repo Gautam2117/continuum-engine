@@ -437,6 +437,29 @@ def test_review_audio_rejects_muted_and_missing_audio_stats(tmp_path, monkeypatc
         verify_audio(video)
 
 
+def test_review_rejects_silent_3d_and_image_fallbacks(tmp_path):
+    import pytest
+    from PIL import Image
+    from scripts.verify_review import verify
+
+    thumb = tmp_path / "thumb.jpg"
+    Image.new("RGB", (40, 40)).save(thumb)
+    spec = {"id": "atlas", "channel": "Counterfactual Atlas", "format": "short",
+            "scenes": [{"show": {"type": "b3d", "scene": "orbit3d"}},
+                       {"show": {"type": "image", "query": "full moon"}}]}
+    pack = {"id": "atlas", "channel": "Counterfactual Atlas", "format": "short", "durationSec": 8}
+    probe = {"format": {"duration": "8"}, "streams": [
+        {"codec_type": "video", "codec_name": "h264", "width": 1080, "height": 1920},
+        {"codec_type": "audio", "codec_name": "aac"}]}
+    with pytest.raises(ValueError, match="3D scene"):
+        verify(spec, pack, probe, thumb)
+    pack["renderEvidence"] = {"b3dRequested": 1, "b3dRendered": 1, "imageFallbackScenes": [1]}
+    with pytest.raises(ValueError, match="licensed image"):
+        verify(spec, pack, probe, thumb)
+    pack["renderEvidence"]["imageFallbackScenes"] = []
+    verify(spec, pack, probe, thumb)
+
+
 def test_editor_cannot_pass_scores_below_threshold(monkeypatch):
     planner = daily.Planner(llm_with(Scripted()))
     review = {"pass": True, "hook": 8, "originality": 6, "accuracy": 5, "fixes": [], "unsupported_claims": []}

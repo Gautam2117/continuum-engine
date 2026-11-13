@@ -70,6 +70,9 @@ def scene_b3d(c: Ctx, dur: float, p: dict, words: list[str]) -> Iterator[Image.I
         from .fonts import font_file
         params["font"] = font_file(s.display)
     clip = b3d.render_clip(p.get("scene", ""), params, n, (c.W, c.H), pal, fps=FPS)
+    # Expose whether the actual Blender frames were rendered, rather than
+    # silently calling 2D fallback frames a cinematic 3D shot.
+    p["_rendered3d"] = clip is not None
     if clip is None:
         from .scenes import SCENES
         fb = dict(p.get("fallback") or {"type": "say"})

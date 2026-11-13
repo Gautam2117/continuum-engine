@@ -219,6 +219,10 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
     first_image = None
     elapsed = 0.0
     prev_full = None
+    b3d_requested = b3d_rendered = 0
+    b3d_fallback_scenes: list[int] = []
+    image_fallback_scenes: list[int] = []
+    persona_fallback_scenes: list[int] = []
     for si, (sc, audio, dur) in enumerate(plan):
         show = dict(sc.get("show") or {"type": "say"})
         kind = show.pop("type")
@@ -238,8 +242,12 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
         if kind in ("image", "persona"):
             im = fetch_persona(show, spec["id"], si) if kind == "persona" else fetch_image(show)
             first_image = first_image or im
+            if im is None:
+                (persona_fallback_scenes if kind == "persona" else image_fallback_scenes).append(si)
             frames = fn(ctx, dur, show, words, image=im)
         else:
+            if kind == "b3d":
+                b3d_requested += 1
             frames = fn(ctx, dur, show, words)
         for k, vframe in enumerate(frames):
             t = k / S.FPS
@@ -259,6 +267,11 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
             stage.progress_bar(full, style, (elapsed + t) / total, layout.vertical)
             out_frame = full.convert("RGB")
             ff.stdin.write(out_frame.tobytes())
+        if kind == "b3d":
+            if show.get("_rendered3d") is True:
+                b3d_rendered += 1
+            else:
+                b3d_fallback_scenes.append(si)
         prev_full = out_frame
         elapsed += dur
     ff.stdin.close()
@@ -286,6 +299,12 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
         "synthetic": True,  # voice is synthetic: declare it
         "madeForKids": False,
         "durationSec": round(total, 1),
+        "renderEvidence": {
+            "b3dRequested": b3d_requested, "b3dRendered": b3d_rendered,
+            "b3dFallbackScenes": b3d_fallback_scenes,
+            "imageFallbackScenes": image_fallback_scenes,
+            "personaFallbackScenes": persona_fallback_scenes,
+        },
         "footageNeeded": spec["channel"] in FOOTAGE_LED,
     }
     (out / "pack.json").write_text(json.dumps(pack, indent=2, ensure_ascii=False))
