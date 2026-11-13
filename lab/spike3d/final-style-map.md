@@ -2,6 +2,18 @@
 
 Decision: no Higgsfield or other paid generators. Every channel gets the best-fit look. Most are now true 3D or 3D-depth, and whiteboard, pixel, ink, footage and persona looks are kept where they are the best fit, each with added depth. Everything below is free and open source or free-tier, and is usable commercially (licences checked 13 Nov; recheck before each new model goes live).
 
+## 0. Status (13 Nov, 13:40 IST)
+- Kaggle account created: username **continuumarc** (Google sign-in gautam@continuumarc.tech), 30 GPU h a week. Still needed from Gautam: phone verification, then an API token saved as GitHub secrets KAGGLE_USERNAME and KAGGLE_KEY.
+- Built and on main (continuum-engine 9c8f81e):
+  - new `b3d` scene type with Blender scenes earth_tunnel, moon_drive (chase/wide) and everest_flood;
+  - HUD title, counter and clock, with numbers that follow the motion's law;
+  - automatic 2D fallback;
+  - render.yml installs Blender only for 3D specs;
+  - render-kaggle.yml renders with Cycles on Kaggle's GPU;
+  - Autopilot may use 3D for Atlas when a topic fits.
+- Verified on GitHub's runner: Blender installs in about 20 s, all tests pass with real renders, and a full-size Short shot renders at about 1.4 s per frame (Workbench clay look).
+- Test video: the Moon Short with 2 real-3D shots (not scheduled). Live Atlas uploads are unchanged until approved.
+
 ## 1. Proven today (spike, 13 Nov)
 - Blender 5.3 runs headless as a Python module (`pip install bpy`, no GPU, no display).
 - Test shot: a low-poly Earth cutaway with layered core, a tunnel, a falling capsule, and camera dolly at 1080x1920.
@@ -57,7 +69,7 @@ Readiness: **Now** = can render today with the current engine; **Kit** = needs t
 
 | # | Channel | Final look | System | Tools | Readiness |
 |---|---|---|---|---|---|
-| 1 | Counterfactual Atlas | Low-poly 3D worlds and cutaways, HUD timer, serif question, vote end | S1 | Blender Cycles + engine HUD | Spike proven; 2D engine stays live until the kit ships |
+| 1 | Counterfactual Atlas | Low-poly 3D worlds and cutaways, HUD timer, serif question, vote end | S1 | Blender (Workbench on Actions, Cycles on Kaggle) + engine HUD | **Built**: 3 scenes live in engine; more scenes next |
 | 2 | What If Anomaly | Low-poly cities and crowds, terminal-green anomaly counter, scanlines | S1 | Blender + engine | Kit S1 |
 | 3 | Crazy Clipz | Records rebuilt as low-poly 3D sims, red HUD counter | S1 | Blender + engine | Kit S1 |
 | 4 | What Happens in 10 | 3D room or object with an amber clock HUD, before and after states | S1 | Blender + engine | Kit S1 |
