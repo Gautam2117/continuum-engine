@@ -77,7 +77,7 @@ def problems(spec: dict, folder: str | None = None, *, strict: bool = False) -> 
             out.append("Low Battery set cannot show charging, cables, outlets, falling props or spare objects")
     if strict and spec["channel"] == "Counterfactual Atlas" and (spec.get("meta") or {}).get("generator") == "autopilot":
         kinds = [(sc.get("show") or {}).get("type") for sc in scenes if isinstance(sc, dict)]
-        if not any(k in ("b3d", "orbit", "fall", "image") for k in kinds):
+        if not any(k in ("b3d", "orbit", "fall", "image", "tide") for k in kinds):
             out.append("Counterfactual Atlas requires a visualized physical scenario, not just numbers and lists")
     words = narration_words(spec)
     minutes = words / WPM
