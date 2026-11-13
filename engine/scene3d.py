@@ -80,6 +80,10 @@ def scene_b3d(c: Ctx, dur: float, p: dict, words: list[str]) -> Iterator[Image.I
     clk_f = font(s.display, int(c.u * (6.0 if c.vertical else 3.8)))
     serif = font("Caladea:style=Bold", int(c.u * (6.4 if c.vertical else 4.2)))
     m = c.margin
+    anc = b3d.anchors(clip)
+    lab_big = font(s.display, int(c.u * (3.4 if c.vertical else 2.3)))
+    val_f = font(s.display, int(c.u * (5.2 if c.vertical else 3.4)))
+    tag_f = font(s.display, int(c.u * (2.9 if c.vertical else 1.9)))
     title_lines = []
     if title:
         tmp = ImageDraw.Draw(Image.new("RGB", (8, 8)))
@@ -90,6 +94,39 @@ def scene_b3d(c: Ctx, dur: float, p: dict, words: list[str]) -> Iterator[Image.I
         img = b3d.load(clip[k], (c.W, c.H))
         d = ImageDraw.Draw(img, "RGBA")
         fade_in = min(1.0, t / 0.45)
+        # labels pinned to 3D objects (positions come from Blender's camera, frame by frame)
+        for L in anc.get("labels", []):
+            pt = (anc["points"].get(L["anchor"]) or [None] * n)[min(k, len(anc["points"].get(L["anchor"], [0])) - 1)]
+            if not pt or not pt[2]:
+                continue
+            x, y = pt[0] * c.W, pt[1] * c.H
+            if not (-c.W * 0.1 < x < c.W * 1.1 and -c.H * 0.1 < y < c.H * 1.1):
+                continue
+            if "value" in L:
+                vals = anc["scalars"].get(L["value"], [0])
+                v = vals[min(k, len(vals) - 1)]
+                txt = _num(v, int(L.get("decimals", 0))) + (f" {L['unit']}" if L.get("unit") else "")
+            else:
+                txt = L.get("text", "")
+            if not txt:
+                continue
+            al = int(255 * fade_in)
+            col = acc if L.get("hl") else ink
+            style_ = L.get("style", "label")
+            if style_ == "tag":
+                tw = d.textlength(txt, font=tag_f)
+                bw = tw + c.u * 2.4
+                bx, by = x + c.u * 2.2, y - tag_f.size * 0.9
+                if bx + bw > c.W - c.u * 1.5:  # flip to the left of the point instead of running off the frame
+                    bx = x - c.u * 2.2 - bw
+                d.ellipse([x - c.u * 0.6, y - c.u * 0.6, x + c.u * 0.6, y + c.u * 0.6], fill=(*col, al))
+                d.rounded_rectangle([bx, by, bx + bw, by + tag_f.size * 1.8], radius=c.u * 0.9,
+                                    fill=(*rgb(s.bg), int(al * 0.82)), outline=(*col, al), width=max(1, int(c.u * 0.18)))
+                d.text((bx + c.u * 1.2, by + tag_f.size * 0.9), txt, font=tag_f, fill=(*col, al), anchor="lm")
+            else:
+                f_ = val_f if style_ == "value" else lab_big
+                d.text((x + 2, y + 3), txt, font=f_, fill=(0, 0, 0, int(al * 0.6)), anchor="mb" if style_ == "value" else "mt")
+                d.text((x, y), txt, font=f_, fill=(*col, al), anchor="mb" if style_ == "value" else "mt")
         # title: serif question, one word in the accent colour, top of frame
         if title_lines:
             a = int(255 * fade_in * (1.0 if t < dur - 0.4 else max(0.0, (dur - t) / 0.4)))

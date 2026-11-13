@@ -28,7 +28,14 @@ SCENE SCHEMA. Each scene is {"say": "<spoken line>", "show": {...}, "emoji": "<o
 - {"type":"timeline","events":[{"year":"1883","label":"short label"}]}   up to 6
 - {"type":"verdict","name":"Tool","scores":[{"label":"Ease","score":8}],"overall":7.5}   scores out of 10, 2-5 rows
 - {"type":"image","query":"specific photographable subject","caption":"what the photo shows"}   real photo from Wikimedia Commons; use only for concrete things (a place, an animal, an object)
-- {"type":"b3d","scene":"earth_tunnel","params":{"t0":0,"t1":0.5},"title":{"text":"the what-if question","hl":"one word"},"hud":{"label":"Depth","from":0,"to":6371,"unit":"km","law":"harmonic"},"clock":{"from":0,"to":1266},"fallback":{<one 2D show from this list>}}   REAL 3D SHOT. Counterfactual Atlas only, and only when the topic fits a scene: earth_tunnel (falling through the Earth; t0/t1 = trip 0..1, 0.5 is the centre), moon_drive (travel from Earth to the Moon; params p0/p1 = progress 0..1, shot "chase" or "wide"), everest_flood (sea level rising up a mountain; h0/h1 = water height as a fraction of the peak). hud and clock numbers must be the real values for that stretch. Always include a fallback. At most 3 per Short.
+- {"type":"b3d","scene":"bars3d","params":{"items":[{"label":"Today","value":1},{"label":"Twice as close","value":8,"highlight":true}],"unit":"x"},"title":{"text":"the what-if question","hl":"one word"},"fallback":{"type":"bars", ...same items...}}   REAL 3D SHOT (Counterfactual Atlas only). Scenes and their params:
+    bars3d: items [{label,value,highlight}] 2-6, unit. 3D columns rise one by one with values on top (use instead of "bars").
+    orbit3d: ratio (what-if orbit radius ÷ today's), a, b (labels). Two moons orbit with Kepler timing (use instead of "orbit").
+    fall3d: height (m), items [{label,g}] 2-4. Balls drop side by side in true time (use instead of "fall").
+    earth_tunnel: t0,t1 (trip 0..1, 0.5 = centre); hud {"label":"Depth","from":0,"to":6371,"unit":"km","law":"harmonic"}, clock {"from":0,"to":1266}. Only for falling through the Earth.
+    moon_drive: p0,p1 (progress 0..1), shot "chase"|"wide"; hud/clock for distance and time. Only for travelling to the Moon.
+    everest_flood: h0,h1 (water height as a fraction of the peak); hud for sea level. Only for rising seas.
+  Optional on any 3D scene: "title" (first scene of a section), "hud" {label,from,to,unit} and "clock" {from,to,label,unit:"days"|"hours"} with real values. Always include "fallback" (a 2D show from this list). At most 3 per Short, 8 per long video.
 - {"type":"end","text":"short closing line","product":""}   last scene only
 Mix at least three different visual types. Never use the same type more than three times in a row."""
 

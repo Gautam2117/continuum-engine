@@ -25,6 +25,11 @@ def test_spec_check_knows_3d_scenes():
     assert any("fallback" in p for p in problems(_spec({"type": "b3d", "scene": "earth_tunnel", "fallback": {"type": "zzz"}})))
 
 
+def test_new_scene_names_known():
+    for n in ("bars3d", "orbit3d", "fall3d"):
+        assert n in b3d.SCENE_NAMES
+
+
 def test_harmonic_readout_matches_capsule():
     from engine.scene3d import _progress
     p = {"params": {"t0": 0.0, "t1": 0.5}}
@@ -55,3 +60,6 @@ def test_real_render(scene, tmp_path, monkeypatch):
     assert seq and len(seq) == 4
     a, b = b3d.load(seq[0], (120, 128)), b3d.load(seq[-1], (120, 128))
     assert a.tobytes() != b.tobytes()  # something moved
+    anc = b3d.anchors(seq)
+    for L in anc["labels"]:  # every label points at an anchor that was exported for every frame
+        assert len(anc["points"][L["anchor"]]) == 4

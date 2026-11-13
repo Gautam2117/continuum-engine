@@ -26,8 +26,8 @@ from PIL import Image
 
 HERE = pathlib.Path(__file__).resolve().parent
 MAIN = HERE / "blender_main.py"
-SCENE_NAMES = ("earth_tunnel", "moon_drive", "everest_flood")
-VERSION = "7"  # bump when blender_main.py changes in a way that should invalidate cached frames
+SCENE_NAMES = ("earth_tunnel", "moon_drive", "everest_flood", "bars3d", "orbit3d", "fall3d")
+VERSION = "11"  # bump when blender_main.py changes in a way that should invalidate cached frames
 
 
 @functools.lru_cache(maxsize=1)
@@ -90,6 +90,12 @@ def render_clip(scene: str, params: dict, frames: int, size: tuple[int, int], pa
         last = by_num.get(f, last)
         seq.append(last)
     return seq
+
+
+def anchors(seq: list[pathlib.Path]) -> dict:
+    """Screen anchors written by the scene (normalised x, y per frame), scalars and label instructions."""
+    f = seq[0].parent / "anchors.json"
+    return json.loads(f.read_text()) if f.exists() else {"points": {}, "scalars": {}, "labels": []}
 
 
 def load(path: pathlib.Path, size: tuple[int, int]) -> Image.Image:

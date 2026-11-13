@@ -31,6 +31,13 @@ def lin(h: str, k: float = 1.0) -> tuple:
 
 _MATS: dict = {}
 
+# Screen anchors: scenes register 3D points (objects or callables) and per-frame scalars; after keyframing, main()
+# projects them through the camera for every frame and writes anchors.json, so the engine can draw labels in its own
+# fonts exactly on the 3D objects. LABELS tells the engine what to draw at which anchor.
+ANCHORS: dict = {}   # name -> object (its world location) or fn(frame) -> Vector
+SCALARS: dict = {}   # name -> fn(t 0..1) -> float
+LABELS: list = []    # {"anchor": name, "text": str} | {"anchor": name, "value": scalar_name, "unit": str, "decimals": int, "style": "value"|"label"|"tag"}
+
 
 def mat(name: str, hexc: str, rough: float = 0.6, emit: float = 0.0, metal: float = 0.0, alpha: float = 1.0):
     key = (name, hexc, rough, emit, metal, alpha)
@@ -435,7 +442,139 @@ def scene_everest_flood(p: dict, frames: int, pal: dict):
     return cam
 
 
-SCENES = {"earth_tunnel": scene_earth_tunnel, "moon_drive": scene_moon_drive, "everest_flood": scene_everest_flood}
+def floor(pal, size=300.0, z=0.0):
+    bpy.ops.mesh.primitive_plane_add(size=size, location=(0, 0, z))
+    fl = bpy.context.active_object
+    return link(fl, mat("floor", pal["panel"], 0.95))
+
+
+def stagger(i: int, n: int, t: float, span: float = 0.55) -> float:
+    """Growth 0..1 for item i of n: items start one after another and each takes `span` of the shot."""
+    start = (1 - span) * (i / max(1, n - 1)) if n > 1 else 0.0
+    return ease((t - start) / span)
+
+
+def scene_bars3d(p: dict, frames: int, pal: dict):
+    """3D columns that rise one after another. params: items [{label, value, highlight}], unit, decimals."""
+    items = (p.get("items") or [{"label": "A", "value": 1}, {"label": "B", "value": 3, "highlight": True}])[:6]
+    n = len(items)
+    vmax = max(float(it["value"]) for it in items) or 1.0
+    Hmax, gap, w = 6.0, 3.0, 1.5
+    floor(pal)
+    x0 = -(n - 1) * gap / 2
+    base_m = mat("bar", "#9fb3d1", 0.55)
+    hi_m = mat("bar_hi", pal["accent"], 0.4, emit=0.8)
+    for i, it in enumerate(items):
+        x = x0 + i * gap
+        h_full = max(0.05, Hmax * float(it["value"]) / vmax)
+        bpy.ops.mesh.primitive_cube_add(size=1, location=(x, 0, 0))
+        col = bpy.context.active_object
+        col.name = f"bar{i}"
+        link(col, hi_m if it.get("highlight") else base_m)
+        # pivot at the bottom: move mesh up by 0.5 so scaling z grows upward
+        for v in col.data.vertices:
+            v.co.z += 0.5
+        for f in range(1, frames + 1):
+            g = stagger(i, n, (f - 1) / max(1, frames - 1))
+            col.scale = (w, w, max(0.001, h_full * g))
+            col.keyframe_insert("scale", frame=f)
+        box(f"plinth{i}", (w * 1.25, w * 1.25, 0.12), (x, 0, 0.06), mat("plinth", pal["bg"], 0.9))
+        ANCHORS[f"bar{i}_top"] = (lambda fr, x=x, h=h_full, i=i: Vector((x, 0, h * stagger(i, n, (fr - 1) / max(1, frames - 1)) + 0.35)))
+        ANCHORS[f"bar{i}_base"] = (lambda fr, x=x: Vector((x, -w * 0.9, 0.0)))
+        SCALARS[f"bar{i}"] = (lambda t, i=i, v=float(it["value"]): v * stagger(i, n, t))
+        LABELS.append({"anchor": f"bar{i}_base", "text": str(it.get("label", "")), "style": "label"})
+        LABELS.append({"anchor": f"bar{i}_top", "value": f"bar{i}", "unit": p.get("unit", ""),
+                       "decimals": int(p.get("decimals", 0 if vmax >= 20 else 1)), "style": "value",
+                       "hl": bool(it.get("highlight"))})
+    lights(pal)
+    sc_ = bpy.context.scene
+    vertical = sc_.render.resolution_y > sc_.render.resolution_x
+    span = max(4.0, n * gap)
+    a0 = math.radians(-74)
+    cam, tgt = camera((0, 0, 0), (0, 0, Hmax * (0.8 if vertical else 0.5)), lens=32)
+    # 32 mm lens: half the frame width covers about 0.52 x distance in a vertical frame, 0.9 x in landscape
+    dist = (span * 0.5 / 0.48 + 4.5) if vertical else max(Hmax * 1.45, span * 0.5 / 0.85 + 4)
+    key_path(cam, frames, lambda t: Vector((math.cos(a0 + math.radians(14) * ease(t)) * dist,
+                                             math.sin(a0 + math.radians(14) * ease(t)) * dist,
+                                             Hmax * 0.75)))
+    return cam
+
+
+def scene_orbit3d(p: dict, frames: int, pal: dict):
+    """The Moon's orbit today and in the what-if, both moving with Kepler's third law (period ∝ r^1.5).
+    params: ratio (what-if radius ÷ today's), a, b (labels), turns (how many of today's orbits the shot shows, default 0.35)."""
+    ratio = float(p.get("ratio", 0.5))
+    turns = float(p.get("turns", 0.35))
+    r0 = 7.0
+    r1 = r0 * ratio
+    earth = ico("earth", 1.6, 4, jitter=0.02)
+    for m in (mat("ocean", "#2a6fdb", 0.35), mat("land", "#46a35a"), mat("ice", "#eef4ff")):
+        earth.data.materials.append(m)
+    for f in earth.data.polygons:
+        c = Vector(f.center)
+        f.material_index = 2 if abs(c.normalized().z) > 0.88 else (1 if noise.noise(c * 2.2 + Vector((3, 1, 2))) > 0.1 else 0)
+    for name, r, col in (("ring_a", r0, "#9fb3d1"), ("ring_b", r1, pal["accent"])):
+        bpy.ops.mesh.primitive_torus_add(major_radius=r, minor_radius=0.03, major_segments=128, minor_segments=6)
+        link(bpy.context.active_object, mat(name, col, 0.4, emit=1.5 if name == "ring_b" else 0.3))
+    moon_a = ico("moon_a", 0.5, 3, jitter=0.06, seed=4)
+    link(moon_a, mat("moon", "#c9ccd6", 0.9))
+    moon_b = ico("moon_b", 0.5, 3, jitter=0.06, seed=4)
+    link(moon_b, mat("moon_b", "#e8ebf5", 0.8, emit=0.4))
+    wa = 2 * math.pi * turns
+    wb = wa * ratio ** -1.5   # Kepler: closer orbit, shorter period
+    key_path(moon_a, frames, lambda t: Vector((r0 * math.cos(wa * t + 0.4), r0 * math.sin(wa * t + 0.4), 0)))
+    key_path(moon_b, frames, lambda t: Vector((r1 * math.cos(wb * t + 2.6), r1 * math.sin(wb * t + 2.6), 0)))
+    rot = (lambda t: wa * t)
+    key_path(earth, frames, lambda t: Vector((0, 0, rot(t) * 2.0)), data_path="rotation_euler")
+    ANCHORS["moon_a"] = moon_a
+    ANCHORS["moon_b"] = moon_b
+    LABELS.append({"anchor": "moon_a", "text": str(p.get("a", "Today")), "style": "tag"})
+    LABELS.append({"anchor": "moon_b", "text": str(p.get("b", "What if")), "style": "tag", "hl": True})
+    stars(260, pal["ink"])
+    lights(pal)
+    cam, tgt = camera((0, 0, 0), (0, 0, 0), lens=36)
+    key_path(cam, frames, lambda t: Vector((0.0 + 2.0 * ease(t), -r0 * 2.35 + 1.0 * ease(t), r0 * 1.15)))
+    return cam
+
+
+def scene_fall3d(p: dict, frames: int, pal: dict):
+    """Objects dropped from the same height in different gravity, side by side, in true proportion of time.
+    params: height (m), items [{label, g}]. The shot lasts as long as the slowest fall."""
+    items = (p.get("items") or [{"label": "Earth", "g": 9.8}, {"label": "Moon", "g": 1.62}])[:4]
+    hm = float(p.get("height", 20))
+    n = len(items)
+    tl = [math.sqrt(2 * hm / float(it["g"])) for it in items]
+    T = max(tl)
+    Hs, gap = 7.0, 3.2   # scene units: drop height and lane spacing
+    x0 = -(n - 1) * gap / 2
+    colours = ["#3f8f4e", "#9a9aa3", "#c4553a", "#c9a227"]
+    for i, it in enumerate(items):
+        x = x0 + i * gap
+        box(f"ground{i}", (2.6, 2.6, 0.4), (x, 0, -0.2), mat(f"ground{i}", colours[i % 4], 0.9))
+        box(f"tower{i}", (0.25, 0.25, Hs + 0.5), (x - 0.9, 0.6, (Hs + 0.5) / 2), mat("tower", "#3a4a6a", 0.8))
+        box(f"ledge{i}", (0.9, 0.5, 0.1), (x - 0.45, 0.4, Hs + 0.5), mat("tower", "#3a4a6a", 0.8))
+        ball = ico(f"ball{i}", 0.38, 2)
+        link(ball, mat("ball", pal["accent"], 0.3, emit=1.0))
+        g = float(it["g"])
+        zf = (lambda t, g=g: max(0.38, 0.38 + Hs * (1 - (0.5 * g * (t * T) ** 2) / hm)))
+        key_path(ball, frames, lambda t, x=x, zf=zf: Vector((x, 0, zf(t))))
+        ANCHORS[f"lane{i}"] = (lambda fr, x=x: Vector((x, -1.6, -0.4)))
+        ANCHORS[f"ball{i}"] = ball
+        SCALARS[f"t{i}"] = (lambda t, tli=tl[i]: min(t * T, tli))
+        LABELS.append({"anchor": f"lane{i}", "text": str(it.get("label", "")), "style": "label"})
+        LABELS.append({"anchor": f"ball{i}", "value": f"t{i}", "unit": "s", "decimals": 1, "style": "tag"})
+    floor(pal, z=-0.4)
+    lights(pal)
+    sc_ = bpy.context.scene
+    vertical = sc_.render.resolution_y > sc_.render.resolution_x
+    cam, tgt = camera((0, 0, 0), (0, 0, Hs * 0.5), lens=32)
+    dist = ((n * gap + 2.6) * 0.5 / 0.48 + 1.5) if vertical else (Hs * 1.55)
+    key_path(cam, frames, lambda t: Vector((1.2 * ease(t), -dist, Hs * 0.62)))
+    return cam
+
+
+SCENES = {"earth_tunnel": scene_earth_tunnel, "moon_drive": scene_moon_drive, "everest_flood": scene_everest_flood,
+          "bars3d": scene_bars3d, "orbit3d": scene_orbit3d, "fall3d": scene_fall3d}
 
 
 # ------------------------------------------------------------------ render
@@ -496,6 +635,21 @@ def setup_engine(engine: str, samples: int, pal: dict):
         sc.view_settings.view_transform = "Standard"
 
 
+def export_anchors(out: str, frames: int):
+    from bpy_extras.object_utils import world_to_camera_view
+    sc = bpy.context.scene
+    cam = sc.camera
+    pts = {k: [] for k in ANCHORS}
+    for f in range(1, frames + 1):
+        sc.frame_set(f)
+        for k, src in ANCHORS.items():
+            co = src(f) if callable(src) else src.matrix_world.translation
+            v = world_to_camera_view(sc, cam, Vector(co))
+            pts[k].append([round(v.x, 5), round(1 - v.y, 5), 1 if v.z > 0 else 0])
+    sca = {k: [round(fn((f - 1) / max(1, frames - 1)), 4) for f in range(1, frames + 1)] for k, fn in SCALARS.items()}
+    json.dump({"points": pts, "scalars": sca, "labels": LABELS}, open(os.path.join(out, "anchors.json"), "w"))
+
+
 def main(job_path: str):
     job = json.load(open(job_path))
     out = job["out"]
@@ -511,7 +665,11 @@ def main(job_path: str):
     sc.frame_start, sc.frame_end, sc.frame_step = 1, frames, step
     pal = job.get("palette") or {"bg": "#05070f", "panel": "#0c1a33", "ink": "#eef4ff", "accent": "#5ee1ff"}
     world(pal)
+    ANCHORS.clear()
+    SCALARS.clear()
+    LABELS.clear()
     SCENES[job["scene"]](job.get("params") or {}, frames, pal)
+    export_anchors(out, frames)
     setup_engine(job.get("engine", "WORKBENCH").upper(), int(job.get("samples", 16)), pal)
     sc.render.image_settings.file_format = "PNG"
     sc.render.image_settings.color_mode = "RGB"
