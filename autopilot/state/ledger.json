@@ -52,5 +52,32 @@
   "axis": "chemistry in the kitchen",
   "slot": "14:00",
   "publishAt": "2026-11-14T14:02:00Z"
+ },
+ {
+  "id": "2026-11-14-oddly-l1",
+  "channel": "Oddly Proven",
+  "format": "long",
+  "title": "The 80-Year Harvard Study: What 724 Men Reveal About Happiness",
+  "axis": "psychology experiments that held up",
+  "slot": "14:00",
+  "publishAt": "2026-11-14T13:57:00Z"
+ },
+ {
+  "id": "2026-11-14-crazy-s1",
+  "channel": "Crazy Clipz",
+  "format": "short",
+  "title": "World’s Fastest Human-Powered Bike Speed Record #shorts",
+  "axis": "verified world records",
+  "slot": "14:00",
+  "publishAt": "2026-11-14T13:55:00Z"
+ },
+ {
+  "id": "2026-11-14-foundbeam-l1",
+  "channel": "Foundbeam",
+  "format": "long",
+  "title": "How Dropbox's Referral Program Landed Its First 100,000 Users",
+  "axis": "early distribution tactics",
+  "slot": "14:00",
+  "publishAt": "2026-11-14T13:53:00Z"
  }
 ]

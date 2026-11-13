@@ -1,23 +1,24 @@
 {
- "at": "2026-11-13T20:04:43+00:00",
+ "at": "2026-11-13T20:41:16+00:00",
  "days": [
   "2026-11-13",
   "2026-11-14"
  ],
  "llm": [
   "gemini",
-  "groq"
+  "groq",
+  "nvidia",
+  "openrouter"
  ],
- "written": 1,
+ "written": 3,
  "failed": [
-  "2026-11-14-oddly-l1: LLMError: all providers failed; last: groq/openai/gpt-oss-120b: 429 {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m795whgxekr9y6ztqs4ctxwt` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 4596, Requested 5122. Please try again in 12.885s. Need more tokens? Upgrade to Dev Tier today at https://con",
-  "2026-11-14-crazy-s1: LLMError: all providers failed; last: ",
-  "2026-11-14-wild-s1: LLMError: all providers failed; last: ",
-  "2026-11-14-foundbeam-l1: LLMError: all providers failed; last: "
+  "2026-11-14-wild-s1: rejected by quality gates",
+  "2026-11-14-verdict-s1: LLMError: call budget: time limit for this run reached; the next run continues"
  ],
- "calls": 22,
+ "calls": 88,
  "by_model": {
-  "gemini:gemini-3.5-flash-lite": 1,
-  "groq:openai/gpt-oss-120b": 10
+  "gemini:gemini-3.5-flash-lite": 2,
+  "groq:openai/gpt-oss-120b": 27,
+  "nvidia:nvidia/nemotron-3-ultra-550b-a55b": 14
  }
 }

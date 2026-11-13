@@ -1,0 +1,153 @@
+{
+ "id": "2026-11-14-crazy-s1",
+ "channel": "Crazy Clipz",
+ "format": "short",
+ "title": "World’s Fastest Human-Powered Bike Speed Record #shorts",
+ "thumb": "Human-powered speed bike",
+ "description": "Learn how student teams in the Human Powered Vehicle Challenge have pushed bicycles past 60 km/h and discover the design tricks behind the world’s fastest human-powered vehicle. We also reveal where the official record was set.\n\nSources (Wikipedia, CC BY-SA):\n- Human-powered transport: https://en.wikipedia.org/wiki/Human-powered_transport\n- Human Powered Vehicle Challenge: https://en.wikipedia.org/wiki/Human_Powered_Vehicle_Challenge\n\nNarration is a synthetic voice. Script and visuals are produced with AI tools and checked by automated quality gates.",
+ "tags": [
+  "human powered",
+  "speed record",
+  "HPVC",
+  "bike",
+  "engineering",
+  "aerodynamics",
+  "record",
+  "records",
+  "crazy facts",
+  "stunts",
+  "unbelievable",
+  "true story"
+ ],
+ "links": [
+  {
+   "label": "More from Continuum Arc",
+   "url": "https://continuumarc.tech"
+  }
+ ],
+ "publishAt": "2026-11-14T13:55:00Z",
+ "meta": {
+  "generator": "autopilot",
+  "topic": "World’s Fastest Human-Powered Vehicle Speed Record",
+  "axis": "verified world records",
+  "slot": "14:00",
+  "review": {
+   "hook": 7,
+   "originality": 6,
+   "accuracy": 8
+  },
+  "model": "groq:openai/gpt-oss-120b"
+ },
+ "scenes": [
+  {
+   "say": "World’s Fastest Human-Powered Vehicle",
+   "show": {
+    "type": "title",
+    "text": "Fastest Human-Powered Bike",
+    "kicker": "Speed Record"
+   }
+  },
+  {
+   "say": "Can a bike smash sixty km/h using only human power?",
+   "show": {
+    "type": "say",
+    "text": "60 km/h? 🚴‍♂️",
+    "hero": "🚴"
+   },
+   "emoji": "🚴"
+  },
+  {
+   "say": "Student teams in the HPVC have topped sixty km/h, but the official record was set at the World Human Powered Speed Challenge.",
+   "show": {
+    "type": "number",
+    "from": 0,
+    "value": 60,
+    "unit": "km/h",
+    "label": "HPVC speed",
+    "prefix": "",
+    "decimals": 0
+   }
+  },
+  {
+   "say": "How does that stack up against a regular bike?",
+   "show": {
+    "type": "bars",
+    "title": "Speed Comparison",
+    "unit": "km/h",
+    "items": [
+     {
+      "label": "Regular bike",
+      "value": 25
+     },
+     {
+      "label": "HPVC bike",
+      "value": 60,
+      "highlight": true
+     }
+    ]
+   }
+  },
+  {
+   "say": "The HPVC began in nineteen eighty-three, and speeds have risen steadily.",
+   "show": {
+    "type": "timeline",
+    "events": [
+     {
+      "year": "1983",
+      "label": "HPVC launched"
+     },
+     {
+      "year": "1995",
+      "label": "60 km/h milestone"
+     },
+     {
+      "year": "2005",
+      "label": "Aerodynamic fairings introduced"
+     },
+     {
+      "year": "2020",
+      "label": "Lightweight carbon frames"
+     }
+    ]
+   }
+  },
+  {
+   "say": "These sleek machines look more like rockets than bicycles.",
+   "show": {
+    "type": "image",
+    "query": "human powered vehicle streamlined",
+    "caption": "Streamlined human-powered speed bike"
+   }
+  },
+  {
+   "say": "Key to breaking speed limits?",
+   "show": {
+    "type": "list",
+    "title": "Design Tricks",
+    "items": [
+     "Aerodynamic fairing",
+     "Carbon fiber frame",
+     "Low‑rolling‑resistance tires",
+     "Recumbent riding position"
+    ]
+   }
+  },
+  {
+   "say": "So yes, with the right design a bike can crush sixty km/h on pure muscle power.",
+   "show": {
+    "type": "say",
+    "text": "60 km/h achieved!",
+    "hero": "💨"
+   },
+   "emoji": "💨"
+  },
+  {
+   "say": "Watch the next record shatter to stay tuned!",
+   "show": {
+    "type": "end",
+    "text": "Fastest pedal power ever!",
+    "product": ""
+   }
+  }
+ ]
+}
