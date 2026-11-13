@@ -1,0 +1,60 @@
+name: Promote approved review
+
+# Manual, authenticated final release step. Model outputs never trigger this.
+on:
+  workflow_dispatch:
+    inputs:
+      spec:
+        description: 'Exact specs/YYYY-MM-DD/episode.json path with committed owner approval'
+        type: string
+        required: true
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: approved-promotion
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SPEC: ${{ inputs.spec }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -q pillow numpy num2words
+      - name: Require separate human approval for identical spec bytes
+        id: approval
+        run: |
+          set -euo pipefail
+          python scripts/release_gate.py check "$SPEC"
+      - name: Find exact unexpired technical review artifact
+        id: find
+        env:
+          REVIEW_ARTIFACT: ${{ steps.approval.outputs.artifact }}
+        run: |
+          set -euo pipefail
+          run_id="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            | jq -r --arg artifact "$REVIEW_ARTIFACT" '.artifacts[] | select(.expired == false and .name == $artifact) | .workflow_run.id' \
+            | awk 'NR == 1 {print}')"
+          if [ -z "$run_id" ]; then
+            echo 'RELEASE REJECTED: exact technical review artifact is missing or expired' >&2
+            exit 1
+          fi
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+      - name: Download exact accepted render (no re-generation)
+        env:
+          RUN_ID: ${{ steps.find.outputs.run_id }}
+          REVIEW_ARTIFACT: ${{ steps.approval.outputs.artifact }}
+        run: gh run download "$RUN_ID" -n "$REVIEW_ARTIFACT" -D reviewed
+      - name: Verify original receipts, video, narration and approval
+        run: python scripts/release_gate.py stage "$SPEC" --artifact-root reviewed
+      - name: Attach only approved cut to date release
+        run: python scripts/publish.py "$SPEC" reviewed

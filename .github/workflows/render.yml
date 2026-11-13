@@ -1,4 +1,4 @@
-name: Render
+name: Render (technical review only)
 
 # Every spec pushed under specs/ is rendered to an MP4 + thumbnail + upload pack and attached to a
 # GitHub release named after its date folder. Continuum Studio pulls new releases into Upload packs.
@@ -13,7 +13,7 @@ on:
         required: false
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: render-${{ github.sha }}
@@ -98,9 +98,30 @@ jobs:
             find .cache/personas -type f -name '*.jp*g' -exec mv -n {} .cache/personas/ \; 2>/dev/null || true
             ls .cache/personas | head -3
           fi
-      - name: Render
-        run: python -m engine.render "${{ matrix.spec }}" --out out
-      - name: Attach to release
+      - name: Strict spec validation
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/publish.py "${{ matrix.spec }}" out
+          SPEC: ${{ matrix.spec }}
+        run: python scripts/validate.py --strict "$SPEC"
+      - name: Render
+        env:
+          SPEC: ${{ matrix.spec }}
+        run: python -m engine.render "$SPEC" --out out
+      - name: Decode media and verify review evidence
+        id: review
+        env:
+          SPEC: ${{ matrix.spec }}
+        run: |
+          set -euo pipefail
+          master="$(find out -name video.mp4 -print -quit)"
+          ffmpeg -v error -xerror -i "$master" -f null -
+          result="$(dirname "$master")"
+          ffprobe -v error -show_streams -show_format -of json "$master" > "$result/probe.json"
+          python -m scripts.verify_review "$SPEC" "$result"
+          (cd "$result" && sha256sum video.mp4 thumb.jpg pack.json probe.json spec.json > checksums.txt)
+          artifact="$(python -c 'import sys; from pathlib import Path; from scripts.review_inventory import review_artifact; print(review_artifact(Path(sys.argv[1])))' "$SPEC")"
+          echo "artifact=$artifact" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.review.outputs.artifact }}
+          path: out/
+          if-no-files-found: error
