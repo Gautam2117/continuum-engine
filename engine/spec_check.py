@@ -5,7 +5,7 @@ from .scenes import SCENES
 from .styles import CHANNEL_STYLE
 
 REQUIRED = {"title": ["text"], "number": ["value"], "bars": ["items"], "orbit": ["ratio"], "fall": ["items"],
-            "list": ["items"], "timeline": ["events"], "verdict": ["scores"], "image": []}
+            "list": ["items"], "timeline": ["events"], "verdict": ["scores"], "image": [], "b3d": ["scene"]}
 PLACEHOLDER = re.compile(r"lorem|todo|tbd|\[[^\]]*\]|\{[^}]*\}|as an ai|insert ", re.I)
 WPM = 150
 
@@ -43,6 +43,13 @@ def problems(spec: dict, folder: str | None = None, *, strict: bool = False) -> 
                 out.append(f"scene {i}: {t} needs {f}")
         if t == "image" and not (show.get("query") or show.get("image_url")):
             out.append(f"scene {i}: image needs query or image_url")
+        if t == "b3d":
+            from .b3d import SCENE_NAMES
+            if show.get("scene") not in SCENE_NAMES:
+                out.append(f"scene {i}: unknown 3D scene {show.get('scene')!r}")
+            fb = (show.get("fallback") or {}).get("type")
+            if fb and fb not in SCENES:
+                out.append(f"scene {i}: unknown fallback type {fb!r}")
         if t == "bars" and len(show.get("items", [])) < 2:
             out.append(f"scene {i}: bars needs at least 2 items")
         if strict and PLACEHOLDER.search(sc.get("say", "")):

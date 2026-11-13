@@ -1,0 +1,71 @@
+name: Render on Kaggle GPU
+
+# Cinematic renders (Blender Cycles on Kaggle's free GPU, about 30 hours a week) for specs with 3D shots.
+# Needs repository secrets KAGGLE_USERNAME and KAGGLE_KEY (Kaggle → Settings → API → Create New Token).
+# The everyday path stays render.yml (CPU, fast clay look); use this for hero videos and long-form 3D.
+on:
+  workflow_dispatch:
+    inputs:
+      specs:
+        description: "Specs to render, space separated, e.g. specs/2026-11-15/atlas-s1.json"
+        required: true
+      samples:
+        description: "Cycles samples per frame"
+        default: "48"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: render-kaggle
+  cancel-in-progress: false
+
+jobs:
+  kaggle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    env:
+      KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+      KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q kaggle
+      - name: Check secrets
+        run: |
+          if [ -z "$KAGGLE_USERNAME" ] || [ -z "$KAGGLE_KEY" ]; then
+            echo "::error::Add KAGGLE_USERNAME and KAGGLE_KEY as repository secrets first."; exit 1; fi
+      - name: Validate specs
+        run: |
+          pip install -q pillow numpy num2words
+          python3 scripts/validate.py --strict ${{ github.event.inputs.specs }}
+      - name: Push the job to Kaggle
+        run: |
+          mkdir -p job
+          sed -e "s|__REPO_SHA__|${GITHUB_SHA}|" -e "s|__SPECS__|${{ github.event.inputs.specs }}|" kaggle/render/script.py > job/script.py
+          sed -i "s|os.environ.get(\"B3D_SAMPLES\", \"48\")|\"${{ github.event.inputs.samples }}\"|" job/script.py
+          cat > job/kernel-metadata.json <<META
+          {"id": "${KAGGLE_USERNAME}/continuum-render", "title": "continuum-render", "code_file": "script.py",
+           "language": "python", "kernel_type": "script", "is_private": true,
+           "enable_gpu": true, "enable_internet": true, "dataset_sources": [], "competition_sources": [], "kernel_sources": []}
+          META
+          kaggle kernels push -p job
+      - name: Wait for Kaggle
+        run: |
+          for i in $(seq 1 340); do
+            st="$(kaggle kernels status "${KAGGLE_USERNAME}/continuum-render" 2>&1 || true)"
+            echo "$st"
+            case "$st" in
+              *complete*|*COMPLETE*) exit 0;;
+              *error*|*ERROR*|*cancel*|*CANCEL*) kaggle kernels output "${KAGGLE_USERNAME}/continuum-render" -p dl || true; tail -50 dl/*.log 2>/dev/null; exit 1;;
+            esac
+            sleep 60
+          done
+          exit 1
+      - name: Collect and publish
+        run: |
+          kaggle kernels output "${KAGGLE_USERNAME}/continuum-render" -p dl
+          for s in ${{ github.event.inputs.specs }}; do python3 scripts/publish.py "$s" dl/out; done

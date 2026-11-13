@@ -47,6 +47,26 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq ffmpeg fonts-inter fonts-crosextra-caladea fonts-dejavu-core fonts-noto-core fonts-noto-color-emoji > /dev/null
+      # Blender (bpy, Python 3.13) only when this spec has 3D shots; the engine itself stays on 3.12.
+      - name: Does this spec use 3D?
+        id: b3d
+        run: if grep -q '"b3d"' "${{ matrix.spec }}"; then echo "need=1" >> "$GITHUB_OUTPUT"; fi
+      - if: steps.b3d.outputs.need == '1'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - if: steps.b3d.outputs.need == '1'
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: bpy-5.3.0
+      - name: Blender
+        if: steps.b3d.outputs.need == '1'
+        run: |
+          sudo apt-get install -y -qq libegl1 libgl1 libxkbcommon0 libsm6 libxi6 libxrender1 libxxf86vm1 libxfixes3 > /dev/null
+          python3.13 -m venv ~/bvenv && ~/bvenv/bin/pip install -q bpy==5.3.0
+          echo "B3D_PYTHON=$HOME/bvenv/bin/python" >> "$GITHUB_ENV"
+          echo "B3D_ENGINE=WORKBENCH" >> "$GITHUB_ENV"
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"

@@ -645,3 +645,8 @@ random.seed(7)
 from . import action as _action  # noqa: E402
 
 SCENES.update(_action.SCENES)
+
+# Real 3D shots rendered by Blender (falls back to a 2D scene when Blender is not installed).
+from . import scene3d as _scene3d  # noqa: E402
+
+SCENES.update(_scene3d.SCENES)

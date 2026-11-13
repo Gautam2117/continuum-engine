@@ -28,6 +28,7 @@ SCENE SCHEMA. Each scene is {"say": "<spoken line>", "show": {...}, "emoji": "<o
 - {"type":"timeline","events":[{"year":"1883","label":"short label"}]}   up to 6
 - {"type":"verdict","name":"Tool","scores":[{"label":"Ease","score":8}],"overall":7.5}   scores out of 10, 2-5 rows
 - {"type":"image","query":"specific photographable subject","caption":"what the photo shows"}   real photo from Wikimedia Commons; use only for concrete things (a place, an animal, an object)
+- {"type":"b3d","scene":"earth_tunnel","params":{"t0":0,"t1":0.5},"title":{"text":"the what-if question","hl":"one word"},"hud":{"label":"Depth","from":0,"to":6371,"unit":"km","law":"harmonic"},"clock":{"from":0,"to":1266},"fallback":{<one 2D show from this list>}}   REAL 3D SHOT. Counterfactual Atlas only, and only when the topic fits a scene: earth_tunnel (falling through the Earth; t0/t1 = trip 0..1, 0.5 is the centre), moon_drive (travel from Earth to the Moon; params p0/p1 = progress 0..1, shot "chase" or "wide"), everest_flood (sea level rising up a mountain; h0/h1 = water height as a fraction of the peak). hud and clock numbers must be the real values for that stretch. Always include a fallback. At most 3 per Short.
 - {"type":"end","text":"short closing line","product":""}   last scene only
 Mix at least three different visual types. Never use the same type more than three times in a row."""
 
