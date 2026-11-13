@@ -1,22 +1,14 @@
 {
- "at": "2026-11-13T19:53:45+00:00",
+ "at": "2026-11-13T20:01:11+00:00",
  "days": [
-  "2026-11-13",
-  "2026-11-14"
+  "2026-11-13"
  ],
  "llm": [
   "gemini",
   "groq"
  ],
  "written": 0,
- "failed": [
-  "2026-11-14-10sec-s1: LLMError: all providers failed; last: groq/llama-3.1-8b-instant: 404 {\"error\":{\"message\":\"The model `llama-3.1-8b-instant` does not exist or you do not have access to it.\",\"type\":\"invalid_request_error\",\"code\":\"model_not_found\"}}\n",
-  "2026-11-14-oddly-l1: LLMError: all providers failed; last: ",
-  "2026-11-14-crazy-s1: LLMError: all providers failed; last: ",
-  "2026-11-14-wild-s1: LLMError: all providers failed; last: "
- ],
- "calls": 6,
- "by_model": {
-  "gemini:gemini-3.5-flash-lite": 1
- }
+ "failed": [],
+ "calls": 0,
+ "by_model": {}
 }
