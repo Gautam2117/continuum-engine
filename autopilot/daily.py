@@ -98,6 +98,7 @@ class Planner:
         self.llm, self.max_calls, self.log = llm, max_calls, log
         self.deadline = time.monotonic() + float(os.environ.get("AUTOPILOT_MAX_MINUTES", "34")) * 60
         self.topics: dict[tuple, list[dict]] = {}
+        self.long_outlines: dict[tuple[str, str], dict] = {}
 
     def _call(self, system: str, user: str, **kw):
         return self.llm.complete(system, user, max_calls=self.max_calls, deadline=self.deadline, **kw)
@@ -169,10 +170,15 @@ class Planner:
         per = words // n_ch
         system = self._system(channel)
         base = f"TOPIC: {topic['topic']}\n\nGROUNDING (the only source of specific facts):\n{g['text'] or '(none found: use only settled knowledge)'}\n\n"
-        outline = as_obj(self._call(system, base + prompts.LONG_OUTLINE.replace("{minutes}", str(round(words / 150))).replace("{chapters}", str(n_ch)), temperature=0.8, tier="best"), "chapters")
+        key = (channel, topic["topic"])
+        outline = self.long_outlines.get(key)
+        if outline is None:
+            prompt = prompts.LONG_OUTLINE.replace("{minutes}", str(round(words / 150))).replace("{chapters}", str(n_ch))
+            outline = as_obj(self._call(system, base + prompt, temperature=0.8, tier="best"), "chapters")
         chapters = [c for c in outline.get("chapters", []) if isinstance(c, dict)][:n_ch]
         if len(chapters) < 4:
             raise LLMError("outline too short")
+        self.long_outlines[key] = outline
         scenes: list[dict] = []
         for i, ch in enumerate(chapters, 1):
             first = "This chapter opens the video: first scene type \"title\", then deliver the promise inside 20 seconds. " if i == 1 else ""

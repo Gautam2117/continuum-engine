@@ -285,3 +285,15 @@ def test_heal_recovers_incomplete_release_even_when_pack_exists(tmp_path, monkey
     assets.append({"name": f"{sid}-thumb.jpg"})
     assert cli.cmd_heal(None) == 0
     assert outputs[-1] == ("heal", "")
+
+
+def test_long_revision_reuses_outline_but_regenerates_chapters():
+    llm = llm_with(Scripted())
+    planner = daily.Planner(llm)
+    topic = {"topic": "What if gravity changed?"}
+    grounding = {"text": "Gravity shapes orbits."}
+    planner.draft_long("Counterfactual Atlas", topic, grounding)
+    initial = llm.calls
+    planner.draft_long("Counterfactual Atlas", topic, grounding, ["Clarify the visual sequence"])
+    assert initial == 7
+    assert llm.calls == initial + 6
