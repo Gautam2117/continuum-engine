@@ -31,6 +31,7 @@ UA = "ContinuumEngine/1.0 (https://studio.continuumarc.tech; gautam@continuumarc
 SIZES = {"long": (1920, 1080), "short": (1080, 1920)}
 # Science what-if scenes own the visual field; no repeated cartoon mascot overlay.
 NO_MASCOT = frozenset({"atlas", "lowbat", "sienna", "aditi", "kiara"})
+NO_STICKERS = frozenset({"atlas", "lowbat"})
 
 
 def fetch_persona(p: dict, spec_id: str, scene_no: int) -> Image.Image | None:
@@ -248,7 +249,8 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
         words = say.split()
         ems = sc.get("emoji")
         ems = [ems] if isinstance(ems, str) else (ems if ems is not None else emoji.pick(say))
-        if slug == "lowbat":
+        # Unrelated stickers must not obscure Atlas physical diagrams.
+        if slug in NO_STICKERS:
             ems = []
         if kind == "say" and ems:
             show["hero"], ems = ems[0], []
