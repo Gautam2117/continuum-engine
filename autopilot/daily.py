@@ -338,21 +338,33 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
     strikes = 0
     for day in sorted(days):
         folder = SPECS / day.isoformat()
+        by_channel: dict[str, list[dict]] = {}
+        for path in folder.glob("*.json"):
+            try:
+                saved = json.loads(path.read_text())
+            except json.JSONDecodeError:
+                continue
+            by_channel.setdefault(saved.get("channel", ""), []).append(saved)
         for channel in channels:
             pb = PLAYBOOKS[channel]
-            for fmt in ("short", "long"):  # Shorts first: far cheaper per video when the free quota is tight
-                want = cadence_for(channel, day).get(fmt, 0)
-                have = 0
-                for p in folder.glob("*.json") if folder.exists() else []:
+            existing = by_channel.get(channel, [])
+            occupied = []
+            for saved in existing:
+                when = saved.get("publishAt")
+                if isinstance(when, str):
                     try:
-                        s = json.loads(p.read_text())
-                    except json.JSONDecodeError:
+                        parsed = dt.datetime.fromisoformat(when.replace("Z", "+00:00"))
+                    except ValueError:
                         continue
-                    have += s.get("channel") == channel and s.get("format") == fmt
+                    if parsed.tzinfo is not None:
+                        occupied.append(parsed)
+            for fmt in ("short", "long"):
+                want = cadence_for(channel, day).get(fmt, 0)
+                have = sum(saved.get("format") == fmt for saved in existing)
                 missing = want - have
                 if missing <= 0:
                     continue
-                slots = choose(channel, fmt, missing, day, insights.slot_stats(channel, fmt), now)
+                slots = choose(channel, fmt, missing, day, insights.slot_stats(channel, fmt), now, occupied=tuple(occupied))
                 for k, when in enumerate(slots):
                     sid = f"{day.isoformat()}-{pb['slug']}-{fmt[0]}{have + k + 1}"
                     try:
@@ -370,6 +382,7 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
                         out["failed"].append(f"{sid}: rejected by quality gates")
                         continue
                     strikes = 0
+                    occupied.append(when)
                     folder.mkdir(parents=True, exist_ok=True)
                     path = folder / f"{sid[11:]}.json"
                     path.write_text(json.dumps(spec, indent=1, ensure_ascii=False) + "\n")

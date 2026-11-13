@@ -297,3 +297,12 @@ def test_long_revision_reuses_outline_but_regenerates_chapters():
     planner.draft_long("Counterfactual Atlas", topic, grounding, ["Clarify the visual sequence"])
     assert initial == 7
     assert llm.calls == initial + 6
+
+
+def test_slot_selection_spaces_formats_around_existing_uploads():
+    day = dt.date(2026, 11, 14)
+    now = dt.datetime(2026, 11, 13, tzinfo=dt.timezone.utc)
+    shorts = choose("Counterfactual Atlas", "short", 2, day, {}, now)
+    long = choose("Counterfactual Atlas", "long", 1, day, {}, now, occupied=tuple(shorts))
+    assert len(shorts) == 2 and len(long) == 1
+    assert all(abs((long[0] - other).total_seconds()) >= 10800 for other in shorts)
