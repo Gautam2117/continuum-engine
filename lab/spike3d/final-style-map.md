@@ -2,17 +2,29 @@
 
 Decision: no Higgsfield or other paid generators. Every channel gets the best-fit look. Most are now true 3D or 3D-depth, and whiteboard, pixel, ink, footage and persona looks are kept where they are the best fit, each with added depth. Everything below is free and open source or free-tier, and is usable commercially (licences checked 13 Nov; recheck before each new model goes live).
 
-## 0. Status (13 Nov, 20:00 IST)
-- **Kaggle is live.** The account is **continuumarc** and the key is in GitHub secrets (the username is built into the workflow). The test run rendered on Cycles with OptiX on 2x Tesla T4. The full "Render on Kaggle GPU" workflow (push → render → collect) passed twice, with publish=no.
-- **Two render paths:**
-  - render.yml on GitHub: clay/Workbench look, about 1.4 s per frame, for daily videos.
-  - render-kaggle.yml on Kaggle: cinematic Cycles look, for hero videos and long-form 3D. There's a fixed GPU warm-up of a few minutes per run.
-- **Six 3D scenes in the engine:**
-  - general: bars3d, orbit3d (Kepler timing), fall3d (true fall times);
-  - special: earth_tunnel, moon_drive (chase/wide), everest_flood.
-  - Labels are pinned to the 3D objects in brand fonts, and the counters follow the motion's physics.
-- **Autopilot:** may now use any of the six for Counterfactual Atlas, always with a 2D fallback. Its next specs can come out partly 3D whenever a topic fits.
-- **Next kits:** S3 clay (8 channels), then the F overlay for footage, S2 POV, S4 technical, S5 glass UI, the S9 Kaggle AI worker (Wan 2.2, LatentSync), S6, S7, S8.
+## 0. Status (13 Nov, 21:00 IST)
+- **Kaggle is live.** Account **continuumarc**; the key is in GitHub secrets. Cycles renders on 2x T4 with OptiX.
+- **Built in the engine** (continuum-engine main) — 15 3D scenes; reference in lab/3d-kit.md:
+  - **S1 world sims:** bars3d, orbit3d, fall3d, earth_tunnel, moon_drive, everest_flood
+  - **S3 clay:** clay — people, robots, mannequins, gummies; 7 actions, 4 faces; 6 sets: tabletop, Indian street, office, shop, space, studio; 12 props incl. rickshaw, chai cart, coins; speech bubbles
+  - **S2 POV:** room_pov (classroom, bedroom, office; hands, clock, stamp) and corridor (hotel with a 404 door)
+  - **S4 technical:** gears (exploding gear train) and extrude (blueprint block with route, or 3D bar map)
+  - **S5 glass UI:** panels — cards that build in depth
+  - **S6 ambient:** corridor (liminal corridor, pool, flicker)
+  - **S8 voxel:** voxel island with a walking hero
+  - **F overlay / all channels:** title3d — 3D type in the channel font
+- **Labels:** all scenes draw labels, counters, bubbles and cards in the channel's own fonts, pinned to the 3D objects.
+- **Rendering:**
+  - GitHub (clay/Workbench, about 1.4 s per frame) for daily videos.
+  - Kaggle (Cycles GPU) for hero videos.
+  - Kaggle Wan 2.2 TI2V-5B (ai-kaggle.yml) for persona and cinematic motion from a still: built; first test run in progress.
+- **Autopilot:** Atlas may use the world-sim scenes whenever a topic fits; other channels are made on request using the presets in lab/3d-kit.md.
+- **Still to do:**
+  - real animal and creature models for Wild Creature Files (Quaternius CC0 / TRELLIS);
+  - lip-sync (LatentSync) for talking personas;
+  - Hindi voice + Devanagari captions test for Samjho System;
+  - Grease Pencil drawn-in-3D (S7) for Drawn Out Minds and Truth Over Propaganda;
+  - your character sheets for the three personas.
 
 ## 1. Proven today (spike, 13 Nov)
 - Blender 5.3 runs headless as a Python module (`pip install bpy`, no GPU, no display).
@@ -69,7 +81,7 @@ Readiness: **Now** = can render today with the current engine; **Kit** = needs t
 
 | # | Channel | Final look | System | Tools | Readiness |
 |---|---|---|---|---|---|
-| 1 | Counterfactual Atlas | Low-poly 3D worlds and cutaways, HUD timer, serif question, vote end | S1 | Blender (Workbench on Actions, Cycles on Kaggle) + engine HUD | **Built**: 3 scenes live in engine; more scenes next |
+| 1 | Counterfactual Atlas | Low-poly 3D worlds and cutaways, HUD timer, serif question, vote end | S1 | Blender (Workbench on Actions, Cycles on Kaggle) + engine HUD | **Built**: 6 scenes, Autopilot uses them |
 | 2 | What If Anomaly | Low-poly cities and crowds, terminal-green anomaly counter, scanlines | S1 | Blender + engine | Kit S1 |
 | 3 | Crazy Clipz | Records rebuilt as low-poly 3D sims, red HUD counter | S1 | Blender + engine | Kit S1 |
 | 4 | What Happens in 10 | 3D room or object with an amber clock HUD, before and after states | S1 | Blender + engine | Kit S1 |
