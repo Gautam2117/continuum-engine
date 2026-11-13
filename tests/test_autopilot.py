@@ -194,3 +194,49 @@ def test_list_replies_do_not_crash_the_planner():
         raise AssertionError("should reject")
     except LLMError:
         pass
+
+
+def test_retry_attempts_stop_at_call_budget():
+    import pytest
+    from autopilot.llm import Provider
+
+    class Busy(Provider):
+        def chat(self, *args):
+            raise LLMError("503 unavailable")
+
+    llm = LLM(providers=[Busy("busy", "", "", ["m"])], log=lambda *_: None)
+    waits = []
+    llm.sleep = waits.append
+    with pytest.raises(LLMError, match="call budget"):
+        llm.complete("s", "u", max_calls=2)
+    assert waits == [8]
+    assert llm.attempts_by_model == {"busy:m": 2}
+    assert llm.by_provider == {}
+
+
+def test_backoff_respects_planner_deadline(monkeypatch):
+    import pytest
+    from autopilot import llm as router
+    from autopilot.llm import Provider
+
+    class Busy(Provider):
+        def chat(self, *args):
+            raise LLMError("503 unavailable")
+
+    monkeypatch.setattr(router.time, "monotonic", lambda: 100)
+    llm = LLM(providers=[Busy("busy", "", "", ["m"])])
+    waits = []
+    llm.sleep = waits.append
+    with pytest.raises(LLMError, match="time limit"):
+        llm.complete("s", "u", deadline=104)
+    assert llm.calls == 1
+    assert waits == []
+
+
+def test_missing_editor_decision_holds_spec(monkeypatch):
+    import pytest
+
+    planner = daily.Planner(llm_with(Scripted()))
+    monkeypatch.setattr(planner, "_call", lambda *a, **k: {"fixes": []})
+    with pytest.raises(LLMError, match="valid pass decision"):
+        planner.critic("Counterfactual Atlas", short_script(), {"text": ""})

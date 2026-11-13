@@ -169,6 +169,7 @@ class LLM:
         self.providers = providers if providers is not None else providers_from_env()
         self.calls = 0
         self.log = log
+        self.attempts_by_model: dict[str, int] = {}
         self.by_provider: dict[str, int] = {}
         self.last_model = ""
         self.sleep = time.sleep
@@ -177,13 +178,24 @@ class LLM:
     def available(self) -> bool:
         return bool(self.providers)
 
-    def complete(self, system: str, user: str, *, want_json: bool = True, temperature: float = 0.8, max_tokens: int = 6000, tier: str = "bulk"):
+    def complete(self, system: str, user: str, *, want_json: bool = True, temperature: float = 0.8, max_tokens: int = 6000, tier: str = "bulk", max_calls: int | None = None, deadline: float | None = None):
         """Returns parsed JSON when want_json, else text. Fails over across providers and models.
         tier="best" tries the strongest models first (scripts, editor); "bulk" tries the highest-quota ones (topic ideas).
         Busy-server errors (503 and friends) are retried with backoff and never mark a model dead; only a spent
         quota or a retired model does."""
         if not self.providers:
             raise LLMError("no LLM key configured (set GEMINI_API_KEY, GROQ_API_KEY or OPENROUTER_API_KEY)")
+
+        def check_budget(wait: float = 0) -> None:
+            if max_calls is not None and self.calls >= max_calls:
+                raise LLMError("call budget for this run is used up")
+            if deadline is not None and time.monotonic() + wait >= deadline:
+                raise LLMError("call budget: time limit for this run reached; the next run continues")
+
+        def backoff(seconds: float) -> None:
+            check_budget(seconds)
+            self.sleep(seconds)
+
         last = ""
         for sweep in range(3):  # after a full sweep where everything was merely busy, wait and sweep again
             busy = False
@@ -199,13 +211,16 @@ class LLM:
                         break
                     tries = 0
                     while tries < 3:
+                        check_budget()
                         tries += 1
                         try:
                             self.calls += 1
+                            model_id = f"{prov.name}:{model}"
+                            self.attempts_by_model[model_id] = self.attempts_by_model.get(model_id, 0) + 1
                             text = prov.chat(model, system, user, temperature, max_tokens, want_json)
                             result = extract_json(text) if want_json else text
                             prov.busy_hits = 0  # noqa
-                            self.last_model = f"{prov.name}:{model}"
+                            self.last_model = model_id
                             self.by_provider[self.last_model] = self.by_provider.get(self.last_model, 0) + 1
                             return result
                         except LLMError as e:
@@ -218,7 +233,7 @@ class LLM:
                                 if getattr(prov, "busy_hits", 0) >= 2 and len(self.providers) > 1:
                                     prov.cool_until = time.monotonic() + 600  # skip this provider for 10 minutes
                                     break
-                                self.sleep(min(60, 8 * 2 ** (tries - 1)))  # 8s, 16s, 32s
+                                backoff(min(60, 8 * 2 ** (tries - 1)))  # 8s, 16s, 32s
                                 continue
                             if msg.startswith("429"):
                                 if "perminute" in low or "per minute" in low or "rpm" in low:
@@ -226,7 +241,7 @@ class LLM:
                                     if getattr(prov, "busy_hits", 0) >= 2 and len(self.providers) > 1:
                                         prov.cool_until = time.monotonic() + 300
                                         break
-                                    self.sleep(25)  # a per-minute limit: wait it out, then try again
+                                    backoff(25)  # a per-minute limit: wait it out, then try again
                                     busy = True
                                     continue
                                 prov.dead.add(model)  # daily quota gone, or this model is not on the free tier
@@ -239,10 +254,10 @@ class LLM:
                                 break
                             if "not valid JSON" in msg:
                                 continue  # one more try with the same model
-                            self.sleep(3 * tries)
+                            backoff(3 * tries)
                     self.log(f"  llm: {last[:160]}")
-            if not busy:
+            if not busy or sweep == 2:
                 break
             self.log(f"  llm: every model is busy; waiting before sweep {sweep + 2}")
-            self.sleep(60)
+            backoff(60)
         raise LLMError(f"all providers failed; last: {last}")

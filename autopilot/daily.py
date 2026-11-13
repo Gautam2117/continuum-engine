@@ -100,11 +100,7 @@ class Planner:
         self.topics: dict[tuple, list[dict]] = {}
 
     def _call(self, system: str, user: str, **kw):
-        if self.llm.calls >= self.max_calls:
-            raise LLMError("call budget for this run is used up")
-        if time.monotonic() > self.deadline:
-            raise LLMError("call budget: time limit for this run reached; the next run continues")
-        return self.llm.complete(system, user, **kw)
+        return self.llm.complete(system, user, max_calls=self.max_calls, deadline=self.deadline, **kw)
 
     # ---- topics ---------------------------------------------------------------------------------
     def pick_topic(self, channel: str, fmt: str) -> dict:
@@ -267,17 +263,19 @@ class Planner:
         }
 
     def critic(self, channel: str, spec: dict, g: dict) -> dict:
-        narration = "\n".join(s["say"] for s in spec["scenes"])[:9000]
+        script = "\n".join(
+            f"{scene['say']} | On screen: {json.dumps(scene.get('show', {}), ensure_ascii=False)}"
+            for scene in spec["scenes"]
+        )
         pb = PLAYBOOKS[channel]
         facts = f"{pb['promise']} {pb.get('rule', '')}".strip()
         fic = "This is a FICTION channel: invented characters and events are allowed and are not 'unsupported claims'. Only real-world facts need support.\n" if pb.get("fiction") else ""
         user = (f"CHANNEL FACTS (always allowed to state): {facts}\n{fic}GROUNDING:\n{g['text'][:6000]}\n\n"
-                f"TITLE: {spec['title']}\nSCRIPT:\n{narration}")
-        try:
-            return as_obj(self._call(prompts.CRITIC, user, temperature=0.2, max_tokens=1200, tier="best"), "fixes")
-        except (LLMError, AttributeError, TypeError) as e:
-            self.log(f"  critic unavailable ({str(e)[:80]}); relying on hard gates")
-            return {"pass": True, "skipped": True}
+                f"TITLE: {spec['title']}\nDESCRIPTION: {spec['description']}\nSCRIPT:\n{script}")
+        review = as_obj(self._call(prompts.CRITIC, user, temperature=0.2, max_tokens=1200, tier="best"), "fixes")
+        if type(review.get("pass")) is not bool:
+            raise LLMError("editor response is missing a valid pass decision")
+        return review
 
     def make(self, channel: str, fmt: str, spec_id: str, when: dt.datetime) -> dict | None:
         pb = PLAYBOOKS[channel]
@@ -309,7 +307,7 @@ class Planner:
                 bad.append("another channel in the network covered this idea recently; choose a different angle")
             if not bad:
                 review = self.critic(channel, spec, g)
-                if review.get("pass", True):
+                if review["pass"] and not review.get("unsupported_claims"):
                     spec["meta"]["review"] = {k: review.get(k) for k in ("hook", "originality", "accuracy")}
                     spec["meta"]["model"] = self.llm.last_model
                     return spec

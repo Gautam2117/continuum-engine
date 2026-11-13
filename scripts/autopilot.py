@@ -41,8 +41,10 @@ def cmd_plan(a) -> int:
         return 0
     for pv in llm.providers:
         print(f"llm provider {pv.name}: best={getattr(pv, 'best', [])} bulk={pv.models}")
+    started = time.monotonic()
     result = daily.plan(days, llm, now, only=a.only or None, max_calls=a.max_calls)
-    beat.update(written=len(result["written"]), failed=result["failed"][:20], calls=llm.calls, by_model=llm.by_provider)
+    beat.update(written=len(result["written"]), failed=result["failed"][:20], calls=llm.calls, by_model=llm.by_provider,
+                attempts_by_model=llm.attempts_by_model, planning_seconds=round(time.monotonic() - started, 2))
     insights.save("heartbeat.json", beat)
     emit("new", " ".join(result["written"]))
     print(json.dumps({k: (v if k != "written" else len(v)) for k, v in result.items()}, indent=1))

@@ -56,18 +56,22 @@ jobs:
         id: plan
         timeout-minutes: 40          # a long run must still commit what it wrote; the next run continues
         continue-on-error: true
+        env:
+          ONLY: ${{ inputs.only || 'Counterfactual Atlas' }}
+          DAYS: ${{ inputs.days || '3' }}
         run: |
-          ONLY="${{ github.event.inputs.only || 'Counterfactual Atlas' }}"
           ARGS=()
           if [ "$ONLY" != "ALL" ]; then IFS='|' read -ra LIST <<< "$ONLY"; for c in "${LIST[@]}"; do ARGS+=(--only "$c"); done; fi
-          python3 scripts/autopilot.py plan --days "${{ github.event.inputs.days || '3' }}" "${ARGS[@]}"
+          python3 scripts/autopilot.py plan --days "$DAYS" "${ARGS[@]}"
       - name: Check the new specs
-        if: always()
+        id: validate
+        if: ${{ !cancelled() && steps.plan.outcome != 'skipped' }}
         run: |
           NEW="$(git ls-files --others --exclude-standard specs | grep '\.json$' || true)"
           if [ -n "$NEW" ]; then python3 scripts/validate.py --strict $NEW; fi
       - name: Commit
-        if: always()
+        id: commit
+        if: ${{ !cancelled() && steps.validate.outcome == 'success' }}
         run: |
           git config user.name "continuum-autopilot"
           git config user.email "autopilot@users.noreply.github.com"
@@ -78,11 +82,12 @@ jobs:
           fi
       - name: Find specs that never rendered
         id: heal
-        if: always()
+        if: ${{ !cancelled() && steps.commit.outcome == 'success' }}
         run: python3 scripts/autopilot.py heal
       - name: Start renders
-        if: always()
+        if: ${{ !cancelled() && steps.heal.outcome == 'success' }}
+        env:
+          TODO: ${{ steps.plan.outputs.new }} ${{ steps.heal.outputs.heal }}
         run: |
-          TODO="${{ steps.plan.outputs.new }} ${{ steps.heal.outputs.heal }}"
-          TODO="$(echo $TODO | xargs -n1 | sort -u | xargs)"
+          TODO="$(printf '%s\n' "$TODO" | xargs -n1 | sort -u | xargs)"
           if [ -n "$TODO" ]; then gh workflow run render.yml -f specs="$TODO"; echo "render started for: $TODO"; fi
