@@ -441,3 +441,17 @@ def test_episode_budget_is_distinct_from_run_budget():
     with pytest.raises(LLMError, match="call budget for this run") as error:
         planner._call("system", "user")
     assert not isinstance(error.value, daily.EpisodeCallLimit)
+
+
+def test_inventory_reports_network_coverage_without_counting_invalid_specs(tmp_path, monkeypatch):
+    monkeypatch.setattr(daily, "SPECS", tmp_path)
+    day = dt.date(2026, 11, 14)
+    folder = tmp_path / day.isoformat()
+    folder.mkdir()
+    spec = {"id": f"{day}-atlas-s2", "channel": "Counterfactual Atlas", "format": "short"}
+    for name in ("atlas-s1", "atlas-s2"):
+        (folder / f"{name}.json").write_text(json.dumps(spec))
+    rows = daily.inventory([day])
+    assert len({row["channel"] for row in rows}) == 48
+    assert sum(row["target"] for row in rows) == 50
+    assert sum(row["missing"] for row in rows) == 49

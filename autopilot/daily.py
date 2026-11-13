@@ -435,3 +435,28 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
                     out["written"].append(rel)
                     log(f"  wrote {rel}: {spec['title']}")
     return out
+
+
+def inventory(days: list[dt.date], only: list[str] | None = None) -> list[dict]:
+    """Report spec coverage independently of the planner's stop condition."""
+    channels = [channel for channel in PLAYBOOKS if not only or channel in only]
+    rows = []
+    for day in sorted(set(days)):
+        counts: dict[tuple[str, str], set[str]] = {}
+        for path in (SPECS / day.isoformat()).glob("*.json"):
+            try:
+                spec = json.loads(path.read_text())
+                if not isinstance(spec, dict) or spec.get("id") != f"{day}-{path.stem}":
+                    continue
+                channel, fmt = spec.get("channel"), spec.get("format")
+                if channel in channels and fmt in ("short", "long"):
+                    counts.setdefault((channel, fmt), set()).add(spec["id"])
+            except (OSError, ValueError):
+                continue
+        for channel in channels:
+            for fmt, target in cadence_for(channel, day).items():
+                if target:
+                    present = len(counts.get((channel, fmt), ()))
+                    rows.append({"date": day.isoformat(), "channel": channel, "format": fmt,
+                                 "target": target, "specs": present, "missing": max(0, target - present)})
+    return rows
