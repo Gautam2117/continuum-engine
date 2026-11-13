@@ -321,6 +321,11 @@ class Planner:
                 need = 4 if fmt == "short" else 8
                 if n_persona < need:
                     bad.append(f"use the persona scene on at least {need} scenes (only {n_persona}); the persona's face must carry the video")
+            if pb["slug"] == "lowbat":
+                actions = [(scene.get("show") or {}).get("action") for scene in spec["scenes"]
+                           if (scene.get("show") or {}).get("type") == "pip"]
+                if not all(action in actions for action in ("notice", "reach", "slip", "reset")):
+                    bad.append("stage all four Pip actions: notice, reach, slip and reset")
             if too_similar(spec["title"], network_topics(channel), 0.55):
                 bad.append("another channel in the network covered this idea recently; choose a different angle")
             if not bad:

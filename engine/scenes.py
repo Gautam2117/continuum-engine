@@ -651,3 +651,7 @@ SCENES.update(_action.SCENES)
 from . import scene3d as _scene3d  # noqa: E402
 
 SCENES.update(_scene3d.SCENES)
+
+from .pip import pip  # noqa: E402
+
+SCENES["pip"] = pip

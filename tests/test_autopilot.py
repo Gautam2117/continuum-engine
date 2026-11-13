@@ -367,3 +367,14 @@ def test_editor_cannot_pass_scores_below_threshold(monkeypatch):
     result = planner.critic("Counterfactual Atlas", short_script(), {"text": ""})
     assert result["pass"] is False
     assert result["fixes"] == ["Improve accuracy: scored 5, needs 7"]
+
+
+def test_pip_reach_moves_and_phone_state_changes():
+    from types import SimpleNamespace
+    from engine.pip import pip
+
+    ctx = SimpleNamespace(W=270, H=375)
+    frames = list(pip(ctx, 0.5, {"action": "reach"}, []))
+    assert frames[0].tobytes() != frames[len(frames) // 2].tobytes()
+    dead = next(pip(ctx, 0.5, {"action": "reset", "phone": "dead"}, []))
+    assert frames[0].getpixel((205, 220)) != dead.getpixel((205, 220))

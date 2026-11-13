@@ -214,8 +214,8 @@ PLAYBOOKS: dict[str, dict] = {
         axes=["bedtime negotiations", "charger reach", "laundry indecision", "midnight snacks", "trying to leave the sofa", "one last notification"],
         titles=["The Charger Is Two Inches Too Far", "One Last Trip to the Kitchen"],
         avoid=["ambient compilations", "life advice", "borrowed characters", "explaining the punchline"],
-        scene_bias=["title", "say", "end"], grounded=False, fiction=True,
-        rule="Use the same original stick character named Pip. Write action, escalation and a visible reversal. This is an animatic script for the series, using precise blocking and prop interaction.",
+        scene_bias=["title", "pip", "end"], grounded=False, fiction=True,
+        rule='Use recurring Pip. Stage a phone reach mishap with action, escalation and reversal. Use at least four {"type":"pip","action":"notice|reach|slip|reset"} scenes. Use optional phone state "far" after the slip and "dead" for a black screen. Choose exactly one action per scene and match the narration to the staged action.' ,
         tags=["stickman", "original animation", "comedy", "shorts"], links=[CTA_ARC],
     ),
 }

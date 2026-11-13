@@ -41,6 +41,10 @@ def problems(spec: dict, folder: str | None = None, *, strict: bool = False) -> 
         for f in REQUIRED.get(t, []):
             if f not in show:
                 out.append(f"scene {i}: {t} needs {f}")
+        if t == "pip":
+            from .pip import ACTIONS
+            if spec["channel"] != "The Low Battery Show" or show.get("action") not in ACTIONS:
+                out.append(f"scene {i}: invalid Low Battery action")
         if t == "image" and not (show.get("query") or show.get("image_url")):
             out.append(f"scene {i}: image needs query or image_url")
         if t == "b3d":
@@ -72,7 +76,11 @@ def problems(spec: dict, folder: str | None = None, *, strict: bool = False) -> 
         else:
             if len(scenes) < 18:
                 out.append("long-form needs at least 18 scenes for visual variety")
-        kinds = [(sc.get("show") or {}).get("type", "say") for sc in scenes]
+        kinds = []
+        for sc in scenes:
+            show = sc.get("show") or {}
+            kind = show.get("type", "say")
+            kinds.append((kind, show.get("action") if kind == "pip" else None))
         run = best = 1
         for a, b in zip(kinds, kinds[1:]):
             run = run + 1 if a == b else 1

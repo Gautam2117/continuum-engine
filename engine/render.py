@@ -210,7 +210,7 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "24" if fmt == "long" else "22", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
         "-c:a", "aac", "-b:a", "160k", "-shortest", str(video),
     ], stdin=subprocess.PIPE)
-    layout = stage.Layout(W, H, fmt, no_host=style.slug in ('sienna', 'aditi', 'kiara'))
+    layout = stage.Layout(W, H, fmt, no_host=style.slug in ('sienna', 'aditi', 'kiara', 'lowbat'))
     bd = S.Backdrop(style, W, H, seed=len(spec["id"]))
     ctx = S.Ctx(style, W, layout.view_h, bd, spec["channel"], vertical=layout.vertical)
     slug = style.slug
@@ -224,11 +224,13 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
         words = say.split()
         ems = sc.get("emoji")
         ems = [ems] if isinstance(ems, str) else (ems if ems is not None else emoji.pick(say))
+        if slug == "lowbat":
+            ems = []
         if kind == "say" and ems:
             show["hero"], ems = ems[0], []
         if kind in ("title", "end"):
             ems = ems[:1]
-        cfg = {"captions": not (slug == "drift" and fmt == "long"), "host": sc.get("host", True) and slug not in ("sienna", "aditi", "kiara")}
+        cfg = {"captions": not (slug == "drift" and fmt == "long"), "host": sc.get("host", True) and slug not in ("sienna", "aditi", "kiara", "lowbat")}
         stg = stage.Scene(layout, style, slug, spec["channel"], kind, say, dur, audio, ems, cfg, first=(si == 0))
         fn = S.SCENES[kind]
         if kind in ("image", "persona"):
