@@ -1,0 +1,189 @@
+{
+  "id": "2026-11-14-atlas-s1-3d",
+  "channel": "Counterfactual Atlas",
+  "format": "short",
+  "title": "What if you drove to the Moon? #shorts",
+  "thumb": "Drive to the Moon",
+  "description": "What if you could drive to the Moon? At 100 km/h without stopping, the trip is about 160 days. A passenger jet would take about 18 days. Apollo 11 took roughly three days to reach lunar orbit.\n\nNumbers: average Earth-Moon distance 384,400 km; time = distance / speed (384,400 / 100 = 3,844 hours = 160.2 days; at 120 km/h = 133.5 days; at 900 km/h = 17.8 days). Fuel estimate assumes a car using 7 litres per 100 km (384,400 km x 0.07 = about 26,900 litres) and ignores that no real car could make the trip.\n\nSources:\n- Average lunar distance: NASA\n- Apollo 11 transit time to lunar orbit, about three days: NASA and Smithsonian National Air and Space Museum\n\nNarration is a synthetic (AI-generated) voice. Visuals are original animated graphics.",
+  "tags": [
+    "what if",
+    "moon",
+    "space",
+    "science",
+    "distance"
+  ],
+  "links": [
+    {
+      "label": "Explore real places on your own missions with Daywild",
+      "url": "https://daywild.continuumarc.tech"
+    }
+  ],
+  "scenes": [
+    {
+      "say": "What if you could drive to the Moon? It would take over five months.",
+      "show": {
+        "type": "b3d",
+        "scene": "moon_drive",
+        "params": {
+          "p0": 0.0,
+          "p1": 0.08,
+          "shot": "chase"
+        },
+        "title": {
+          "text": "What if you could drive to the Moon?",
+          "hl": "drive"
+        },
+        "hud": {
+          "label": "Distance",
+          "from": 0,
+          "to": 30752,
+          "unit": "km",
+          "law": "linear"
+        },
+        "clock": {
+          "label": "At 100 km/h",
+          "from": 0,
+          "to": 1107072,
+          "unit": "hours"
+        },
+        "fallback": {
+          "type": "journey",
+          "mode": "chase",
+          "vehicle": "car",
+          "kmh": 100,
+          "p0": 0.0,
+          "p1": 0.08,
+          "title": "Driving to the Moon"
+        }
+      },
+      "emoji": []
+    },
+    {
+      "say": "The Moon is, on average, three hundred and eighty-four thousand, four hundred kilometres away.",
+      "show": {
+        "type": "b3d",
+        "scene": "moon_drive",
+        "params": {
+          "p0": 0.0,
+          "p1": 1.0,
+          "shot": "wide"
+        },
+        "hud": {
+          "label": "Earth to Moon, average",
+          "from": 0,
+          "to": 384400,
+          "unit": "km",
+          "law": "linear"
+        },
+        "clock": {
+          "label": "Non-stop at 100 km/h",
+          "from": 0,
+          "to": 13838400,
+          "unit": "days"
+        },
+        "fallback": {
+          "type": "journey",
+          "mode": "chase",
+          "vehicle": "car",
+          "kmh": 100,
+          "p0": 0.08,
+          "p1": 0.3,
+          "big": "odometer",
+          "label": "to the Moon, on average"
+        }
+      },
+      "emoji": []
+    },
+    {
+      "say": "At one hundred kilometres per hour, without ever stopping, that is one hundred and sixty days.",
+      "show": {
+        "type": "pips",
+        "days": 160,
+        "unit": "days",
+        "label": "non-stop at 100 km/h"
+      },
+      "emoji": []
+    },
+    {
+      "say": "At one hundred and twenty, about one hundred and thirty-three. In a jet at nine hundred, about eighteen.",
+      "show": {
+        "type": "journey",
+        "mode": "race",
+        "racers": [
+          {
+            "label": "car, 120 km/h",
+            "kmh": 120,
+            "kind": "car"
+          },
+          {
+            "label": "jet, 900 km/h",
+            "kmh": 900,
+            "kind": "jet",
+            "hi": true
+          }
+        ],
+        "clock_unit": "days"
+      },
+      "emoji": []
+    },
+    {
+      "say": "A typical car using seven litres per hundred kilometres would burn roughly twenty-seven thousand litres of fuel on the way.",
+      "show": {
+        "type": "tank",
+        "litres": 26900,
+        "per": 1000,
+        "label": "litres of fuel at 7 L per 100 km"
+      },
+      "emoji": []
+    },
+    {
+      "say": "Apollo astronauts needed roughly three days to reach lunar orbit.",
+      "show": {
+        "type": "journey",
+        "mode": "chase",
+        "vehicle": "rocket",
+        "hours": 72,
+        "p0": 0.0,
+        "p1": 1.0,
+        "clock_unit": "days",
+        "title": "Apollo: launch to lunar orbit"
+      },
+      "emoji": []
+    },
+    {
+      "say": "So the Moon is a short trip for a rocket, and an impossible commute for a car.",
+      "show": {
+        "type": "journey",
+        "mode": "race",
+        "racers": [
+          {
+            "label": "car, 100 km/h",
+            "kmh": 100,
+            "kind": "car"
+          },
+          {
+            "label": "Apollo, about 3 days",
+            "kmh": 5339,
+            "kind": "rocket",
+            "hi": true
+          }
+        ],
+        "clock_unit": "days"
+      },
+      "emoji": []
+    },
+    {
+      "say": "Follow for the next impossible what-if.",
+      "show": {
+        "type": "end",
+        "text": "Follow for the next impossible what-if."
+      }
+    }
+  ],
+  "publishAt": "2026-11-14T14:07:00Z",
+  "rev": 2,
+  "meta": {
+    "axis": "claude-written",
+    "model": "claude-sonnet-5-5"
+  }
+}

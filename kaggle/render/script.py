@@ -20,8 +20,12 @@ def sh(cmd, **kw):
 
 
 sh(f"git clone -q {REPO} {W}/ce && cd {W}/ce && git checkout -q {REPO_SHA}")
-sh("apt-get update -qq && apt-get install -y -qq ffmpeg fonts-inter fonts-crosextra-caladea fonts-dejavu-core "
-   "fonts-noto-core fonts-noto-color-emoji libegl1 libxkbcommon0 libsm6 libxi6 libxrender1 libxxf86vm1 libxfixes3 > /dev/null")
+sh("apt-get update -qq > /dev/null")
+for pkg in ("ffmpeg fonts-inter fonts-crosextra-caladea fonts-dejavu-core fonts-noto-core fonts-noto-color-emoji "
+            "libegl1 libgl1 libxkbcommon0 libsm6 libxi6 libxrender1 libxxf86vm1 libxfixes3").split():
+    subprocess.run(f"apt-get install -y -qq {pkg} > /dev/null 2>&1", shell=True)  # one at a time: a missing package must not stop the rest
+sh("fc-list | grep -ci inter || true")
+sh("nvidia-smi --query-gpu=name,memory.total --format=csv || true")
 sh(f"{sys.executable} -m pip install -q -r {W}/ce/requirements.txt")
 sh(f"{sys.executable} -m pip install -q uv && uv venv -q -p 3.13 {W}/bvenv && VIRTUAL_ENV={W}/bvenv uv pip install -q bpy==5.3.0")
 env = dict(os.environ, B3D_PYTHON=f"{W}/bvenv/bin/python", B3D_ENGINE="CYCLES", B3D_SAMPLES=os.environ.get("B3D_SAMPLES", "48"),

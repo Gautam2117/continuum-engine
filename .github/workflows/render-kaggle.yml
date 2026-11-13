@@ -1,7 +1,9 @@
 name: Render on Kaggle GPU
 
 # Cinematic renders (Blender Cycles on Kaggle's free GPU, about 30 hours a week) for specs with 3D shots.
-# Needs repository secrets KAGGLE_USERNAME and KAGGLE_KEY (Kaggle → Settings → API → Create New Token).
+# Needs the repository secret KAGGLE_KEY (or KAGGLE_API_TOKEN): Kaggle → Settings → API → Generate New Token.
+# Works with both kinds of Kaggle key: the new API token and the older 32-character key from kaggle.json.
+# The Kaggle username is not a secret; it defaults to continuumarc (override with a KAGGLE_USERNAME secret).
 # The everyday path stays render.yml (CPU, fast clay look); use this for hero videos and long-form 3D.
 on:
   workflow_dispatch:
@@ -12,6 +14,9 @@ on:
       samples:
         description: "Cycles samples per frame"
         default: "48"
+      publish:
+        description: "yes = attach to the date's release (Studio picks it up); no = test run, video kept as a workflow artifact"
+        default: "yes"
 
 permissions:
   contents: write
@@ -25,8 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     env:
-      KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
-      KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+      KUSER: ${{ secrets.KAGGLE_USERNAME || 'continuumarc' }}
+      KSECRET: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_KEY }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
@@ -34,14 +39,28 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -q kaggle
-      - name: Check secrets
+      - name: Kaggle credentials
         run: |
-          if [ -z "$KAGGLE_USERNAME" ] || [ -z "$KAGGLE_KEY" ]; then
-            echo "::error::Add KAGGLE_USERNAME and KAGGLE_KEY as repository secrets first."; exit 1; fi
+          if [ -z "$KSECRET" ]; then echo "::error::Add the KAGGLE_KEY repository secret first."; exit 1; fi
+          echo "::add-mask::$KSECRET"
+          echo "KAGGLE_USERNAME=$KUSER" >> "$GITHUB_ENV"
+          if echo "$KSECRET" | grep -Eq '^[0-9a-f]{32}$'; then
+            # older key: kaggle.json style
+            mkdir -p ~/.kaggle && printf '{"username":"%s","key":"%s"}' "$KUSER" "$KSECRET" > ~/.kaggle/kaggle.json && chmod 600 ~/.kaggle/kaggle.json
+            echo "KAGGLE_KEY=$KSECRET" >> "$GITHUB_ENV"
+          else
+            echo "KAGGLE_API_TOKEN=$KSECRET" >> "$GITHUB_ENV"
+          fi
+      - name: Who am I
+        run: kaggle kernels list --mine --page-size 1 > /dev/null && echo "Kaggle auth OK as $KAGGLE_USERNAME"
       - name: Validate specs
         run: |
-          pip install -q pillow numpy num2words
-          python3 scripts/validate.py --strict ${{ github.event.inputs.specs }}
+          pip install -q -r requirements.txt
+          if [ "${{ github.event.inputs.publish }}" = "yes" ]; then
+            python3 scripts/validate.py --strict ${{ github.event.inputs.specs }}
+          else
+            python3 scripts/validate.py ${{ github.event.inputs.specs }} || true
+          fi
       - name: Push the job to Kaggle
         run: |
           mkdir -p job
@@ -65,7 +84,19 @@ jobs:
             sleep 60
           done
           exit 1
-      - name: Collect and publish
+      - name: Collect
         run: |
           kaggle kernels output "${KAGGLE_USERNAME}/continuum-render" -p dl
-          for s in ${{ github.event.inputs.specs }}; do python3 scripts/publish.py "$s" dl/out; done
+          find dl -maxdepth 3 | head -50
+      - name: Publish
+        if: github.event.inputs.publish == 'yes'
+        run: for s in ${{ github.event.inputs.specs }}; do python3 scripts/publish.py "$s" dl/out; done
+      - name: Keep test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kaggle-render
+          path: |
+            dl/out/**/video.mp4
+            dl/*.log
+          if-no-files-found: warn
