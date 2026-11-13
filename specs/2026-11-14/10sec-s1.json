@@ -2,9 +2,9 @@
  "id": "2026-11-14-10sec-s1",
  "channel": "10SecScientist",
  "format": "short",
- "title": "Why onions make you cry (and how to stop it instantly) #shorts",
- "thumb": "Onion tears hack",
- "description": "Learn why cutting onions triggers tears and a quick way to avoid the sting. We explain the chemistry and give an instant tip you can try right now.\n\nNarration is a synthetic voice. Script and visuals are produced with AI tools and checked by automated quality gates.",
+ "title": "Why do onions make you cry? #shorts",
+ "thumb": "Why onions sting",
+ "description": "Slicing an onion starts an enzyme reaction that releases a volatile eye irritant. This animation follows that irritant from the cut cells to your eyes.\n\nSources: Imai et al., Nature (2002), https://www.nature.com/articles/419685a and Løkke et al., Sensors (2012), https://pmc.ncbi.nlm.nih.gov/articles/PMC3571771/\n\nNarration uses a synthetic voice.",
  "tags": [
   "onion",
   "crying",
@@ -28,87 +28,90 @@
  "publishAt": "2026-11-14T14:02:00Z",
  "meta": {
   "generator": "autopilot",
-  "topic": "Why onions make you cry (and how to stop it instantly)",
+  "topic": "Why do onions make you cry?",
   "axis": "chemistry in the kitchen",
   "slot": "14:00",
-  "review": {
-   "hook": 7,
-   "originality": 6,
-   "accuracy": 8
-  },
   "model": "groq:openai/gpt-oss-120b"
  },
  "scenes": [
   {
-   "say": "Why onions make you cry (and how to stop it instantly)",
+   "say": "Why do onions make you cry?",
    "show": {
     "type": "title",
-    "text": "Why onions make you cry?",
-    "kicker": "Instant tip"
+    "text": "Why do onions sting?",
+    "kicker": "Kitchen chemistry"
    }
   },
   {
-   "say": "When you slice an onion, it releases a volatile gas that irritates your eyes.",
+   "say": "An enzyme called alliinase starts the reaction the moment your knife breaks the onion cells.",
    "show": {
     "type": "say",
-    "text": "Onion gas irritates eyes",
-    "hero": "👀"
+    "text": "Cut cells mix their contents"
    }
   },
   {
-   "say": "The gas is syn‑propanethial‑S‑oxide, produced when the enzyme alliinase meets sulfur compounds.",
-   "show": {
-    "type": "say",
-    "text": "Syn‑propanethial‑S‑oxide",
-    "hero": "🧪"
-   }
-  },
-  {
-   "say": "The gas diffuses into the air and reaches your eyes in seconds.",
-   "show": {
-    "type": "number",
-    "from": 0,
-    "value": 30,
-    "unit": "cm",
-    "label": "distance gas travels",
-    "prefix": "",
-    "decimals": 0
-   }
-  },
-  {
-   "say": "In your tears it reacts with water, forming a tiny amount of sulfuric‑like acid that stings nerve endings.",
-   "show": {
-    "type": "say",
-    "text": "Tiny acid forms",
-    "hero": "⚡"
-   }
-  },
-  {
-   "say": "Cool the onion first to chilling it for about ten minutes slows the enzyme, so far less gas is made.",
-   "show": {
-    "type": "say",
-    "text": "Chill onion 10 min",
-    "hero": "❄️"
-   }
-  },
-  {
-   "say": "Another fast fix: cut the onion near a running tap or under a fan to blow the gas away.",
+   "say": "In the intact onion, that enzyme and the sulfur compounds it acts on are kept apart.",
    "show": {
     "type": "list",
-    "title": "Instant tricks",
+    "title": "Before the cut",
     "items": [
-     "Cut near running water",
-     "Use a kitchen fan",
-     "Sharp knife reduces damage"
+     "Alliinase",
+     "Sulfur compounds",
+     "Kept apart"
     ]
    }
   },
   {
-   "say": "Now you can dice without tears. Follow for more ten‑second science.",
+   "say": "Once they mix, alliinase produces an intermediate that a second enzyme turns into the onion’s tear factor.",
+   "show": {
+    "type": "timeline",
+    "events": [
+     {
+      "year": "1",
+      "label": "The cut breaks cells"
+     },
+     {
+      "year": "2",
+      "label": "Alliinase starts the reaction"
+     },
+     {
+      "year": "3",
+      "label": "A second enzyme makes the irritant"
+     }
+    ]
+   }
+  },
+  {
+   "say": "The product is propanethial S oxide. It evaporates from the freshly cut surface.",
+   "show": {
+    "type": "say",
+    "text": "A volatile irritant escapes"
+   }
+  },
+  {
+   "say": "When the vapor reaches your eyes, it irritates the sensitive surface.",
+   "show": {
+    "type": "list",
+    "title": "From board to eyes",
+    "items": [
+     "Cut surface",
+     "Air",
+     "Eye surface"
+    ]
+   }
+  },
+  {
+   "say": "Your eyes respond by releasing tears that help wash the irritant away.",
+   "show": {
+    "type": "say",
+    "text": "Tears flush the irritant"
+   }
+  },
+  {
+   "say": "The sting starts with a cut, but your tears are your eyes’ response.",
    "show": {
     "type": "end",
-    "text": "Tear‑free cooking. Follow.",
-    "product": ""
+    "text": "One cut starts the reaction"
    }
   }
  ]
