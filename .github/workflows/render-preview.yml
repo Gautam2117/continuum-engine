@@ -38,6 +38,8 @@ jobs:
             --jq '.artifacts[] | select(.expired == false and (.name | startswith("review-"))) | .name' > available-reviews.txt
       - id: list
         shell: python
+        env:
+          PYTHONPATH: ${{ github.workspace }}
         run: |
           import json
           import os
