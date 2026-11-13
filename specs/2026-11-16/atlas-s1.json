@@ -89,7 +89,7 @@
         "params": {
           "items": [
             {
-              "label": "Today's lunar forcing",
+              "label": "Today",
               "value": 1
             },
             {
@@ -98,11 +98,12 @@
               "highlight": true
             }
           ],
-          "unit": "relative strength"
+          "unit": "times",
+          "decimals": 0
         },
         "title": {
-          "text": "An eightfold increase",
-          "hl": "eightfold"
+          "text": "Tidal force x8",
+          "hl": "x8"
         },
         "fallback": {
           "type": "bars",

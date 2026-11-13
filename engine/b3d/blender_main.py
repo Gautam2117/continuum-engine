@@ -482,7 +482,9 @@ def scene_bars3d(p: dict, frames: int, pal: dict):
         box(f"plinth{i}", (w * 1.25, w * 1.25, 0.12), (x, 0, 0.06), mat("plinth", pal["bg"], 0.9))
         ANCHORS[f"bar{i}_top"] = (lambda fr, x=x, h=h_full, i=i: Vector((x, 0, h * stagger(i, n, (fr - 1) / max(1, frames - 1)) + 0.35)))
         ANCHORS[f"bar{i}_base"] = (lambda fr, x=x: Vector((x, -w * 0.9, 0.0)))
-        SCALARS[f"bar{i}"] = (lambda t, i=i, v=float(it["value"]): v * stagger(i, n, t))
+        # Geometry rises but the label always names the full scenario value.
+        from .metrics import comparison_label_value
+        SCALARS[f"bar{i}"] = (lambda t, v=float(it["value"]): comparison_label_value(v, t))
         LABELS.append({"anchor": f"bar{i}_base", "text": str(it.get("label", "")), "style": "label"})
         LABELS.append({"anchor": f"bar{i}_top", "value": f"bar{i}", "unit": p.get("unit", ""),
                        "decimals": int(p.get("decimals", 0 if vmax >= 20 else 1)), "style": "value",
