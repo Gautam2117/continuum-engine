@@ -26,8 +26,8 @@ from PIL import Image
 
 HERE = pathlib.Path(__file__).resolve().parent
 MAIN = HERE / "blender_main.py"
-KIT_FILES = ("blender_main.py", "clay.py", "titles.py", "worlds.py")
-SCENE_NAMES = ("earth_tunnel", "moon_drive", "everest_flood", "bars3d", "orbit3d", "fall3d", "clay", "title3d", "corridor", "room_pov", "gears", "extrude", "panels", "voxel")
+KIT_FILES = ("blender_main.py", "clay.py", "titles.py", "worlds.py", "pip_room.py")
+SCENE_NAMES = ("earth_tunnel", "moon_drive", "everest_flood", "bars3d", "orbit3d", "fall3d", "clay", "title3d", "corridor", "room_pov", "gears", "extrude", "panels", "voxel", "pip_room")
 VERSION = "21"  # bump when blender_main.py changes in a way that should invalidate cached frames
 
 
