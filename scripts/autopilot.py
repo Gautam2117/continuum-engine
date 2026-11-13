@@ -33,8 +33,12 @@ def cmd_plan(a) -> int:
     if unknown:
         print(f"Unknown or creator-led channels: {', '.join(unknown)}", file=sys.stderr)
         return 2
+    if not 1 <= a.days <= 30 or not 0 <= a.start_offset <= 30:
+        print("Choose 1–30 days and a start offset of 0–30 days.", file=sys.stderr)
+        return 2
     now = dt.datetime.now(dt.timezone.utc)
-    days = [now.date() + dt.timedelta(days=i) for i in range(a.days)]
+    start = now.date() + dt.timedelta(days=a.start_offset)
+    days = [start + dt.timedelta(days=i) for i in range(a.days)]
     llm = LLM()
     beat = {"at": now.isoformat(timespec="seconds"), "days": [d.isoformat() for d in days], "llm": "none" if not llm.available else [p.name for p in llm.providers]}
     if not llm.available:
@@ -146,6 +150,7 @@ if __name__ == "__main__":
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("plan")
     p.add_argument("--days", type=int, default=3)
+    p.add_argument("--start-offset", type=int, default=0)
     p.add_argument("--only", action="append")
     p.add_argument("--max-calls", type=int, default=int(os.environ.get("AUTOPILOT_MAX_CALLS", "400")))
     p.set_defaults(fn=cmd_plan)

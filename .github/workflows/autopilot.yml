@@ -23,6 +23,11 @@ on:
         type: boolean
         default: false
 
+      start_offset:
+        description: "Start this many UTC calendar days from today"
+        default: "0"
+        type: string
+
       render_from:
         description: "Render and verify artifacts from a completed preview run ID"
         type: string
@@ -32,7 +37,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: autopilot
+  group: ${{ (inputs.preview || inputs.render_from != '') && format('autopilot-review-{0}', github.run_id) || 'autopilot' }}
   cancel-in-progress: false
 
 jobs:
@@ -69,10 +74,11 @@ jobs:
         env:
           ONLY: ${{ inputs.only || 'Counterfactual Atlas' }}
           DAYS: ${{ inputs.days || '3' }}
+          START_OFFSET: ${{ inputs.start_offset || '0' }}
         run: |
           ARGS=()
           if [ "$ONLY" != "ALL" ]; then IFS='|' read -ra LIST <<< "$ONLY"; for c in "${LIST[@]}"; do ARGS+=(--only "$c"); done; fi
-          python3 scripts/autopilot.py plan --days "$DAYS" "${ARGS[@]}"
+          python3 scripts/autopilot.py plan --days "$DAYS" --start-offset "$START_OFFSET" "${ARGS[@]}"
       - name: Check the new specs
         id: validate
         if: ${{ !cancelled() && steps.plan.outcome != 'skipped' }}
