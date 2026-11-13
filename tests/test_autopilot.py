@@ -392,3 +392,14 @@ def test_pip_phone_stays_far_after_slip_and_dead_after_blackout():
     assert not continuity_issues([slip, far, dead, dead])
     assert continuity_issues([slip, shot("reset")])
     assert continuity_issues([slip, dead, far])
+
+
+def test_planner_fills_omitted_phone_state_but_preserves_explicit_errors():
+    from engine.pip import continuity_issues, fill_phone_states
+
+    shows = [{"action": "slip"}, {"action": "reach"}, {"action": "reset", "phone": "dead"},
+             {"action": "reset"}, {"action": "reach", "phone": "near"}]
+    scenes = [{"show": {"type": "pip", **show}} for show in shows]
+    fill_phone_states(scenes)
+    assert [scene["show"]["phone"] for scene in scenes] == ["near", "far", "dead", "dead", "near"]
+    assert continuity_issues(scenes) == ["scene 4: phone continuity requires dead; far may transition to dead"]

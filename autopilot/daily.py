@@ -236,6 +236,9 @@ class Planner:
             scenes[0]["show"] = {"type": "title", "text": raw.get("thumb") or raw.get("title", "")[:48], "kicker": channel}
         if scenes and (scenes[-1].get("show") or {}).get("type") != "end":
             scenes.append({"say": "That is the whole story. Come back tomorrow for another one.", "show": {"type": "end", "text": "New video every day"}})
+        if pb["slug"] == "lowbat":
+            from engine.pip import fill_phone_states
+            fill_phone_states(scenes)
         title = str(raw.get("title", "")).strip().strip('"')[:100]
         if fmt == "short" and "#shorts" not in title.lower() and len(title) <= 90:
             title += " #shorts"

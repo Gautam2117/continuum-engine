@@ -28,6 +28,18 @@ def continuity_issues(scenes):
 
 
 
+def fill_phone_states(scenes):
+    """Carry the last rendered phone position into shots that omit it."""
+    phone = "near"
+    for scene in scenes:
+        shot = scene.get("show") or {}
+        if shot.get("type") != "pip":
+            continue
+        phone = shot.setdefault("phone", phone)
+        if shot.get("action") == "slip":
+            phone = "far"
+
+
 def pip(ctx, duration, show, words):
     from .scenes import FPS
 

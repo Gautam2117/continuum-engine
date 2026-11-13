@@ -216,7 +216,7 @@ PLAYBOOKS: dict[str, dict] = {
         titles=["Close Enough to Regret It", "The Phone Has the Last Word"],
         avoid=["ambient compilations", "life advice", "borrowed characters", "explaining the punchline"],
         scene_bias=["title", "pip", "end"], grounded=False, fiction=True,
-        rule='Use recurring Pip. The set contains a couch, lamp, table and phone. Build the joke through a reach, a slide and a reversal. Keep all narrated and implied actions within those props and poses. No cables, chargers, sockets, falls or spare objects. Use only title, pip and end visuals. Use at least four {"type":"pip","action":"notice|reach|slip|reset"} scenes. Use field "phone", default "near". Slip begins near and ends far. Mark every later shot "phone":"far" until the optional "dead" state. The phone stays dead afterward. Choose exactly one action per scene and match the narration to the staged action.',
+        rule='Use recurring Pip. The set contains a couch, lamp, table and phone. Build the joke through a reach, a slide and a reversal. Keep all narrated and implied actions within those props and poses. No cables, chargers, sockets, falls or spare objects. Use only title, pip and end visuals. Use at least four {"type":"pip","action":"notice|reach|slip|reset"} scenes. Omit field "phone" to keep the previous shot state. The phone starts near; slip begins near and automatically ends far. After slip, use "phone":"dead" once if the screen goes black. The phone stays dead afterward. Choose exactly one action per scene and match the narration to the staged action.',
         tags=["stickman", "original animation", "comedy", "shorts"], links=[CTA_ARC],
     ),
 }
