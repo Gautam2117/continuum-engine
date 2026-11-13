@@ -393,6 +393,49 @@ def test_review_verification_rejects_missing_audio_and_wrong_dimensions(tmp_path
         verify(spec, pack, {**probe, "streams": [{**video, "width": 1920}, audio]}, thumbnail)
 
 
+def test_review_gate_rejects_missing_or_null_automated_editorial_scores(tmp_path):
+    import pytest
+    from PIL import Image
+    from scripts.verify_review import verify
+
+    thumbnail = tmp_path / "thumb.jpg"
+    Image.new("RGB", (8, 8)).save(thumbnail)
+    spec = {"id": "atlas", "channel": "Counterfactual Atlas", "format": "short",
+            "scenes": [{}], "meta": {"generator": "autopilot"}}
+    pack = {"id": "atlas", "channel": "Counterfactual Atlas", "format": "short", "durationSec": 3.0}
+    probe = {"format": {"duration": "3.0"}, "streams": [
+        {"codec_type": "video", "codec_name": "h264", "width": 1080, "height": 1920},
+        {"codec_type": "audio", "codec_name": "aac"}]}
+    with pytest.raises(ValueError, match="editorial score"):
+        verify(spec, pack, probe, thumbnail)
+    spec["meta"]["review"] = {"hook": 8, "originality": 8, "accuracy": None}
+    with pytest.raises(ValueError, match="accuracy"):
+        verify(spec, pack, probe, thumbnail)
+    spec["meta"]["review"]["accuracy"] = 8
+    verify(spec, pack, probe, thumbnail)
+
+
+def test_review_audio_rejects_muted_and_missing_audio_stats(tmp_path, monkeypatch):
+    import pytest
+    import subprocess
+    from scripts.verify_review import verify_audio
+
+    video = tmp_path / "video.mp4"
+    def fake_result(stderr):
+        return subprocess.CompletedProcess([], 0, "", stderr)
+
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: fake_result(
+        "mean_volume: -21.6 dB\nmax_volume: -2.0 dB\n"))
+    assert verify_audio(video) == (-21.6, -2.0)
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: fake_result(
+        "mean_volume: -inf dB\nmax_volume: -inf dB\n"))
+    with pytest.raises(ValueError, match="Silent"):
+        verify_audio(video)
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: fake_result("no measurements"))
+    with pytest.raises(ValueError, match="Missing mean_volume"):
+        verify_audio(video)
+
+
 def test_editor_cannot_pass_scores_below_threshold(monkeypatch):
     planner = daily.Planner(llm_with(Scripted()))
     review = {"pass": True, "hook": 8, "originality": 6, "accuracy": 5, "fixes": [], "unsupported_claims": []}
