@@ -21,7 +21,9 @@ def fixture(tmp_path, monkeypatch):
     spec.write_text(json.dumps(sample))
     monkeypatch.setattr(gate, "problems", lambda *a, **k: [])
     approval = {"id": sample["id"], "decision": "approved", "specSha256": hashlib.sha256(spec.read_bytes()).hexdigest(),
-                "reviewArtifact": gate.review_artifact(spec), "reviewedAt": "2026-11-14T05:00:00Z", "reviewer": "owner",
+                "reviewArtifact": gate.review_artifact(spec), "reviewRunId": 43512345678,
+                "videoSha256": "a" * 64, "thumbnailSha256": "b" * 64,
+                "reviewedAt": "2026-11-14T05:00:00Z", "reviewer": "owner",
                 "notes": "I watched every scene with audio and checked source citations and image rights."}
     (tmp_path / "approvals").mkdir()
     path = tmp_path / "approvals" / f'{sample["id"]}.json'
@@ -46,6 +48,19 @@ def test_fake_model_approval_is_rejected(tmp_path, monkeypatch):
     approval["reviewer"] = "autopilot"
     path.write_text(json.dumps(approval))
     with pytest.raises(gate.ReleaseRejected, match="owner identity"):
+        gate.approval_for(spec, now=NOW)
+
+
+def test_approval_rejects_missing_video_digest_or_ambiguous_run(tmp_path, monkeypatch):
+    spec, path, approval = fixture(tmp_path, monkeypatch)
+    approval["reviewRunId"] = 0
+    path.write_text(json.dumps(approval))
+    with pytest.raises(gate.ReleaseRejected, match="run ID"):
+        gate.approval_for(spec, now=NOW)
+    approval["reviewRunId"] = 43512345678
+    approval["videoSha256"] = "not-a-digest"
+    path.write_text(json.dumps(approval))
+    with pytest.raises(gate.ReleaseRejected, match="videoSha256"):
         gate.approval_for(spec, now=NOW)
 
 
@@ -75,7 +90,7 @@ def test_review_checksums_reject_missing_receipt(tmp_path):
 
 
 def test_stage_reuses_exact_approved_media_and_marks_pack(tmp_path, monkeypatch):
-    spec, _, approval = fixture(tmp_path, monkeypatch)
+    spec, approval_path, approval = fixture(tmp_path, monkeypatch)
     result = tmp_path / "reviewed" / approval["id"]
     result.mkdir(parents=True)
     (result / "spec.json").write_bytes(spec.read_bytes())
@@ -86,6 +101,9 @@ def test_stage_reuses_exact_approved_media_and_marks_pack(tmp_path, monkeypatch)
     (result / "checksums.txt").write_text("\n".join(
         f"{gate._sha(result / name)}  {name}" for name in sorted(gate.CHECKSUM_FILES)
     ) + "\n")
+    approval["videoSha256"] = gate._sha(result / "video.mp4")
+    approval["thumbnailSha256"] = gate._sha(result / "thumb.jpg")
+    approval_path.write_text(json.dumps(approval))
     seen = []
     monkeypatch.setattr(gate, "verify", lambda *a: seen.append("media metadata"))
     monkeypatch.setattr(gate, "verify_audio", lambda *a: seen.append("audible waveform"))
@@ -93,8 +111,25 @@ def test_stage_reuses_exact_approved_media_and_marks_pack(tmp_path, monkeypatch)
     pack = json.loads((result / "pack.json").read_text())
     assert pack["editorialApproval"]["specSha256"] == approval["specSha256"]
     assert pack["editorialApproval"]["reviewArtifact"] == approval["reviewArtifact"]
+    assert pack["editorialApproval"]["videoSha256"] == approval["videoSha256"]
+    assert pack["editorialApproval"]["reviewRunId"] == approval["reviewRunId"]
     assert seen == ["media metadata", "audible waveform"]
     # Original review checksums are frozen, and the staged pack is deliberately
     # different. A second attempt cannot silently re-stage mutated review bytes.
     with pytest.raises(gate.ReleaseRejected, match="Review bytes changed"):
         gate.stage(spec, tmp_path / "reviewed", now=NOW)
+
+
+def test_stage_refuses_different_video_with_same_script_and_valid_checkums(tmp_path, monkeypatch):
+    spec, approval_path, approval = fixture(tmp_path, monkeypatch)
+    root = tmp_path / "reviewed"
+    result = root / approval["id"]
+    result.mkdir(parents=True)
+    for name in gate.CHECKSUM_FILES:
+        (result / name).write_bytes(spec.read_bytes() if name == "spec.json" else b"new video" + name.encode())
+    # The technical receipt is internally valid, but this is NOT the video watched.
+    (result / "checksums.txt").write_text("\n".join(
+        f"{gate._sha(result / name)}  {name}" for name in sorted(gate.CHECKSUM_FILES)
+    ) + "\n")
+    with pytest.raises(gate.ReleaseRejected, match="differs from the exact cut"):
+        gate.stage(spec, root, now=NOW)

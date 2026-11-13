@@ -39,16 +39,15 @@ jobs:
         id: find
         env:
           REVIEW_ARTIFACT: ${{ steps.approval.outputs.artifact }}
+          REVIEW_RUN_ID: ${{ steps.approval.outputs.run_id }}
         run: |
           set -euo pipefail
-          run_id="$(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
-            | jq -r --arg artifact "$REVIEW_ARTIFACT" '.artifacts[] | select(.expired == false and .name == $artifact) | .workflow_run.id' \
-            | awk 'NR == 1 {print}')"
-          if [ -z "$run_id" ]; then
-            echo 'RELEASE REJECTED: exact technical review artifact is missing or expired' >&2
-            exit 1
-          fi
-          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+          # Never search for the first artifact with this script hash. A newer
+          # renderer can make different video bytes from the same input spec.
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$REVIEW_RUN_ID/artifacts" \
+            | jq -e --arg artifact "$REVIEW_ARTIFACT" \
+              '.artifacts[] | select(.expired == false and .name == $artifact)' > /dev/null
+          echo "run_id=$REVIEW_RUN_ID" >> "$GITHUB_OUTPUT"
       - name: Download exact accepted render (no re-generation)
         env:
           RUN_ID: ${{ steps.find.outputs.run_id }}

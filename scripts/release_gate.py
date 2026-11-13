@@ -21,6 +21,7 @@ from scripts.review_inventory import review_artifact  # noqa: E402
 from scripts.verify_review import verify, verify_audio  # noqa: E402
 
 ID = re.compile(r"\d{4}-\d{2}-\d{2}-[a-z0-9-]+\Z")
+SHA256 = re.compile(r"[a-f0-9]{64}\Z")
 CHECKSUM_FILES = {"video.mp4", "thumb.jpg", "pack.json", "probe.json", "spec.json"}
 
 
@@ -55,6 +56,15 @@ def approval_for(spec_path: Path, *, now: dt.datetime | None = None) -> dict:
             raise ReleaseRejected("Spec changed after owner approval")
         if approval.get("reviewArtifact") != expected_name:
             raise ReleaseRejected("Approved artifact does not match current spec bytes")
+        # A spec digest is NOT the video digest: different render runs and Blender
+        # versions can produce different media for the exact same script.
+        # Bind approval to BOTH the exact GitHub run and the watched MP4/thumbnail.
+        run_id = approval.get("reviewRunId")
+        if type(run_id) is not int or run_id <= 0:
+            raise ReleaseRejected("Approval must name the exact review run ID")
+        for name in ("videoSha256", "thumbnailSha256"):
+            if not isinstance(approval.get(name), str) or not SHA256.fullmatch(approval[name]):
+                raise ReleaseRejected(f"Approval requires exact reviewed {name}")
         if approval.get("reviewer") != "owner" or len(str(approval.get("notes") or "").strip()) < 30:
             raise ReleaseRejected("Approval requires explicit owner identity and meaningful review notes")
         when = dt.datetime.fromisoformat(str(approval["reviewedAt"]).replace("Z", "+00:00"))
@@ -104,6 +114,10 @@ def stage(spec_path: Path, artifact_root: Path, now: dt.datetime | None = None) 
     if not result.is_dir():
         raise ReleaseRejected("Reviewed render directory not found")
     verify_checksums(result)
+    if _sha(result / "video.mp4") != approval["videoSha256"]:
+        raise ReleaseRejected("Rendered video differs from the exact cut the owner reviewed")
+    if _sha(result / "thumb.jpg") != approval["thumbnailSha256"]:
+        raise ReleaseRejected("Thumbnail differs from the exact artwork the owner reviewed")
     if (result / "spec.json").read_bytes() != spec_path.read_bytes():
         raise ReleaseRejected("Review contains a different source spec")
     pack = json.loads((result / "pack.json").read_text())
@@ -112,7 +126,8 @@ def stage(spec_path: Path, artifact_root: Path, now: dt.datetime | None = None) 
     verify_audio(result / "video.mp4")
     pack["editorialApproval"] = {
         "status": "approved", "specSha256": approval["specSha256"],
-        "reviewArtifact": approval["reviewArtifact"], "reviewedAt": approval["reviewedAt"],
+        "reviewArtifact": approval["reviewArtifact"], "reviewedAt": approval["reviewedAt"], "reviewRunId": approval["reviewRunId"],
+        "videoSha256": approval["videoSha256"], "thumbnailSha256": approval["thumbnailSha256"],
         "reviewer": "owner",
     }
     (result / "pack.json").write_text(json.dumps(pack, ensure_ascii=False, indent=2) + "\n")
@@ -131,6 +146,7 @@ def main():
             if output := os.environ.get("GITHUB_OUTPUT"):
                 with open(output, "a") as fd:
                     fd.write(f"artifact={approval['reviewArtifact']}\n")
+                    fd.write(f"run_id={approval['reviewRunId']}\n")
             print("Approval validated for exact source and review artifact")
         else:
             if not args.artifact_root:
