@@ -145,6 +145,13 @@ def providers_from_env() -> list[Provider]:
     if k := os.environ.get("CEREBRAS_API_KEY"):
         cm = discover_openai_compat("https://api.cerebras.ai/v1", k, ["gpt-oss-120b", "llama-3.3-70b", "qwen-3-32b"], prefer=["gpt-oss-120b", "llama-3.3-70b", "qwen-3-235b-a22b-instruct-2507"])
         out.append(Provider("cerebras", "https://api.cerebras.ai/v1", k, cm, best=cm[:2]))
+    if k := os.environ.get("NVIDIA_API_KEY"):  # build.nvidia.com: free, no card, about 40 requests/min
+        nm = discover_openai_compat("https://integrate.api.nvidia.com/v1", k, ["openai/gpt-oss-120b", "meta/llama-3.3-70b-instruct", "qwen/qwen3-next-80b-a3b-instruct"],
+                                    prefer=["openai/gpt-oss-120b", "meta/llama-3.3-70b-instruct", "qwen/qwen3-next-80b-a3b-instruct", "mistralai/mistral-large-3-675b-instruct-2512"])
+        out.append(Provider("nvidia", "https://integrate.api.nvidia.com/v1", k, nm, best=nm[:2]))
+    if k := os.environ.get("INCEPTION_API_KEY"):  # one-time 100M free tokens, no card
+        im = discover_openai_compat("https://api.inceptionlabs.ai/v1", k, ["mercury-2", "mercury"])
+        out.append(Provider("inception", "https://api.inceptionlabs.ai/v1", k, im, best=im[:1]))
     if k := os.environ.get("MISTRAL_API_KEY"):
         out.append(Provider("mistral", "https://api.mistral.ai/v1", k, ["mistral-small-latest", "open-mistral-nemo"], best=["mistral-large-latest", "mistral-small-latest"]))
     if k := os.environ.get("GITHUB_MODELS_TOKEN"):
