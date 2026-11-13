@@ -27,6 +27,8 @@ from .tts import SR, speak
 
 UA = "ContinuumEngine/1.0 (https://studio.continuumarc.tech; gautam@continuumarc.tech)"
 SIZES = {"long": (1920, 1080), "short": (1080, 1920)}
+# Science what-if scenes own the visual field; no repeated cartoon mascot overlay.
+NO_MASCOT = frozenset({"atlas", "lowbat", "sienna", "aditi", "kiara"})
 
 
 def fetch_persona(p: dict, spec_id: str, scene_no: int) -> Image.Image | None:
@@ -210,7 +212,7 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "24" if fmt == "long" else "22", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
         "-c:a", "aac", "-b:a", "160k", "-shortest", str(video),
     ], stdin=subprocess.PIPE)
-    layout = stage.Layout(W, H, fmt, no_host=style.slug in ('sienna', 'aditi', 'kiara', 'lowbat'))
+    layout = stage.Layout(W, H, fmt, no_host=style.slug in NO_MASCOT)
     bd = S.Backdrop(style, W, H, seed=len(spec["id"]))
     ctx = S.Ctx(style, W, layout.view_h, bd, spec["channel"], vertical=layout.vertical)
     slug = style.slug
@@ -230,7 +232,7 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
             show["hero"], ems = ems[0], []
         if kind in ("title", "end"):
             ems = ems[:1]
-        cfg = {"captions": not (slug == "drift" and fmt == "long"), "host": sc.get("host", True) and slug not in ("sienna", "aditi", "kiara", "lowbat")}
+        cfg = {"captions": not (slug == "drift" and fmt == "long"), "host": sc.get("host", True) and slug not in NO_MASCOT}
         stg = stage.Scene(layout, style, slug, spec["channel"], kind, say, dur, audio, ems, cfg, first=(si == 0))
         fn = S.SCENES[kind]
         if kind in ("image", "persona"):

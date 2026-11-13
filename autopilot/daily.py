@@ -169,9 +169,19 @@ class Planner:
 
     def draft_short(self, channel: str, topic: dict, g: dict, fixes: list[str] | None = None) -> dict:
         pb = PLAYBOOKS[channel]
+        brief = prompts.SHORT_SPEC.replace("{words}", str(pb["short_words"]))
+        if pb["slug"] == "10sec":
+            brief = ("Return JSON with title, thumb, description, tags, scenes. "
+                     "Make an actual 9-to-14-second scientific Short, NOT a 40-second video: "
+                     "18-26 spoken words in exactly 4 scenes. "
+                     "Scene 1 is a one-line title hook (<=8 spoken words); "
+                     "scene 2 is a quantified or observed fact; scene 3 visibly demonstrates why; "
+                     "scene 4 is an end card with a one-line payoff, never a generic CTA. "
+                     "Use distinct visuals. Never add padding to reach a longer runtime. "
+                     "Ground every specific claim. No experiment that requires risky materials.")
         user = (
             f"TOPIC: {topic['topic']}\n\nGROUNDING (the only source of specific facts):\n{g['text'] or '(none found: use only settled textbook knowledge and say roughly)'}\n\n"
-            + prompts.SHORT_SPEC.replace("{words}", str(pb["short_words"])) + "\n\n" + exemplar(channel, "short")
+            + brief + "\n\n" + exemplar(channel, "short")
         )
         if fixes:
             user += "\n\nYOUR PREVIOUS ATTEMPT WAS REJECTED. Fix all of these:\n- " + "\n- ".join(fixes)

@@ -24,6 +24,8 @@ def verify(spec: dict, pack: dict, probe: dict, thumbnail: Path) -> None:
         raise ValueError("Missing AAC audio")
     duration = float(probe["format"]["duration"])
     planned = float(pack["durationSec"])
+    if spec["channel"] == "10SecScientist" and not 8 <= duration <= 16:
+        raise ValueError(f"10SecScientist branded short must run about ten seconds, not {duration:.1f}s")
     # Scene frames are quantized separately, so allow one video frame per scene.
     tolerance = 0.25 + len(spec["scenes"]) / 24
     if not math.isfinite(duration) or not math.isfinite(planned) or min(duration, planned) <= 0 or abs(duration - planned) > tolerance:

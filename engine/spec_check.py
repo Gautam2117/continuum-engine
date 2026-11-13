@@ -67,6 +67,18 @@ def problems(spec: dict, folder: str | None = None, *, strict: bool = False) -> 
         out.extend(continuity_issues(scenes))
         if any((scene.get("show") or {}).get("type") not in ("title", "pip", "end") for scene in scenes):
             out.append("Low Battery uses title, Pip and end shots only")
+    if strict and spec["channel"] == "The Low Battery Show":
+        # The puppet set contains a couch, lamp, table and phone. The model
+        # cannot conjure chargers, sockets, cables or other off-set action.
+        text = " ".join(str(x) for x in [spec.get("title", ""), spec.get("description", "")] + [
+            sc.get("say", "") for sc in scenes if isinstance(sc, dict)
+        ])
+        if re.search(r"\b(?:charg(?:e|ed|er|ers|ing)|cords?|cables?|outlets?|sockets?|plugs?|spare|floor|falls?|falling)\b", text, re.I):
+            out.append("Low Battery set cannot show charging, cables, outlets, falling props or spare objects")
+    if strict and spec["channel"] == "Counterfactual Atlas" and (spec.get("meta") or {}).get("generator") == "autopilot":
+        kinds = [(sc.get("show") or {}).get("type") for sc in scenes if isinstance(sc, dict)]
+        if not any(k in ("b3d", "orbit", "fall", "image") for k in kinds):
+            out.append("Counterfactual Atlas requires a visualized physical scenario, not just numbers and lists")
     words = narration_words(spec)
     minutes = words / WPM
     if fmt == "short" and minutes > 0.95:
@@ -75,10 +87,16 @@ def problems(spec: dict, folder: str | None = None, *, strict: bool = False) -> 
         out.append(f"long-form narration only ~{minutes:.1f} min; aim for 8+")
     if strict:
         if fmt == "short":
-            if words < 60:
-                out.append(f"short too thin ({words} words; aim 80 to 130)")
-            if len(scenes) < 6:
-                out.append("short needs at least 6 scenes for pacing")
+            if spec["channel"] == "10SecScientist":
+                if not 16 <= words <= 30:
+                    out.append(f"10SecScientist must fit its ten-second promise ({words} words; aim 18–26)")
+                if not 3 <= len(scenes) <= 5:
+                    out.append("10SecScientist needs 3–5 scenes, not a padded long Short")
+            else:
+                if words < 60:
+                    out.append(f"short too thin ({words} words; aim 80 to 130)")
+                if len(scenes) < 6:
+                    out.append("short needs at least 6 scenes for pacing")
             first = scenes[0].get("say", "") if scenes else ""
             if len(first.split()) > 18:
                 out.append("opening line too long to hook; keep under 18 words")
