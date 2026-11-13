@@ -339,3 +339,22 @@ def test_pending_reviews_only_skip_exact_live_artifacts(tmp_path):
     assert pending_specs(paths, available) == [paths[1].as_posix()]
     paths[0].write_text(paths[0].read_text().replace("Original", "Revised"))
     assert pending_specs(paths, available) == [path.as_posix() for path in paths]
+
+
+def test_review_verification_rejects_missing_audio_and_wrong_dimensions(tmp_path):
+    import pytest
+    from PIL import Image
+    from scripts.verify_review import verify
+
+    thumbnail = tmp_path / "thumb.jpg"
+    Image.new("RGB", (16, 16)).save(thumbnail)
+    spec = {"id": "atlas", "channel": "Counterfactual Atlas", "format": "short", "scenes": [{}]}
+    pack = {**spec, "durationSec": 10}
+    video = {"codec_type": "video", "codec_name": "h264", "width": 1080, "height": 1920}
+    audio = {"codec_type": "audio", "codec_name": "aac"}
+    probe = {"format": {"duration": "10.04"}, "streams": [video, audio]}
+    verify(spec, pack, probe, thumbnail)
+    with pytest.raises(ValueError, match="AAC"):
+        verify(spec, pack, {**probe, "streams": [video]}, thumbnail)
+    with pytest.raises(ValueError, match="dimensions"):
+        verify(spec, pack, {**probe, "streams": [{**video, "width": 1920}, audio]}, thumbnail)

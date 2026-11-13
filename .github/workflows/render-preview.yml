@@ -108,7 +108,8 @@ jobs:
           ffmpeg -v error -xerror -i "$master" -f null -
           result="$(dirname "$master")"
           ffprobe -v error -show_streams -show_format -of json "$master" > "$result/probe.json"
-          (cd "$result" && sha256sum video.mp4 thumb.jpg pack.json > checksums.txt)
+          python -m scripts.verify_review "$SPEC" "$result"
+          (cd "$result" && sha256sum video.mp4 thumb.jpg pack.json probe.json spec.json > checksums.txt)
           artifact="$(python -c 'import sys; from pathlib import Path; from scripts.review_inventory import review_artifact; print(review_artifact(Path(sys.argv[1])))' "$SPEC")"
           echo "artifact=$artifact" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
