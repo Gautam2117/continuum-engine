@@ -80,7 +80,7 @@ def sh(*args) -> str:
 
 def cmd_heal(a) -> int:
     today = dt.date.today()
-    cache: dict[str, set] = {}
+    cache: dict[str, set[str] | None] = {}
     todo = []
     for p in sorted((ROOT / "specs").glob("*/*.json")):
         try:
@@ -104,7 +104,8 @@ def cmd_heal(a) -> int:
         if cache[tag] is None:
             continue
         sid = json.loads(p.read_text())["id"]
-        if f"{sid}-pack.json" not in cache[tag]:
+        required = {f"{sid}-{suffix}" for suffix in ("video.mp4", "thumb.jpg", "pack.json")}
+        if not required.issubset(cache[tag]):
             todo.append(str(p.relative_to(ROOT)))
     emit("heal", " ".join(todo))
     return 0

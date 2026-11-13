@@ -259,3 +259,29 @@ def test_network_plan_rotates_first_channel_between_windows(tmp_path, monkeypatc
         daily.plan([day], llm_with(Scripted()), now + dt.timedelta(hours=offset), only=channels)
     assert set(seen) == set(channels)
     assert len(seen) == 2
+
+
+def test_heal_recovers_incomplete_release_even_when_pack_exists(tmp_path, monkeypatch):
+    import subprocess
+    from scripts import autopilot as cli
+
+    tag = dt.date.today().isoformat()
+    folder = tmp_path / "specs" / tag
+    folder.mkdir(parents=True)
+    sid = f"{tag}-atlas-s1"
+    spec = folder / "atlas-s1.json"
+    spec.write_text(json.dumps({"id": sid}))
+    assets = [{"name": f"{sid}-pack.json"}, {"name": f"{sid}-video.mp4"}]
+    monkeypatch.setattr(cli, "ROOT", tmp_path)
+    monkeypatch.setattr(cli, "sh", lambda *args: "100")
+    monkeypatch.setattr(cli.subprocess, "run", lambda *args, **kwargs: subprocess.CompletedProcess(
+        args, 0, stdout=json.dumps({"assets": assets}), stderr=""
+    ))
+    outputs = []
+    monkeypatch.setattr(cli, "emit", lambda *args: outputs.append(args))
+
+    assert cli.cmd_heal(None) == 0
+    assert outputs[-1] == ("heal", str(spec.relative_to(tmp_path)))
+    assets.append({"name": f"{sid}-thumb.jpg"})
+    assert cli.cmd_heal(None) == 0
+    assert outputs[-1] == ("heal", "")
