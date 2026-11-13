@@ -16,11 +16,11 @@ concurrency:
 
 jobs:
   inspect:
-    if: vars.AUTOPILOT_NETWORK_REVIEW == '1'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
       GH_TOKEN: ${{ github.token }}
+      HOSTED_REVIEW_ENABLED: ${{ vars.AUTOPILOT_NETWORK_REVIEW }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

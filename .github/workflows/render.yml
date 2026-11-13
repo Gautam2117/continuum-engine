@@ -1,22 +1,20 @@
-name: Render (technical review only)
+name: Render (isolated software QA only)
 
-# Every spec pushed under specs/ is rendered to an MP4 + thumbnail + upload pack and attached to a
-# GitHub release named after its date folder. Continuum Studio pulls new releases into Upload packs.
+# Manual one-spec build/verification only. Bulk commercial video rendering is
+# not scheduled on GitHub-hosted runners; see docs/PRODUCTION_HOSTING.md.
 on:
-  push:
-    branches: [main]
-    paths: ["specs/**"]
   workflow_dispatch:
     inputs:
-      specs:
-        description: "Glob of specs to render, e.g. specs/2026-11-13/*.json (blank = specs changed by the last push)"
-        required: false
+      spec:
+        description: "One exact specs/YYYY-MM-DD/episode.json path, not a glob"
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: render-${{ github.sha }}
+  group: render-qa-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -26,19 +24,31 @@ jobs:
       specs: ${{ steps.list.outputs.specs }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
       - id: list
-        run: python3 scripts/plan.py "${{ github.event.inputs.specs }}" "${{ github.event.before }}" >> "$GITHUB_OUTPUT"
+        shell: python
+        env:
+          SPEC: ${{ inputs.spec }}
+        run: |
+          import json
+          import os
+          import re
+          from pathlib import Path
+          path = os.environ["SPEC"]
+          if not re.fullmatch(r"specs/\d{4}-\d{2}-\d{2}/[a-z0-9-]+\.json", path):
+              raise SystemExit("Only one exact validated repo spec path is allowed")
+          if not Path(path).is_file():
+              raise SystemExit("Requested spec does not exist")
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              print("specs=" + json.dumps([path]), file=out)
 
   render:
     needs: plan
     if: needs.plan.outputs.specs != '[]'
     runs-on: ubuntu-latest
-    timeout-minutes: 340
+    timeout-minutes: 90
     strategy:
-      fail-fast: false
-      max-parallel: 12
+      fail-fast: true
+      max-parallel: 1
       matrix:
         spec: ${{ fromJson(needs.plan.outputs.specs) }}
     steps:

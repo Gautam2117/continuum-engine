@@ -1,15 +1,13 @@
 name: Autopilot
 
-# Scheduled runs build hosted review artifacts for the network.
-# Manual dispatch supports the existing release path and isolated previews.
+# Manual isolated development/test only. Recurring commercial content
+# production requires a compliant dedicated host, not GitHub-hosted Actions.
 on:
-  schedule:
-    - cron: '23 */6 * * *'
   workflow_dispatch:
     inputs:
       days:
         description: "Days ahead to fill (today included)"
-        default: "3"
+        default: "1"
       only:
         description: "Channel (exact name), several separated by |, or ALL for every channel"
         default: "Counterfactual Atlas"
@@ -18,7 +16,7 @@ on:
       preview:
         description: "Run planning and validate specs without committing or dispatching renders"
         type: boolean
-        default: false
+        default: true
 
       render_review:
         description: "Render accepted preview specs as review artifacts in the same run"
