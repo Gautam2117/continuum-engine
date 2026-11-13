@@ -1,20 +1,21 @@
 {
- "at": "2026-11-12T16:08:39+00:00",
+ "at": "2026-11-13T19:09:34+00:00",
  "days": [
-  "2026-11-12",
   "2026-11-13",
   "2026-11-14"
  ],
  "llm": [
-  "gemini"
+  "gemini",
+  "groq"
  ],
- "written": 0,
+ "written": 2,
  "failed": [
-  "2026-11-13-atlas-l1: all providers failed; last: gemini/gemini-3.1-flash-lite-preview: 503 [{\n  \"error\": {\n    \"code\": 503,\n    \"message\": \"This model is currently experiencing high demand. Spikes in demand are usually temporary. Please try again later.\",\n    \"status\": \"UNAVAILABLE\"\n  }\n}\n]"
+  "2026-11-14-strata-s1: rejected by quality gates",
+  "2026-11-14-founder-l1: LLMError: call budget: time limit for this run reached; the next run continues"
  ],
- "calls": 41,
+ "calls": 80,
  "by_model": {
-  "gemini:gemini-3.1-flash-lite-preview": 1,
-  "gemini:gemma-4-26b-a4b-it": 5
+  "gemini:gemini-3.5-flash-lite": 10,
+  "gemini:gemma-4-26b-a4b-it": 13
  }
 }
