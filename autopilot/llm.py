@@ -6,6 +6,10 @@ library, so nothing here depends on Claude, a laptop or a paid account.
   GEMINI_API_KEY      Google AI Studio free tier (OpenAI-compatible endpoint). Model list is discovered live.
   GROQ_API_KEY        Groq free tier.
   OPENROUTER_API_KEY  OpenRouter free (:free) models.
+  CEREBRAS_API_KEY    Cerebras free tier. Model list is discovered live.
+  MISTRAL_API_KEY     Mistral "Experiment" free tier.
+  GITHUB_MODELS_TOKEN GitHub Models free tier (a PAT with models:read).
+Model lists for Groq and Cerebras are discovered live, because retired ids 404 and would silently starve the run.
 """
 from __future__ import annotations
 
@@ -103,13 +107,48 @@ def discover_gemini(key: str) -> tuple[list[str], list[str]]:
     return best, bulk
 
 
+_NOT_CHAT = r"whisper|guard|tts|embed|moderation|vision-preview|orpheus|playai|distil-whisper|safeguard|prompt-guard|ocr|image|audio|transcri"
+
+
+def discover_openai_compat(base: str, key: str, fallback: list[str], prefer: list[str] | None = None) -> list[str]:
+    """Live model list for an OpenAI-compatible endpoint, strongest first (preferred ids, then by parameter count).
+    Falls back to a static list when the listing call itself fails."""
+    forced = os.environ.get(f"LLM_{re.sub(r'[^A-Z]', '', base.upper())[:12]}_MODELS")
+    if forced:
+        return [x.strip() for x in forced.split(",") if x.strip()]
+    try:
+        data = _http(f"{base}/models", None, {"authorization": f"Bearer {key}"}, timeout=30)
+    except LLMError:
+        return fallback
+    ids = [m.get("id", "") for m in data.get("data", []) if m.get("id") and not re.search(_NOT_CHAT, m["id"], re.I)]
+    if not ids:
+        return fallback
+
+    def size(n: str) -> float:
+        m = re.search(r"(\d+(?:\.\d+)?)b", n.lower())
+        return float(m.group(1)) if m else 0.0
+
+    prefer = prefer or []
+    ranked = [p for p in prefer if p in ids] + sorted([n for n in ids if n not in prefer], key=lambda n: (-size(n), n))
+    return ranked[:6]
+
+
 def providers_from_env() -> list[Provider]:
     out: list[Provider] = []
     if k := os.environ.get("GEMINI_API_KEY"):
         best, bulk = discover_gemini(k)
         out.append(Provider("gemini", "https://generativelanguage.googleapis.com/v1beta/openai", k, bulk, best=best))
     if k := os.environ.get("GROQ_API_KEY"):
-        out.append(Provider("groq", "https://api.groq.com/openai/v1", k, ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"], best=["llama-3.3-70b-versatile"]))
+        gm = discover_openai_compat("https://api.groq.com/openai/v1", k, ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "openai/gpt-oss-20b"],
+                                    prefer=["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "qwen/qwen3-32b", "openai/gpt-oss-20b"])
+        out.append(Provider("groq", "https://api.groq.com/openai/v1", k, gm, best=gm[:2]))
+    if k := os.environ.get("CEREBRAS_API_KEY"):
+        cm = discover_openai_compat("https://api.cerebras.ai/v1", k, ["gpt-oss-120b", "llama-3.3-70b", "qwen-3-32b"], prefer=["gpt-oss-120b", "llama-3.3-70b", "qwen-3-235b-a22b-instruct-2507"])
+        out.append(Provider("cerebras", "https://api.cerebras.ai/v1", k, cm, best=cm[:2]))
+    if k := os.environ.get("MISTRAL_API_KEY"):
+        out.append(Provider("mistral", "https://api.mistral.ai/v1", k, ["mistral-small-latest", "open-mistral-nemo"], best=["mistral-large-latest", "mistral-small-latest"]))
+    if k := os.environ.get("GITHUB_MODELS_TOKEN"):
+        out.append(Provider("github", "https://models.github.ai/inference", k, ["openai/gpt-4.1-mini", "openai/gpt-4o-mini"], best=["openai/gpt-4.1"]))
     if k := os.environ.get("OPENROUTER_API_KEY"):
         out.append(Provider("openrouter", "https://openrouter.ai/api/v1", k, [os.environ.get("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")]))
     return out
