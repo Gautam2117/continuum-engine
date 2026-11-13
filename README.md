@@ -12,6 +12,10 @@ channel credentials live in this public repository.
    GitHub Actions use restrictions. The repo variable `AUTOPILOT_NETWORK_REVIEW`
    is set to `0`. A compliant, always-on execution host is not yet attached;
    see [`docs/PRODUCTION_HOSTING.md`](docs/PRODUCTION_HOSTING.md).
+   The [standalone durable review worker](docs/SELF_HOSTED_WORKER.md) now
+   supports one-host, one-render-at-a-time, verified review staging with
+   SQLite retries and crash recovery. It is not attached to an owned machine
+   or paid/free VM and it never auto-publishes.
    Provider quotas can also prevent even the configured 50 daily slot target
    being filled. No completed video should be inferred from a planned spec.
 2. `Render (technical review only)` and `Render preview` produce MP4, thumbnail,

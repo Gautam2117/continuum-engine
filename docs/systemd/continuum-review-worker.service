@@ -1,0 +1,24 @@
+[Unit]
+Description=Continuum Arc private rendering and technical review (no uploads)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=continuum
+Group=continuum
+WorkingDirectory=/opt/continuum-engine
+Environment=PYTHONUNBUFFERED=1
+Environment=KOKORO_DIR=/var/cache/continuum/kokoro
+Environment=B3D_CACHE=/var/cache/continuum/b3d
+StateDirectory=continuum
+CacheDirectory=continuum
+ExecStart=/opt/continuum-engine/.venv/bin/python /opt/continuum-engine/scripts/worker.py cycle --db /var/lib/continuum/review.sqlite3 --reviews /var/lib/continuum/reviews --days 7 --limit 1 --timeout 7200
+TimeoutStartSec=7400
+UMask=0077
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+
+# Deliberate: no YouTube API access or publishing command anywhere in this unit.
