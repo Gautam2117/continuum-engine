@@ -31,6 +31,8 @@ def _http(url: str, body: dict | None, headers: dict, timeout: int = 120) -> dic
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.loads(r.read())
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        raise LLMError("provider reply was not valid JSON") from e
     except urllib.error.HTTPError as e:
         raise LLMError(f"{e.code} {e.read().decode(errors='replace')[:300]}") from e
     except (urllib.error.URLError, TimeoutError) as e:
@@ -39,19 +41,29 @@ def _http(url: str, body: dict | None, headers: dict, timeout: int = 120) -> dic
 
 def extract_json(text: str):
     """Parse the first JSON value in a model reply, tolerating code fences and chatter around it."""
+    if not isinstance(text, str):
+        raise LLMError("reply was not valid JSON")
     t = text.strip()
     t = re.sub(r"^```(?:json)?\s*|\s*```$", "", t, flags=re.I)
     try:
         return json.loads(t)
     except json.JSONDecodeError:
         pass
-    for open_, close in (("{", "}"), ("[", "]")):
-        a, b = t.find(open_), t.rfind(close)
-        if a != -1 and b > a:
-            try:
-                return json.loads(t[a:b + 1])
-            except json.JSONDecodeError:
-                continue
+    for fence in re.finditer(r"```(?:json)?\s*([\s\S]*?)```", text, flags=re.I):
+        try:
+            return json.loads(fence.group(1))
+        except json.JSONDecodeError:
+            continue
+    decoder = json.JSONDecoder()
+    start = re.search(r"[{\[]", t)
+    if start:
+        try:
+            value, end = decoder.raw_decode(t, start.start())
+        except json.JSONDecodeError:
+            pass
+        else:
+            if not t[end:].lstrip().startswith(("}", "]", ",")):
+                return value
     raise LLMError("reply was not valid JSON")
 
 
@@ -76,7 +88,7 @@ class Provider:
         try:
             return data["choices"][0]["message"]["content"] or ""
         except (KeyError, IndexError, TypeError) as e:
-            raise LLMError(f"unexpected reply shape: {str(data)[:200]}") from e
+            raise LLMError("unexpected provider reply shape") from e
 
 
 def _version(name: str) -> float:
@@ -96,7 +108,7 @@ def discover_gemini(key: str) -> tuple[list[str], list[str]]:
     except LLMError:
         return ["gemini-2.5-pro", "gemini-3.5-flash", "gemini-2.5-flash"], ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-2.5-flash-lite"]
     names = [m["name"].split("/")[-1] for m in data.get("models", []) if "generateContent" in m.get("supportedGenerationMethods", [])]
-    names = [n for n in names if not re.search(r"image|tts|embedding|live|audio|vision|robotics|computer|thinking-exp|preview-\d|exp", n)]
+    names = [n for n in names if not re.search(r"image|tts|embedding|live|audio|vision|robotics|computer|thinking-exp|preview-\d|exp|customtools|reward|rerank", n)]
     pick = lambda pat: sorted([n for n in names if re.search(pat, n)], key=_version, reverse=True)  # noqa: E731
     lite = pick(r"flash-lite")
     gemma = pick(r"^gemma")
@@ -107,7 +119,7 @@ def discover_gemini(key: str) -> tuple[list[str], list[str]]:
     return best, bulk
 
 
-_NOT_CHAT = r"whisper|guard|tts|embed|moderation|vision-preview|orpheus|playai|distil-whisper|safeguard|prompt-guard|ocr|image|audio|transcri"
+_NOT_CHAT = r"whisper|guard|tts|embed|moderation|vision-preview|orpheus|playai|distil-whisper|safeguard|prompt-guard|ocr|image|audio|transcri|reward|rerank|customtools"
 
 
 def discover_openai_compat(base: str, key: str, fallback: list[str], prefer: list[str] | None = None) -> list[str]:
@@ -160,7 +172,7 @@ def providers_from_env() -> list[Provider]:
     if k := os.environ.get("GITHUB_MODELS_TOKEN"):
         out.append(Provider("github", "https://models.github.ai/inference", k, ["openai/gpt-4.1-mini", "openai/gpt-4o-mini"], best=["openai/gpt-4.1"]))
     if k := os.environ.get("OPENROUTER_API_KEY"):
-        out.append(Provider("openrouter", "https://openrouter.ai/api/v1", k, [os.environ.get("OPENROUTER_MODEL", "meta-llama/llama-3.3-70b-instruct:free")]))
+        out.append(Provider("openrouter", "https://openrouter.ai/api/v1", k, [os.environ.get("OPENROUTER_MODEL", "openrouter/free")]))
     return out
 
 
@@ -169,6 +181,7 @@ class LLM:
         self.providers = providers if providers is not None else providers_from_env()
         self.calls = 0
         self.log = log
+        self.attempts_by_model: dict[str, int] = {}
         self.by_provider: dict[str, int] = {}
         self.last_model = ""
         self.sleep = time.sleep
@@ -177,13 +190,24 @@ class LLM:
     def available(self) -> bool:
         return bool(self.providers)
 
-    def complete(self, system: str, user: str, *, want_json: bool = True, temperature: float = 0.8, max_tokens: int = 6000, tier: str = "bulk"):
+    def complete(self, system: str, user: str, *, want_json: bool = True, temperature: float = 0.8, max_tokens: int = 6000, tier: str = "bulk", max_calls: int | None = None, deadline: float | None = None):
         """Returns parsed JSON when want_json, else text. Fails over across providers and models.
         tier="best" tries the strongest models first (scripts, editor); "bulk" tries the highest-quota ones (topic ideas).
         Busy-server errors (503 and friends) are retried with backoff and never mark a model dead; only a spent
         quota or a retired model does."""
         if not self.providers:
             raise LLMError("no LLM key configured (set GEMINI_API_KEY, GROQ_API_KEY or OPENROUTER_API_KEY)")
+
+        def check_budget(wait: float = 0) -> None:
+            if max_calls is not None and self.calls >= max_calls:
+                raise LLMError("call budget for this run is used up")
+            if deadline is not None and time.monotonic() + wait >= deadline:
+                raise LLMError("call budget: time limit for this run reached; the next run continues")
+
+        def backoff(seconds: float) -> None:
+            check_budget(seconds)
+            self.sleep(seconds)
+
         last = ""
         for sweep in range(3):  # after a full sweep where everything was merely busy, wait and sweep again
             busy = False
@@ -199,13 +223,16 @@ class LLM:
                         break
                     tries = 0
                     while tries < 3:
+                        check_budget()
                         tries += 1
                         try:
                             self.calls += 1
+                            model_id = f"{prov.name}:{model}"
+                            self.attempts_by_model[model_id] = self.attempts_by_model.get(model_id, 0) + 1
                             text = prov.chat(model, system, user, temperature, max_tokens, want_json)
                             result = extract_json(text) if want_json else text
                             prov.busy_hits = 0  # noqa
-                            self.last_model = f"{prov.name}:{model}"
+                            self.last_model = model_id
                             self.by_provider[self.last_model] = self.by_provider.get(self.last_model, 0) + 1
                             return result
                         except LLMError as e:
@@ -218,7 +245,7 @@ class LLM:
                                 if getattr(prov, "busy_hits", 0) >= 2 and len(self.providers) > 1:
                                     prov.cool_until = time.monotonic() + 600  # skip this provider for 10 minutes
                                     break
-                                self.sleep(min(60, 8 * 2 ** (tries - 1)))  # 8s, 16s, 32s
+                                backoff(min(60, 8 * 2 ** (tries - 1)))  # 8s, 16s, 32s
                                 continue
                             if msg.startswith("429"):
                                 if "perminute" in low or "per minute" in low or "rpm" in low:
@@ -226,7 +253,7 @@ class LLM:
                                     if getattr(prov, "busy_hits", 0) >= 2 and len(self.providers) > 1:
                                         prov.cool_until = time.monotonic() + 300
                                         break
-                                    self.sleep(25)  # a per-minute limit: wait it out, then try again
+                                    backoff(25)  # a per-minute limit: wait it out, then try again
                                     busy = True
                                     continue
                                 prov.dead.add(model)  # daily quota gone, or this model is not on the free tier
@@ -239,10 +266,10 @@ class LLM:
                                 break
                             if "not valid JSON" in msg:
                                 continue  # one more try with the same model
-                            self.sleep(3 * tries)
+                            backoff(3 * tries)
                     self.log(f"  llm: {last[:160]}")
-            if not busy:
+            if not busy or sweep == 2:
                 break
             self.log(f"  llm: every model is busy; waiting before sweep {sweep + 2}")
-            self.sleep(60)
+            backoff(60)
         raise LLMError(f"all providers failed; last: {last}")

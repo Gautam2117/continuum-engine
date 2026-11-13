@@ -1,0 +1,118 @@
+name: Render preview
+
+on:
+  workflow_call:
+    inputs:
+      plan_run:
+        description: "Completed Autopilot preview run ID"
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: render-preview-${{ inputs.plan_run }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      specs: ${{ steps.list.outputs.specs }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: autopilot-preview
+          path: preview
+          run-id: ${{ inputs.plan_run }}
+          github-token: ${{ github.token }}
+      - name: Find available review packages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.expired == false and (.name | startswith("review-"))) | .name' > available-reviews.txt
+      - id: list
+        shell: python
+        env:
+          PYTHONPATH: ${{ github.workspace }}
+        run: |
+          import json
+          import os
+          from pathlib import Path
+
+          from scripts.review_inventory import pending_specs
+
+          receipts = Path("available-reviews.txt")
+          available = set(receipts.read_text().splitlines()) if receipts.exists() else set()
+          paths = list(Path("preview/specs").glob("*/*.json"))
+          specs = pending_specs(paths, available)[:100]
+          with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+              print("specs=" + json.dumps(specs), file=out)
+          if not specs:
+              print("Preview supplied no new specs.")
+
+  render:
+    needs: plan
+    if: needs.plan.outputs.specs != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        spec: ${{ fromJSON(needs.plan.outputs.specs) }}
+    env:
+      SPEC: ${{ matrix.spec }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: autopilot-preview
+          path: preview
+          run-id: ${{ inputs.plan_run }}
+          github-token: ${{ github.token }}
+      - name: Install render system dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-inter fonts-crosextra-caladea fonts-dejavu-core fonts-noto-core fonts-noto-color-emoji fonts-freefont-ttf libraqm0 libegl1 libgl1 libxkbcommon0 libx11-6 libxi6 libxrender1
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install Blender runner if required
+        run: |
+          if grep -q '"b3d"' "$SPEC"; then
+            python -m venv "$RUNNER_TEMP/blender"
+            "$RUNNER_TEMP/blender/bin/pip" install -q bpy==5.3.0
+            echo "B3D_PYTHON=$RUNNER_TEMP/blender/bin/python" >> "$GITHUB_ENV"
+          fi
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -q -r requirements.txt
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/kokoro
+          key: kokoro-v1.0
+      - name: Validate, render and decode
+        id: render
+        run: |
+          python scripts/validate.py --strict "$SPEC"
+          python -m engine.render "$SPEC" --out out
+          master="$(find out -name video.mp4 -print -quit)"
+          ffmpeg -v error -xerror -i "$master" -f null -
+          result="$(dirname "$master")"
+          ffprobe -v error -show_streams -show_format -of json "$master" > "$result/probe.json"
+          python -m scripts.verify_review "$SPEC" "$result"
+          (cd "$result" && sha256sum video.mp4 thumb.jpg pack.json probe.json spec.json > checksums.txt)
+          artifact="$(python -c 'import sys; from pathlib import Path; from scripts.review_inventory import review_artifact; print(review_artifact(Path(sys.argv[1])))' "$SPEC")"
+          echo "artifact=$artifact" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.render.outputs.artifact }}
+          path: out/
+          if-no-files-found: error

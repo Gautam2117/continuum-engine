@@ -29,20 +29,32 @@ def emit(key: str, value: str) -> None:
 
 
 def cmd_plan(a) -> int:
+    unknown = sorted(set(a.only or ()) - daily.PLAYBOOKS.keys())
+    if unknown:
+        print(f"Unknown or creator-led channels: {', '.join(unknown)}", file=sys.stderr)
+        return 2
+    if not 1 <= a.days <= 30 or not 0 <= a.start_offset <= 30:
+        print("Choose 1–30 days and a start offset of 0–30 days.", file=sys.stderr)
+        return 2
     now = dt.datetime.now(dt.timezone.utc)
-    days = [now.date() + dt.timedelta(days=i) for i in range(a.days)]
+    start = now.date() + dt.timedelta(days=a.start_offset)
+    days = [start + dt.timedelta(days=i) for i in range(a.days)]
     llm = LLM()
     beat = {"at": now.isoformat(timespec="seconds"), "days": [d.isoformat() for d in days], "llm": "none" if not llm.available else [p.name for p in llm.providers]}
     if not llm.available:
         print("No LLM key configured: skipping generation. Existing specs still render and publish.")
         beat["note"] = "no LLM key; nothing generated"
+        beat["spec_inventory"] = daily.inventory(days, a.only)
         insights.save("heartbeat.json", beat)
         emit("new", "")
         return 0
     for pv in llm.providers:
         print(f"llm provider {pv.name}: best={getattr(pv, 'best', [])} bulk={pv.models}")
+    started = time.monotonic()
     result = daily.plan(days, llm, now, only=a.only or None, max_calls=a.max_calls)
-    beat.update(written=len(result["written"]), failed=result["failed"][:20], calls=llm.calls, by_model=llm.by_provider)
+    beat.update(written=len(result["written"]), failed=result["failed"][:20], calls=llm.calls, by_model=llm.by_provider,
+                attempts_by_model=llm.attempts_by_model, planning_seconds=round(time.monotonic() - started, 2))
+    beat["spec_inventory"] = daily.inventory(days, a.only)
     insights.save("heartbeat.json", beat)
     emit("new", " ".join(result["written"]))
     print(json.dumps({k: (v if k != "written" else len(v)) for k, v in result.items()}, indent=1))
@@ -74,7 +86,7 @@ def sh(*args) -> str:
 
 def cmd_heal(a) -> int:
     today = dt.date.today()
-    cache: dict[str, set] = {}
+    cache: dict[str, set[str] | None] = {}
     todo = []
     for p in sorted((ROOT / "specs").glob("*/*.json")):
         try:
@@ -98,7 +110,8 @@ def cmd_heal(a) -> int:
         if cache[tag] is None:
             continue
         sid = json.loads(p.read_text())["id"]
-        if f"{sid}-pack.json" not in cache[tag]:
+        required = {f"{sid}-{suffix}" for suffix in ("video.mp4", "thumb.jpg", "pack.json")}
+        if not required.issubset(cache[tag]):
             todo.append(str(p.relative_to(ROOT)))
     emit("heal", " ".join(todo))
     return 0
@@ -139,6 +152,7 @@ if __name__ == "__main__":
     sub = ap.add_subparsers(dest="cmd", required=True)
     p = sub.add_parser("plan")
     p.add_argument("--days", type=int, default=3)
+    p.add_argument("--start-offset", type=int, default=0)
     p.add_argument("--only", action="append")
     p.add_argument("--max-calls", type=int, default=int(os.environ.get("AUTOPILOT_MAX_CALLS", "400")))
     p.set_defaults(fn=cmd_plan)

@@ -579,10 +579,12 @@ SCENES = {"earth_tunnel": scene_earth_tunnel, "moon_drive": scene_moon_drive, "e
 
 # Kits in their own files; they get this module's helpers passed in (no second copy of the registries).
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import pip_room  # noqa: E402
 import clay  # noqa: E402
 import titles  # noqa: E402
 import worlds  # noqa: E402
 
+SCENES.update(pip_room.scenes(sys.modules[__name__]))
 SCENES.update(clay.scenes(sys.modules[__name__]))
 SCENES.update(titles.scenes(sys.modules[__name__]))
 SCENES.update(worlds.scenes(sys.modules[__name__]))

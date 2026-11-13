@@ -67,6 +67,39 @@ def test_extract_json_tolerates_fences():
     assert extract_json('Here you go:\n```json\n{"a": 1}\n```') == {"a": 1}
 
 
+def test_provider_discovery_excludes_non_chat_models(monkeypatch):
+    from autopilot import llm as router
+
+    def fake_http(url, body, headers, timeout=120):
+        return {"data": [{"id": name} for name in (
+            "nvidia/nemotron-4-340b-reward",
+            "nvidia/nemotron-4-340b-instruct",
+            "some-reranker-v2",
+            "openai/gpt-oss-120b",
+        )]}
+
+    monkeypatch.setattr(router, "_http", fake_http)
+    found = router.discover_openai_compat("https://example.com/v1", "secret", [])
+    assert "nvidia/nemotron-4-340b-instruct" in found
+    assert "openai/gpt-oss-120b" in found
+    assert not any("reward" in name or "rerank" in name for name in found)
+
+
+def test_gemini_discovery_excludes_specialized_tool_models(monkeypatch):
+    from autopilot import llm as router
+
+    monkeypatch.delenv("LLM_GEMINI_MODELS", raising=False)
+    monkeypatch.setattr(router, "_http", lambda *args, **kwargs: {"models": [
+        {"name": "models/gemini-3.1-pro-preview-customtools", "supportedGenerationMethods": ["generateContent"]},
+        {"name": "models/gemini-3.1-pro-preview", "supportedGenerationMethods": ["generateContent"]},
+        {"name": "models/gemini-3.5-flash-lite", "supportedGenerationMethods": ["generateContent"]},
+    ]})
+    best, bulk = router.discover_gemini("secret")
+    assert "gemini-3.1-pro-preview" in best
+    assert "gemini-3.5-flash-lite" in bulk
+    assert not any("customtools" in model for model in best + bulk)
+
+
 def test_speakable_numbers_and_years():
     assert speakable("In 1883, 36,000 died: 8x louder, 40% less") == "In eighteen eighty-three, thirty-six thousand died: eight times louder, forty percent less"
 
@@ -194,3 +227,269 @@ def test_list_replies_do_not_crash_the_planner():
         raise AssertionError("should reject")
     except LLMError:
         pass
+
+
+def test_retry_attempts_stop_at_call_budget():
+    import pytest
+    from autopilot.llm import Provider
+
+    class Busy(Provider):
+        def chat(self, *args):
+            raise LLMError("503 unavailable")
+
+    llm = LLM(providers=[Busy("busy", "", "", ["m"])], log=lambda *_: None)
+    waits = []
+    llm.sleep = waits.append
+    with pytest.raises(LLMError, match="call budget"):
+        llm.complete("s", "u", max_calls=2)
+    assert waits == [8]
+    assert llm.attempts_by_model == {"busy:m": 2}
+    assert llm.by_provider == {}
+
+
+def test_backoff_respects_planner_deadline(monkeypatch):
+    import pytest
+    from autopilot import llm as router
+    from autopilot.llm import Provider
+
+    class Busy(Provider):
+        def chat(self, *args):
+            raise LLMError("503 unavailable")
+
+    monkeypatch.setattr(router.time, "monotonic", lambda: 100)
+    llm = LLM(providers=[Busy("busy", "", "", ["m"])])
+    waits = []
+    llm.sleep = waits.append
+    with pytest.raises(LLMError, match="time limit"):
+        llm.complete("s", "u", deadline=104)
+    assert llm.calls == 1
+    assert waits == []
+
+
+def test_missing_editor_decision_holds_spec(monkeypatch):
+    import pytest
+
+    planner = daily.Planner(llm_with(Scripted()))
+    monkeypatch.setattr(planner, "_call", lambda *a, **k: {"fixes": []})
+    with pytest.raises(LLMError, match="valid pass decision"):
+        planner.critic("Counterfactual Atlas", short_script(), {"text": ""})
+
+
+def test_network_plan_rotates_first_channel_between_windows(tmp_path, monkeypatch):
+    monkeypatch.setattr(daily, "SPECS", tmp_path / "specs")
+    monkeypatch.setattr(insights, "STATE", tmp_path / "state")
+    channels = ["Counterfactual Atlas", "10SecScientist"]
+    day = dt.date(2026, 11, 14)
+    seen = []
+
+    def exhaust_budget(self, channel, *args):
+        seen.append(channel)
+        raise LLMError("call budget for this run is used up")
+
+    monkeypatch.setattr(daily.Planner, "make", exhaust_budget)
+    now = dt.datetime(2026, 11, 13, tzinfo=dt.timezone.utc)
+    for offset in (0, 4):
+        daily.plan([day], llm_with(Scripted()), now + dt.timedelta(hours=offset), only=channels)
+    assert set(seen) == set(channels)
+    assert len(seen) == 2
+
+
+def test_heal_recovers_incomplete_release_even_when_pack_exists(tmp_path, monkeypatch):
+    import subprocess
+    from scripts import autopilot as cli
+
+    tag = dt.date.today().isoformat()
+    folder = tmp_path / "specs" / tag
+    folder.mkdir(parents=True)
+    sid = f"{tag}-atlas-s1"
+    spec = folder / "atlas-s1.json"
+    spec.write_text(json.dumps({"id": sid}))
+    assets = [{"name": f"{sid}-pack.json"}, {"name": f"{sid}-video.mp4"}]
+    monkeypatch.setattr(cli, "ROOT", tmp_path)
+    monkeypatch.setattr(cli, "sh", lambda *args: "100")
+    monkeypatch.setattr(cli.subprocess, "run", lambda *args, **kwargs: subprocess.CompletedProcess(
+        args, 0, stdout=json.dumps({"assets": assets}), stderr=""
+    ))
+    outputs = []
+    monkeypatch.setattr(cli, "emit", lambda *args: outputs.append(args))
+
+    assert cli.cmd_heal(None) == 0
+    assert outputs[-1] == ("heal", str(spec.relative_to(tmp_path)))
+    assets.append({"name": f"{sid}-thumb.jpg"})
+    assert cli.cmd_heal(None) == 0
+    assert outputs[-1] == ("heal", "")
+
+
+def test_long_revision_reuses_outline_but_regenerates_chapters():
+    llm = llm_with(Scripted())
+    planner = daily.Planner(llm)
+    topic = {"topic": "What if gravity changed?"}
+    grounding = {"text": "Gravity shapes orbits."}
+    planner.draft_long("Counterfactual Atlas", topic, grounding)
+    initial = llm.calls
+    planner.draft_long("Counterfactual Atlas", topic, grounding, ["Clarify the visual sequence"])
+    assert initial == 7
+    assert llm.calls == initial + 6
+
+
+def test_slot_selection_spaces_formats_around_existing_uploads():
+    day = dt.date(2026, 11, 14)
+    now = dt.datetime(2026, 11, 13, tzinfo=dt.timezone.utc)
+    shorts = choose("Counterfactual Atlas", "short", 2, day, {}, now)
+    long = choose("Counterfactual Atlas", "long", 1, day, {}, now, occupied=tuple(shorts))
+    assert len(shorts) == 2 and len(long) == 1
+    assert all(abs((long[0] - other).total_seconds()) >= 10800 for other in shorts)
+
+
+def test_review_inventory_restores_future_specs_without_overwriting_release(tmp_path):
+    from scripts.review_inventory import restore
+
+    source = tmp_path / "inventory"
+    destination = tmp_path / "specs"
+    for day in ("2026-11-13", "2026-11-14"):
+        (source / day).mkdir(parents=True)
+        for name in ("atlas-s1", "atlas-l1"):
+            (source / day / f"{name}.json").write_text(json.dumps({"id": f"{day}-{name}"}))
+    release = destination / "2026-11-14" / "atlas-l1.json"
+    release.parent.mkdir(parents=True)
+    release.write_text("tracked release")
+    today = dt.date(2026, 11, 14)
+    assert restore(source, destination, today) == 1
+    assert restore(source, destination, today) == 0
+    assert release.read_text() == "tracked release"
+    assert not (destination / "2026-11-13").exists()
+
+
+def test_pending_reviews_only_skip_exact_live_artifacts(tmp_path):
+    from scripts.review_inventory import pending_specs, review_artifact
+
+    day = tmp_path / "2026-11-14"
+    day.mkdir()
+    paths = [day / f"atlas-s{i}.json" for i in (1, 2)]
+    for path in paths:
+        path.write_text(json.dumps({"id": f"{day.name}-{path.stem}", "title": "Original"}))
+    available = {review_artifact(paths[0])}
+    assert pending_specs(paths, available) == [paths[1].as_posix()]
+    paths[0].write_text(paths[0].read_text().replace("Original", "Revised"))
+    assert pending_specs(paths, available) == [path.as_posix() for path in paths]
+
+
+def test_review_verification_rejects_missing_audio_and_wrong_dimensions(tmp_path):
+    import pytest
+    from PIL import Image
+    from scripts.verify_review import verify
+
+    thumbnail = tmp_path / "thumb.jpg"
+    Image.new("RGB", (16, 16)).save(thumbnail)
+    spec = {"id": "atlas", "channel": "Counterfactual Atlas", "format": "short", "scenes": [{}]}
+    pack = {**spec, "durationSec": 10}
+    video = {"codec_type": "video", "codec_name": "h264", "width": 1080, "height": 1920}
+    audio = {"codec_type": "audio", "codec_name": "aac"}
+    probe = {"format": {"duration": "10.04"}, "streams": [video, audio]}
+    verify(spec, pack, probe, thumbnail)
+    with pytest.raises(ValueError, match="AAC"):
+        verify(spec, pack, {**probe, "streams": [video]}, thumbnail)
+    with pytest.raises(ValueError, match="dimensions"):
+        verify(spec, pack, {**probe, "streams": [{**video, "width": 1920}, audio]}, thumbnail)
+
+
+def test_editor_cannot_pass_scores_below_threshold(monkeypatch):
+    planner = daily.Planner(llm_with(Scripted()))
+    review = {"pass": True, "hook": 8, "originality": 6, "accuracy": 5, "fixes": [], "unsupported_claims": []}
+    monkeypatch.setattr(planner, "_call", lambda *a, **k: review)
+    result = planner.critic("Counterfactual Atlas", short_script(), {"text": ""})
+    assert result["pass"] is False
+    assert result["fixes"] == ["Improve accuracy: scored 5, needs 7"]
+
+
+def test_pip_reach_moves_and_phone_state_changes():
+    from types import SimpleNamespace
+    from engine.pip import pip
+
+    ctx = SimpleNamespace(W=270, H=375)
+    frames = list(pip(ctx, 0.5, {"action": "reach"}, []))
+    assert frames[0].tobytes() != frames[len(frames) // 2].tobytes()
+    dead = next(pip(ctx, 0.5, {"action": "reset", "phone": "dead"}, []))
+    assert frames[0].getpixel((205, 220)) != dead.getpixel((205, 220))
+
+
+def test_pip_phone_stays_far_after_slip_and_dead_after_blackout():
+    from engine.pip import continuity_issues
+
+    def shot(action, **fields):
+        return {"show": {"type": "pip", "action": action, **fields}}
+
+    slip = shot("slip")
+    far = shot("reach", phone="far")
+    dead = shot("reset", phone="dead")
+    assert not continuity_issues([slip, far, dead, dead])
+    assert continuity_issues([slip, shot("reset")])
+    assert continuity_issues([slip, dead, far])
+
+
+def test_planner_fills_omitted_phone_state_but_preserves_explicit_errors():
+    from engine.pip import continuity_issues, fill_phone_states
+
+    shows = [{"action": "slip"}, {"action": "reach"}, {"action": "reset", "phone": "dead"},
+             {"action": "reset"}, {"action": "reach", "phone": "near"}]
+    scenes = [{"show": {"type": "pip", **show}} for show in shows]
+    fill_phone_states(scenes)
+    assert [scene["show"]["phone"] for scene in scenes] == ["near", "far", "dead", "dead", "near"]
+    assert continuity_issues(scenes) == ["scene 4: phone continuity requires dead; far may transition to dead"]
+
+
+def test_planning_fills_a_missing_slot_without_overwriting_an_existing_second_spec(tmp_path, monkeypatch):
+    monkeypatch.setattr(daily, "SPECS", tmp_path / "specs")
+    monkeypatch.setattr(insights, "STATE", tmp_path / "state")
+    date = dt.date(2026, 11, 14)
+    folder = daily.SPECS / date.isoformat()
+    folder.mkdir(parents=True)
+    existing = folder / "atlas-s2.json"
+    original = json.dumps({"channel": "Counterfactual Atlas", "format": "short"})
+    existing.write_text(original)
+
+    def make(self, channel, fmt, sid, when):
+        if fmt == "long":
+            return None
+        return {"id": sid, "title": "Fresh short", "meta": {"axis": "space", "slot": "14:00"},
+                "publishAt": when.isoformat()}
+
+    monkeypatch.setattr(daily.Planner, "make", make)
+    now = dt.datetime(2026, 11, 13, tzinfo=dt.timezone.utc)
+    result = daily.plan([date], llm_with(Scripted()), now, only=["Counterfactual Atlas"])
+    assert result["written"] == [str(folder / "atlas-s1.json")]
+    assert existing.read_text() == original
+
+
+def test_episode_budget_is_distinct_from_run_budget():
+    import pytest
+
+    llm = llm_with(Scripted())
+    planner = daily.Planner(llm, max_calls=3)
+    planner.episode_call_limit = 0
+    with pytest.raises(daily.EpisodeCallLimit):
+        planner._call("system", "user")
+    planner.episode_call_limit = 4
+    llm.calls = 3
+    with pytest.raises(LLMError, match="call budget for this run") as error:
+        planner._call("system", "user")
+    assert not isinstance(error.value, daily.EpisodeCallLimit)
+
+
+def test_inventory_reports_network_coverage_without_counting_invalid_specs(tmp_path, monkeypatch):
+    monkeypatch.setattr(daily, "SPECS", tmp_path)
+    day = dt.date(2026, 11, 14)
+    folder = tmp_path / day.isoformat()
+    folder.mkdir()
+    spec = {"id": f"{day}-atlas-s2", "channel": "Counterfactual Atlas", "format": "short"}
+    for name in ("atlas-s1", "atlas-s2"):
+        (folder / f"{name}.json").write_text(json.dumps(spec))
+    rows = daily.inventory([day])
+    assert len({row["channel"] for row in rows}) == 48
+    assert sum(row["target"] for row in rows) == 50
+    assert sum(row["missing"] for row in rows) == 49
+
+
+def test_extract_json_handles_fenced_script_with_trailing_bracketed_notes():
+    reply = 'Draft follows:\n```json\n{"scenes": [{"say": "Hi"}]}\n```\n[notes] {unrelated}'
+    assert extract_json(reply) == {"scenes": [{"say": "Hi"}]}

@@ -93,18 +93,28 @@ def exemplar(channel: str, fmt: str) -> str:
     return "EXAMPLE OF THE SHAPE (different topic; do not copy content):\n" + json.dumps(keep, ensure_ascii=False)[:2800]
 
 
+class EpisodeCallLimit(LLMError):
+    pass
+
+
 class Planner:
     def __init__(self, llm: LLM, *, max_calls: int = 400, log=print):
         self.llm, self.max_calls, self.log = llm, max_calls, log
         self.deadline = time.monotonic() + float(os.environ.get("AUTOPILOT_MAX_MINUTES", "34")) * 60
+        self.episode_call_limit: int | None = None
         self.topics: dict[tuple, list[dict]] = {}
+        self.long_outlines: dict[tuple[str, str], dict] = {}
 
     def _call(self, system: str, user: str, **kw):
-        if self.llm.calls >= self.max_calls:
-            raise LLMError("call budget for this run is used up")
-        if time.monotonic() > self.deadline:
-            raise LLMError("call budget: time limit for this run reached; the next run continues")
-        return self.llm.complete(system, user, **kw)
+        limit = self.max_calls
+        if self.episode_call_limit is not None:
+            limit = min(limit, self.episode_call_limit)
+        try:
+            return self.llm.complete(system, user, max_calls=limit, deadline=self.deadline, **kw)
+        except LLMError as error:
+            if limit < self.max_calls and self.llm.calls >= limit and str(error) == "call budget for this run is used up":
+                raise EpisodeCallLimit("provider attempt limit reached for this episode") from error
+            raise
 
     # ---- topics ---------------------------------------------------------------------------------
     def pick_topic(self, channel: str, fmt: str) -> dict:
@@ -124,7 +134,8 @@ class Planner:
             user = (
                 f"Channel: {channel}\nPromise: {pb['promise']}\nAudience: {pb['audience']}\nFormat: {fmt}\n"
                 f"Subject areas (prefer earlier ones, but rotate): {json.dumps(axes)}\n"
-                f"Already made (do NOT repeat or paraphrase): {json.dumps(recent)}\n{insights.guidance(channel, fmt)}\n\n"
+                f"Already made (do NOT repeat or paraphrase): {json.dumps(recent)}\n{insights.guidance(channel, fmt)}\n"
+                f"Production constraints: {pb.get('topic_constraints', 'Follow the channel promise and subject areas.')}\n\n"
                 'Brainstorm 8 video topics most likely to hold attention. Return JSON: {"topics":[{"topic":"...","axis":"one subject area","wiki_query":"2-4 words to find a Wikipedia article with the facts","why":"one line"}]} ranked best first.'
             )
             data = as_obj(self._call("You are a sharp YouTube strategist. Reply with JSON only.", user, temperature=0.9), "topics")
@@ -173,10 +184,15 @@ class Planner:
         per = words // n_ch
         system = self._system(channel)
         base = f"TOPIC: {topic['topic']}\n\nGROUNDING (the only source of specific facts):\n{g['text'] or '(none found: use only settled knowledge)'}\n\n"
-        outline = as_obj(self._call(system, base + prompts.LONG_OUTLINE.replace("{minutes}", str(round(words / 150))).replace("{chapters}", str(n_ch)), temperature=0.8, tier="best"), "chapters")
+        key = (channel, topic["topic"])
+        outline = self.long_outlines.get(key)
+        if outline is None:
+            prompt = prompts.LONG_OUTLINE.replace("{minutes}", str(round(words / 150))).replace("{chapters}", str(n_ch))
+            outline = as_obj(self._call(system, base + prompt, temperature=0.8, tier="best"), "chapters")
         chapters = [c for c in outline.get("chapters", []) if isinstance(c, dict)][:n_ch]
         if len(chapters) < 4:
             raise LLMError("outline too short")
+        self.long_outlines[key] = outline
         scenes: list[dict] = []
         for i, ch in enumerate(chapters, 1):
             first = "This chapter opens the video: first scene type \"title\", then deliver the promise inside 20 seconds. " if i == 1 else ""
@@ -233,6 +249,9 @@ class Planner:
             scenes[0]["show"] = {"type": "title", "text": raw.get("thumb") or raw.get("title", "")[:48], "kicker": channel}
         if scenes and (scenes[-1].get("show") or {}).get("type") != "end":
             scenes.append({"say": "That is the whole story. Come back tomorrow for another one.", "show": {"type": "end", "text": "New video every day"}})
+        if pb["slug"] == "lowbat":
+            from engine.pip import fill_phone_states
+            fill_phone_states(scenes)
         title = str(raw.get("title", "")).strip().strip('"')[:100]
         if fmt == "short" and "#shorts" not in title.lower() and len(title) <= 90:
             title += " #shorts"
@@ -267,17 +286,31 @@ class Planner:
         }
 
     def critic(self, channel: str, spec: dict, g: dict) -> dict:
-        narration = "\n".join(s["say"] for s in spec["scenes"])[:9000]
+        script = "\n".join(
+            f"{scene['say']} | On screen: {json.dumps(scene.get('show', {}), ensure_ascii=False)}"
+            for scene in spec["scenes"]
+        )
         pb = PLAYBOOKS[channel]
         facts = f"{pb['promise']} {pb.get('rule', '')}".strip()
         fic = "This is a FICTION channel: invented characters and events are allowed and are not 'unsupported claims'. Only real-world facts need support.\n" if pb.get("fiction") else ""
-        user = (f"CHANNEL FACTS (always allowed to state): {facts}\n{fic}GROUNDING:\n{g['text'][:6000]}\n\n"
-                f"TITLE: {spec['title']}\nSCRIPT:\n{narration}")
-        try:
-            return as_obj(self._call(prompts.CRITIC, user, temperature=0.2, max_tokens=1200, tier="best"), "fixes")
-        except (LLMError, AttributeError, TypeError) as e:
-            self.log(f"  critic unavailable ({str(e)[:80]}); relying on hard gates")
-            return {"pass": True, "skipped": True}
+        user = (f"CHANNEL BRIEF AND PRODUCTION CONSTRAINTS (violations require revision): {facts}\n{fic}GROUNDING:\n{g['text'][:6000]}\n\n"
+                f"TITLE: {spec['title']}\nDESCRIPTION: {spec['description']}\nSCRIPT:\n{script}")
+        review = as_obj(self._call(prompts.CRITIC, user, temperature=0.2, max_tokens=1200, tier="best"), "fixes")
+        if type(review.get("pass")) is not bool:
+            raise LLMError("editor response is missing a valid pass decision")
+        for key in ("fixes", "unsupported_claims"):
+            values = review.get(key)
+            if not isinstance(values, list) or any(not isinstance(value, str) or not value.strip() for value in values):
+                raise LLMError(f"editor response has an invalid {key} list")
+        minimums = {"hook": 6, "originality": 6, "accuracy": 7}
+        for key, minimum in minimums.items():
+            score = review.get(key)
+            if type(score) is not int or not 1 <= score <= 10:
+                raise LLMError(f"editor response has an invalid {key} score")
+            if score < minimum:
+                review["pass"] = False
+                review["fixes"].append(f"Improve {key}: scored {score}, needs {minimum}")
+        return review
 
     def make(self, channel: str, fmt: str, spec_id: str, when: dt.datetime) -> dict | None:
         pb = PLAYBOOKS[channel]
@@ -305,11 +338,16 @@ class Planner:
                 need = 4 if fmt == "short" else 8
                 if n_persona < need:
                     bad.append(f"use the persona scene on at least {need} scenes (only {n_persona}); the persona's face must carry the video")
+            if pb["slug"] == "lowbat":
+                actions = [(scene.get("show") or {}).get("action") for scene in spec["scenes"]
+                           if (scene.get("show") or {}).get("type") == "pip"]
+                if not all(action in actions for action in ("notice", "reach", "slip", "reset")):
+                    bad.append("stage all four Pip actions: notice, reach, slip and reset")
             if too_similar(spec["title"], network_topics(channel), 0.55):
                 bad.append("another channel in the network covered this idea recently; choose a different angle")
             if not bad:
                 review = self.critic(channel, spec, g)
-                if review.get("pass", True):
+                if review["pass"] and not review.get("unsupported_claims"):
                     spec["meta"]["review"] = {k: review.get(k) for k in ("hook", "originality", "accuracy")}
                     spec["meta"]["model"] = self.llm.last_model
                     return spec
@@ -325,27 +363,52 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
     planner = Planner(llm, max_calls=max_calls, log=log)
     out = {"written": [], "skipped": [], "failed": []}
     ledger = insights.load("ledger.json", [])
+    channels = [channel for channel in PLAYBOOKS if not only or channel in only]
+    if channels:
+        # A time-limited network run must not always start with the same channels.
+        window = int(now.timestamp() // (4 * 3600))
+        start = window % len(channels)
+        channels = channels[start:] + channels[:start]
     strikes = 0
-    for day in days:
+    for day in sorted(days):
         folder = SPECS / day.isoformat()
-        for channel, pb in PLAYBOOKS.items():
-            if only and channel not in only:
+        by_channel: dict[str, list[dict]] = {}
+        for path in folder.glob("*.json"):
+            try:
+                saved = json.loads(path.read_text())
+            except json.JSONDecodeError:
                 continue
-            for fmt in ("short", "long"):  # Shorts first: far cheaper per video when the free quota is tight
-                want = cadence_for(channel, day).get(fmt, 0)
-                have = 0
-                for p in folder.glob("*.json") if folder.exists() else []:
+            by_channel.setdefault(saved.get("channel", ""), []).append(saved)
+        for channel in channels:
+            pb = PLAYBOOKS[channel]
+            existing = by_channel.get(channel, [])
+            occupied = []
+            for saved in existing:
+                when = saved.get("publishAt")
+                if isinstance(when, str):
                     try:
-                        s = json.loads(p.read_text())
-                    except json.JSONDecodeError:
+                        parsed = dt.datetime.fromisoformat(when.replace("Z", "+00:00"))
+                    except ValueError:
                         continue
-                    have += s.get("channel") == channel and s.get("format") == fmt
+                    if parsed.tzinfo is not None:
+                        occupied.append(parsed)
+            for fmt in ("short", "long"):
+                want = cadence_for(channel, day).get(fmt, 0)
+                have = sum(saved.get("format") == fmt for saved in existing)
                 missing = want - have
                 if missing <= 0:
                     continue
-                slots = choose(channel, fmt, missing, day, insights.slot_stats(channel, fmt), now)
-                for k, when in enumerate(slots):
-                    sid = f"{day.isoformat()}-{pb['slug']}-{fmt[0]}{have + k + 1}"
+                slots = choose(channel, fmt, missing, day, insights.slot_stats(channel, fmt), now, occupied=tuple(occupied))
+                prefix = f"{pb['slug']}-{fmt[0]}"
+                serial = 0
+                for when in slots:
+                    while True:
+                        serial += 1
+                        path = folder / f"{prefix}{serial}.json"
+                        if not path.exists():
+                            break
+                    sid = f"{day.isoformat()}-{path.stem}"
+                    planner.episode_call_limit = llm.calls + (18 if fmt == "short" else 36)
                     try:
                         spec = planner.make(channel, fmt, sid, when)
                     except (LLMError, AttributeError, TypeError, KeyError, ValueError) as e:
@@ -353,6 +416,8 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
                         log(f"  {sid}: stopped ({str(e)[:140]})")
                         if "budget" in str(e):
                             return out
+                        if isinstance(e, EpisodeCallLimit):
+                            continue
                         strikes += 1
                         if strikes >= 4:  # four spec failures in a row: the models are down, stop and let the next run retry
                             return out
@@ -361,8 +426,8 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
                         out["failed"].append(f"{sid}: rejected by quality gates")
                         continue
                     strikes = 0
+                    occupied.append(when)
                     folder.mkdir(parents=True, exist_ok=True)
-                    path = folder / f"{sid[11:]}.json"
                     path.write_text(json.dumps(spec, indent=1, ensure_ascii=False) + "\n")
                     ledger.append({"id": sid, "channel": channel, "format": fmt, "title": spec["title"], "axis": spec["meta"]["axis"], "slot": spec["meta"]["slot"], "publishAt": spec["publishAt"]})
                     insights.save("ledger.json", ledger[-1500:])
@@ -370,3 +435,28 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
                     out["written"].append(rel)
                     log(f"  wrote {rel}: {spec['title']}")
     return out
+
+
+def inventory(days: list[dt.date], only: list[str] | None = None) -> list[dict]:
+    """Report spec coverage independently of the planner's stop condition."""
+    channels = [channel for channel in PLAYBOOKS if not only or channel in only]
+    rows = []
+    for day in sorted(set(days)):
+        counts: dict[tuple[str, str], set[str]] = {}
+        for path in (SPECS / day.isoformat()).glob("*.json"):
+            try:
+                spec = json.loads(path.read_text())
+                if not isinstance(spec, dict) or spec.get("id") != f"{day}-{path.stem}":
+                    continue
+                channel, fmt = spec.get("channel"), spec.get("format")
+                if channel in channels and fmt in ("short", "long"):
+                    counts.setdefault((channel, fmt), set()).add(spec["id"])
+            except (OSError, ValueError):
+                continue
+        for channel in channels:
+            for fmt, target in cadence_for(channel, day).items():
+                if target:
+                    present = len(counts.get((channel, fmt), ()))
+                    rows.append({"date": day.isoformat(), "channel": channel, "format": fmt,
+                                 "target": target, "specs": present, "missing": max(0, target - present)})
+    return rows

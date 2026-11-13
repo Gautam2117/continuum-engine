@@ -41,6 +41,14 @@ def problems(spec: dict, folder: str | None = None, *, strict: bool = False) -> 
         for f in REQUIRED.get(t, []):
             if f not in show:
                 out.append(f"scene {i}: {t} needs {f}")
+        if t == "pip":
+            from .pip import ACTIONS, PHONE_STATES
+            if spec["channel"] != "The Low Battery Show" or show.get("action") not in ACTIONS:
+                out.append(f"scene {i}: invalid Low Battery action")
+            if shot_keys := show.keys() - {"type", "action", "phone"}:
+                out.append(f"scene {i}: unsupported Pip fields: {', '.join(sorted(shot_keys))}")
+            if show.get("phone", "near") not in PHONE_STATES:
+                out.append(f"scene {i}: invalid Low Battery phone state")
         if t == "image" and not (show.get("query") or show.get("image_url")):
             out.append(f"scene {i}: image needs query or image_url")
         if t == "b3d":
@@ -54,6 +62,11 @@ def problems(spec: dict, folder: str | None = None, *, strict: bool = False) -> 
             out.append(f"scene {i}: bars needs at least 2 items")
         if strict and PLACEHOLDER.search(sc.get("say", "")):
             out.append(f"scene {i}: placeholder-looking text in narration")
+    if spec["channel"] == "The Low Battery Show" and strict:
+        from .pip import continuity_issues
+        out.extend(continuity_issues(scenes))
+        if any((scene.get("show") or {}).get("type") not in ("title", "pip", "end") for scene in scenes):
+            out.append("Low Battery uses title, Pip and end shots only")
     words = narration_words(spec)
     minutes = words / WPM
     if fmt == "short" and minutes > 0.95:
@@ -72,7 +85,11 @@ def problems(spec: dict, folder: str | None = None, *, strict: bool = False) -> 
         else:
             if len(scenes) < 18:
                 out.append("long-form needs at least 18 scenes for visual variety")
-        kinds = [(sc.get("show") or {}).get("type", "say") for sc in scenes]
+        kinds = []
+        for sc in scenes:
+            show = sc.get("show") or {}
+            kind = show.get("type", "say")
+            kinds.append((kind, show.get("action") if kind == "pip" else None))
         run = best = 1
         for a, b in zip(kinds, kinds[1:]):
             run = run + 1 if a == b else 1

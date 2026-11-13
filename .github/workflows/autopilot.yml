@@ -1,13 +1,10 @@
 name: Autopilot
 
-# The always-on brain. Runs four times a day on GitHub's servers, so it keeps going when nobody is online:
-#  1. pull real analytics from Continuum Studio
-#  2. write scripts for every channel that is short of videos (today + next 2 days = a 2-day buffer)
-#  3. commit them, and start renders for anything new or stuck
-# Rendered videos land in releases; Continuum Studio pulls them in and schedules each at its publish time.
-# PAUSED (12 Nov 2026): the schedule is removed on purpose. Only Counterfactual Atlas is automated (3 uploads a day);
-# every other channel is made on request. Add the cron lines back only after a checked quality batch.
+# Scheduled runs build hosted review artifacts for the network.
+# Manual dispatch supports the existing release path and isolated previews.
 on:
+  schedule:
+    - cron: '23 */6 * * *'
   workflow_dispatch:
     inputs:
       days:
@@ -18,17 +15,41 @@ on:
         default: "Counterfactual Atlas"
         required: false
 
+      preview:
+        description: "Run planning and validate specs without committing or dispatching renders"
+        type: boolean
+        default: false
+
+      render_review:
+        description: "Render accepted preview specs as review artifacts in the same run"
+        type: boolean
+        default: false
+
+      start_offset:
+        description: "Start this many UTC calendar days from today"
+        default: "0"
+        type: string
+
+      render_from:
+        description: "Render and verify artifacts from a completed preview run ID"
+        type: string
+
 permissions:
   contents: write
   actions: write
 
 concurrency:
-  group: autopilot
+  group: ${{ github.event_name == 'schedule' && 'autopilot-network-review' || ( inputs.preview || inputs.render_review || inputs.render_from != '') && format('autopilot-review-{0}', github.run_id) || 'autopilot' }}
   cancel-in-progress: false
 
 jobs:
   run:
+    if: >-
+      inputs.render_from == '' &&
+      (github.event_name != 'schedule' || vars.AUTOPILOT_NETWORK_REVIEW == '1')
     runs-on: ubuntu-latest
+    outputs:
+      preview_id: ${{ steps.upload-preview.outputs.artifact-id }}
     timeout-minutes: 60
     env:
       GH_TOKEN: ${{ github.token }}
@@ -52,22 +73,40 @@ jobs:
       - run: pip install -q pillow numpy num2words
       - name: Learn from real results
         run: python3 scripts/autopilot.py learn
+      - name: Restore recurring review inventory
+        if: github.event_name == 'schedule'
+        run: |
+          prior="$(gh run list --workflow autopilot.yml --event schedule --status completed --limit 15 --json databaseId --jq '.[].databaseId')"
+          # Restore from multiple recent runs: an empty/latest preview must not
+          # hide accepted future specs that exist in an older preview artifact.
+          for run in $prior; do
+            rm -rf previous-review
+            mkdir -p previous-review
+            if gh run download "$run" -n autopilot-preview -D previous-review; then
+              python3 scripts/review_inventory.py
+            fi
+          done
       - name: Plan
         id: plan
         timeout-minutes: 40          # a long run must still commit what it wrote; the next run continues
         continue-on-error: true
+        env:
+          ONLY: ${{ github.event_name == 'schedule' && 'ALL' || inputs.only || 'Counterfactual Atlas' }}
+          DAYS: ${{ inputs.days || '3' }}
+          START_OFFSET: ${{ github.event_name == 'schedule' && '1' || inputs.start_offset || '0' }}
         run: |
-          ONLY="${{ github.event.inputs.only || 'Counterfactual Atlas' }}"
           ARGS=()
           if [ "$ONLY" != "ALL" ]; then IFS='|' read -ra LIST <<< "$ONLY"; for c in "${LIST[@]}"; do ARGS+=(--only "$c"); done; fi
-          python3 scripts/autopilot.py plan --days "${{ github.event.inputs.days || '3' }}" "${ARGS[@]}"
+          python3 scripts/autopilot.py plan --days "$DAYS" --start-offset "$START_OFFSET" "${ARGS[@]}"
       - name: Check the new specs
-        if: always()
+        id: validate
+        if: ${{ !cancelled() && steps.plan.outcome != 'skipped' }}
         run: |
           NEW="$(git ls-files --others --exclude-standard specs | grep '\.json$' || true)"
           if [ -n "$NEW" ]; then python3 scripts/validate.py --strict $NEW; fi
       - name: Commit
-        if: always()
+        id: commit
+        if: ${{ !cancelled() && steps.validate.outcome == 'success' && !inputs.preview && !inputs.render_review && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
         run: |
           git config user.name "continuum-autopilot"
           git config user.email "autopilot@users.noreply.github.com"
@@ -78,11 +117,54 @@ jobs:
           fi
       - name: Find specs that never rendered
         id: heal
-        if: always()
+        if: ${{ !cancelled() && steps.commit.outcome == 'success' }}
         run: python3 scripts/autopilot.py heal
       - name: Start renders
-        if: always()
+        if: ${{ !cancelled() && steps.heal.outcome == 'success' }}
+        env:
+          TODO: ${{ steps.plan.outputs.new }} ${{ steps.heal.outputs.heal }}
         run: |
-          TODO="${{ steps.plan.outputs.new }} ${{ steps.heal.outputs.heal }}"
-          TODO="$(echo $TODO | xargs -n1 | sort -u | xargs)"
+          TODO="$(printf '%s\n' "$TODO" | xargs -n1 | sort -u | xargs)"
           if [ -n "$TODO" ]; then gh workflow run render.yml -f specs="$TODO"; echo "render started for: $TODO"; fi
+      - name: Save preview evidence
+        id: preview
+        if: ${{ !cancelled() && steps.validate.outcome == 'success' && (inputs.preview || inputs.render_review || github.event_name == 'schedule' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch)) && steps.plan.outcome != 'skipped' }}
+        run: |
+          mkdir -p preview
+          if [ -f autopilot/state/heartbeat.json ]; then
+            cp autopilot/state/heartbeat.json preview/
+          fi
+          git ls-files -z --others --exclude-standard specs |
+            while IFS= read -r -d '' file; do
+              if [ "$GITHUB_EVENT_NAME" = schedule ]; then
+                destination="preview/inventory/${file#specs/}"
+                mkdir -p "$(dirname "$destination")"
+                cp "$file" "$destination"
+              fi
+              cp --parents "$file" preview/
+            done
+      - uses: actions/upload-artifact@v4
+        id: upload-preview
+        if: ${{ !cancelled() && steps.validate.outcome == 'success' && (inputs.preview || inputs.render_review || github.event_name == 'schedule' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch)) && steps.plan.outcome != 'skipped' }}
+        with:
+          name: autopilot-preview
+          path: preview/
+
+  render-preview:
+    if: inputs.render_from != ''
+    permissions:
+      actions: read
+      contents: read
+    uses: ./.github/workflows/render-preview.yml
+    with:
+      plan_run: ${{ inputs.render_from }}
+
+  render-planned-review:
+    needs: run
+    if: needs.run.outputs.preview_id != '' && (github.event_name == 'schedule' || inputs.render_review)
+    permissions:
+      actions: read
+      contents: read
+    uses: ./.github/workflows/render-preview.yml
+    with:
+      plan_run: ${{ github.run_id }}

@@ -57,6 +57,7 @@ Open loop to keep alive: {loop}"""
 
 CRITIC = """You are a strict editor for an automated explainer channel. Check this script against the GROUNDING and rules.
 Return JSON: {"hook": 1-10, "originality": 1-10, "accuracy": 1-10, "unsupported_claims": ["claims not backed by GROUNDING or settled knowledge"], "fixes": ["specific edits"], "pass": true|false}
+Independently recompute derived numbers with units. Check required input values against GROUNDING. For what-ifs, name the assumptions and check whether the result follows from them. Flag claims about complex biological or physical systems that rely on scaling one input without a model. Check titles, descriptions, narration and on-screen numbers for agreement. Reject beats that depend on props or movements unavailable in the supplied shot and channel production constraints.
 Pass only if hook >= 6, originality >= 6, accuracy >= 7 and no unsupported claim is a specific number, name, date or study."""
 
 

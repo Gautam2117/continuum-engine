@@ -14,7 +14,7 @@ def _h(*parts) -> int:
     return int(hashlib.sha256("|".join(map(str, parts)).encode()).hexdigest(), 16)
 
 
-def choose(channel: str, fmt: str, n: int, day: dt.date, stats: dict[str, tuple[int, float]], now: dt.datetime, min_lead_h: float = 4.5) -> list[dt.datetime]:
+def choose(channel: str, fmt: str, n: int, day: dt.date, stats: dict[str, tuple[int, float]], now: dt.datetime, min_lead_h: float = 4.5, *, occupied: tuple[dt.datetime, ...] = ()) -> list[dt.datetime]:
     """n publish datetimes (UTC) on `day`, at least 3 h apart and at least `min_lead_h` ahead of `now`."""
     total = sum(c for c, _ in stats.values())
     scored = []
@@ -31,7 +31,7 @@ def choose(channel: str, fmt: str, n: int, day: dt.date, stats: dict[str, tuple[
         when = dt.datetime.combine(day, dt.time(hh, mm), tzinfo=dt.timezone.utc) + dt.timedelta(minutes=minute_shift)
         if when < now + dt.timedelta(hours=min_lead_h):
             continue
-        if any(abs((when - p).total_seconds()) < 3 * 3600 for p in picked):
+        if any(abs((when - p).total_seconds()) < 3 * 3600 for p in (*occupied, *picked)):
             continue
         picked.append(when)
         if len(picked) == n:
