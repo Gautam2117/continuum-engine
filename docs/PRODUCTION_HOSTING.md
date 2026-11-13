@@ -51,6 +51,15 @@ service is not permitted by the zero-paid-service budget.
 
 Source: https://render.com/docs/free
 
+## Prepared portable worker
+
+The repository includes [`scripts/worker.py`](../scripts/worker.py), a standalone
+SQLite-backed private render-review queue suitable for deployment on a future
+owned machine or compliant dedicated VM. See [`SELF_HOSTED_WORKER.md`](SELF_HOSTED_WORKER.md)
+and the systemd service/timer templates. This is a verified **software
+capability**, not a provisioned 24/7 worker. No unattended production or
+cloud billing resources have been enabled.
+
 ## Deployment gates before enabling unattended publishing
 
 1. A selected execution host must be owned or provisioned under its free-use
