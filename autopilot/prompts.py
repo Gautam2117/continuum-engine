@@ -92,7 +92,7 @@ def craft_for(pb: dict) -> str:
     if scenes:
         mid = B3D_HEAD + "".join("    " + B3D_DOCS[n] + "\n" for n in scenes) + B3D_TAIL
     if pb.get("persona"):
-        mid += ('- {"type":"persona","who":"%s","look":"portrait|outfit|place","caption":"<=10 words"}   a still of the AI persona with a slow push-in. '
+        mid += ('- {"type":"persona","who":"%s","look":"portrait|place","caption":"<=10 words: a mood or a moment, never a description of clothes"}   a still of the AI persona with a slow push-in. '
                 "Use it on most scenes, alternating look so the same photo does not repeat.\n" % pb["persona"])
     return head + mid + tail
 
@@ -105,5 +105,5 @@ HOST = """HOST. The narrator is an animated AI character named {name}, shown as 
 narration in the host's voice. The host is not a real person: never say 'I built', 'I earned', 'my users', 'when I tested',
 never claim a personal history. Say 'a typical team', 'the usual cost is', 'here is how you could'."""
 
-PERSONA = """PERSONA. The narrator is {who}, a disclosed AI persona, speaking in first person. It is fine to describe a mood, a routine or a
+PERSONA = """PERSONA. Only head-and-shoulders portraits and place or hairstyle shots are used (look portrait or place). The narrator is {who}, a disclosed AI persona, speaking in first person. It is fine to describe a mood, a routine or a
 walk as part of the character. It is not a real person: no real-life claims, no advice about health, money or law, no real brands."""

@@ -203,7 +203,7 @@ class Planner:
             show["fallback"] = {"type": "say", "text": (item.get("say") or "")[:60]}
         if pb.get("persona") and show.get("type") == "persona":
             show["who"] = pb["persona"]
-            if show.get("look") not in ("portrait", "outfit", "place"):
+            if show.get("look") not in ("portrait", "place"):
                 show["look"] = "portrait"
         host = pb.get("host")
         if host and show.get("type") == "b3d" and show.get("scene") == "clay":

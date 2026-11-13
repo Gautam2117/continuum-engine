@@ -5,7 +5,7 @@ from .styles import Style
 
 MORE = [
     Style("kiara", "#101412", "#1e2a24", "#f3f7f2", "#a9bdb0", "#9fd3b5", "Caladea:style=Bold", "Inter:style=Light", "af_river", speed=0.94, motif="film", pad="warm"),
-    Style("samjho", "#2b1f4a", "#3a2b63", "#fff6e6", "#cdbfe6", "#ffcf4a", "Noto Sans Devanagari:style=Bold", "Noto Sans Devanagari", "hf_alpha", lang="hi", speed=1.0, motif="grain", pad="bright"),
+    Style("samjho", "#2b1f4a", "#3a2b63", "#fff6e6", "#cdbfe6", "#ffcf4a", "FreeSans:style=Bold", "FreeSans", "hf_alpha", lang="hi", speed=1.0, motif="grain", pad="bright"),
     Style("inkbound", "#0e0d12", "#1d1a24", "#efe9dd", "#b3a98f", "#c9a227", "Caladea:style=Bold", "Inter:style=Regular", "bf_alice", speed=0.92, motif="film", pad="deep"),
     Style("founder", "#0c0d10", "#1a1c22", "#f5f6f8", "#a3a8b5", "#ffb547", "Inter Display:style=Bold", "Inter:style=Regular", "am_echo", speed=1.02, motif="grain", pad="warm"),
     Style("lifespawn", "#0e0f14", "#1c1d26", "#ece6da", "#a9a395", "#c9a227", "Caladea:style=Bold", "Inter:style=Regular", "bm_daniel", speed=0.94, motif="film", pad="deep"),
