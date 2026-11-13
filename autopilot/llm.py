@@ -152,10 +152,6 @@ def providers_from_env() -> list[Provider]:
     if k := os.environ.get("INCEPTION_API_KEY"):  # one-time 100M free tokens, no card
         im = discover_openai_compat("https://api.inceptionlabs.ai/v1", k, ["mercury-2", "mercury"])
         out.append(Provider("inception", "https://api.inceptionlabs.ai/v1", k, im, best=im[:1]))
-    if k := os.environ.get("NVIDIA_API_KEY"):
-        nm = discover_openai_compat("https://integrate.api.nvidia.com/v1", k, ["openai/gpt-oss-120b", "meta/llama-3.3-70b-instruct"],
-                                    prefer=["openai/gpt-oss-120b", "meta/llama-3.3-70b-instruct", "qwen/qwen3-next-80b-a3b-instruct"])
-        out.append(Provider("nvidia", "https://integrate.api.nvidia.com/v1", k, nm, best=nm[:2]))
     if k := os.environ.get("SAMBANOVA_API_KEY"):
         sm = discover_openai_compat("https://api.sambanova.ai/v1", k, ["Meta-Llama-3.3-70B-Instruct", "gpt-oss-120b"], prefer=["gpt-oss-120b", "Meta-Llama-3.3-70B-Instruct"])
         out.append(Provider("sambanova", "https://api.sambanova.ai/v1", k, sm, best=sm[:2]))
