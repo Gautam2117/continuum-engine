@@ -60,6 +60,8 @@ class Provider:
     best: list[str] = field(default_factory=list)     # quality tier: strongest models first
     json_mode: bool = True
     dead: set = field(default_factory=set)  # models that hit a hard limit this run
+    busy_hits: int = 0                       # consecutive busy/rate-limit failures
+    cool_until: float = 0.0                  # monotonic time before which this provider is skipped (when another is available)
 
     def chat(self, model: str, system: str, user: str, temperature: float, max_tokens: int, want_json: bool) -> str:
         body = {"model": model, "temperature": temperature, "max_tokens": max_tokens,
@@ -137,11 +139,15 @@ class LLM:
         for sweep in range(3):  # after a full sweep where everything was merely busy, wait and sweep again
             busy = False
             for prov in self.providers:
+                if getattr(prov, "cool_until", 0) > time.monotonic() and any(getattr(p, "cool_until", 0) <= time.monotonic() for p in self.providers if p is not prov):
+                    continue  # this provider was busy a moment ago and another one is free: do not wait on it
                 best = getattr(prov, "best", [])
                 order = (best + [m for m in prov.models if m not in best]) if tier == "best" and best else prov.models
                 for model in order:
                     if model in prov.dead:
                         continue
+                    if getattr(prov, "cool_until", 0) > time.monotonic() and len(self.providers) > 1:
+                        break
                     tries = 0
                     while tries < 3:
                         tries += 1
@@ -149,6 +155,7 @@ class LLM:
                             self.calls += 1
                             text = prov.chat(model, system, user, temperature, max_tokens, want_json)
                             result = extract_json(text) if want_json else text
+                            prov.busy_hits = 0  # noqa
                             self.last_model = f"{prov.name}:{model}"
                             self.by_provider[self.last_model] = self.by_provider.get(self.last_model, 0) + 1
                             return result
@@ -158,14 +165,25 @@ class LLM:
                             low = msg.lower()
                             if msg.startswith(("500", "502", "503", "504", "network")) or "high demand" in low or "unavailable" in low:
                                 busy = True
+                                prov.busy_hits = getattr(prov, "busy_hits", 0) + 1
+                                if getattr(prov, "busy_hits", 0) >= 2 and len(self.providers) > 1:
+                                    prov.cool_until = time.monotonic() + 600  # skip this provider for 10 minutes
+                                    break
                                 self.sleep(min(60, 8 * 2 ** (tries - 1)))  # 8s, 16s, 32s
                                 continue
                             if msg.startswith("429"):
                                 if "perminute" in low or "per minute" in low or "rpm" in low:
+                                    prov.busy_hits = getattr(prov, "busy_hits", 0) + 1
+                                    if getattr(prov, "busy_hits", 0) >= 2 and len(self.providers) > 1:
+                                        prov.cool_until = time.monotonic() + 300
+                                        break
                                     self.sleep(25)  # a per-minute limit: wait it out, then try again
                                     busy = True
                                     continue
                                 prov.dead.add(model)  # daily quota gone, or this model is not on the free tier
+                                prov.busy_hits = getattr(prov, "busy_hits", 0) + 1
+                                if getattr(prov, "busy_hits", 0) >= 4 and len(self.providers) > 1:
+                                    prov.cool_until = time.monotonic() + 900
                                 break
                             if msg.startswith(("403", "404", "401")):
                                 prov.dead.add(model)  # not allowed, or retired

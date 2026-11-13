@@ -194,6 +194,13 @@ class Planner:
     def _lock_identity(pb: dict, item: dict) -> None:
         """Keep a channel's recurring face the same in every video: a persona's name, or the host's clay look."""
         show = item.get("show") or {}
+        from engine.b3d import SCENE_NAMES
+        if show.get("type") in SCENE_NAMES:  # the model wrote the 3D scene name as the type: wrap it properly
+            name = show.pop("type")
+            params = show.pop("params", None) or {k: show.pop(k) for k in list(show) if k not in ("title", "hud", "clock", "fallback")}
+            show.update({"type": "b3d", "scene": name, "params": params})
+        if show.get("type") == "b3d" and not show.get("fallback"):
+            show["fallback"] = {"type": "say", "text": (item.get("say") or "")[:60]}
         if pb.get("persona") and show.get("type") == "persona":
             show["who"] = pb["persona"]
             if show.get("look") not in ("portrait", "outfit", "place"):
@@ -261,7 +268,11 @@ class Planner:
 
     def critic(self, channel: str, spec: dict, g: dict) -> dict:
         narration = "\n".join(s["say"] for s in spec["scenes"])[:9000]
-        user = f"GROUNDING:\n{g['text'][:6000]}\n\nTITLE: {spec['title']}\nSCRIPT:\n{narration}"
+        pb = PLAYBOOKS[channel]
+        facts = f"{pb['promise']} {pb.get('rule', '')}".strip()
+        fic = "This is a FICTION channel: invented characters and events are allowed and are not 'unsupported claims'. Only real-world facts need support.\n" if pb.get("fiction") else ""
+        user = (f"CHANNEL FACTS (always allowed to state): {facts}\n{fic}GROUNDING:\n{g['text'][:6000]}\n\n"
+                f"TITLE: {spec['title']}\nSCRIPT:\n{narration}")
         try:
             return as_obj(self._call(prompts.CRITIC, user, temperature=0.2, max_tokens=1200, tier="best"), "fixes")
         except (LLMError, AttributeError, TypeError) as e:
@@ -284,6 +295,16 @@ class Planner:
             bad = problems(spec, spec_id[:10], strict=True)
             if too_similar(spec["title"], titles, 0.7):
                 bad.append("title is too close to an earlier video; choose a different angle")
+            if pb.get("lang") == "hi":
+                letters = [ch for sc in spec["scenes"] for ch in sc["say"] if ch.isalpha()]
+                dev = sum("\u0900" <= ch <= "\u097f" for ch in letters)
+                if letters and dev / len(letters) < 0.6:
+                    bad.append("write every spoken line in Devanagari Hindi script, not Roman letters (Hinglish in Latin script is not allowed)")
+            if pb.get("persona"):
+                n_persona = sum((sc.get("show") or {}).get("type") == "persona" for sc in spec["scenes"])
+                need = 4 if fmt == "short" else 8
+                if n_persona < need:
+                    bad.append(f"use the persona scene on at least {need} scenes (only {n_persona}); the persona's face must carry the video")
             if too_similar(spec["title"], network_topics(channel), 0.55):
                 bad.append("another channel in the network covered this idea recently; choose a different angle")
             if not bad:
