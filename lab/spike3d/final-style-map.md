@@ -2,17 +2,17 @@
 
 Decision: no Higgsfield or other paid generators. Every channel gets the best-fit look. Most are now true 3D or 3D-depth, and whiteboard, pixel, ink, footage and persona looks are kept where they are the best fit, each with added depth. Everything below is free and open source or free-tier, and is usable commercially (licences checked 13 Nov; recheck before each new model goes live).
 
-## 0. Status (13 Nov, 13:40 IST)
-- Kaggle account created: username **continuumarc** (Google sign-in gautam@continuumarc.tech), 30 GPU h a week. Still needed from Gautam: phone verification, then an API token saved as GitHub secrets KAGGLE_USERNAME and KAGGLE_KEY.
-- Built and on main (continuum-engine 9c8f81e):
-  - new `b3d` scene type with Blender scenes earth_tunnel, moon_drive (chase/wide) and everest_flood;
-  - HUD title, counter and clock, with numbers that follow the motion's law;
-  - automatic 2D fallback;
-  - render.yml installs Blender only for 3D specs;
-  - render-kaggle.yml renders with Cycles on Kaggle's GPU;
-  - Autopilot may use 3D for Atlas when a topic fits.
-- Verified on GitHub's runner: Blender installs in about 20 s, all tests pass with real renders, and a full-size Short shot renders at about 1.4 s per frame (Workbench clay look).
-- Test video: the Moon Short with 2 real-3D shots (not scheduled). Live Atlas uploads are unchanged until approved.
+## 0. Status (13 Nov, 20:00 IST)
+- **Kaggle is live.** The account is **continuumarc** and the key is in GitHub secrets (the username is built into the workflow). The test run rendered on Cycles with OptiX on 2x Tesla T4. The full "Render on Kaggle GPU" workflow (push → render → collect) passed twice, with publish=no.
+- **Two render paths:**
+  - render.yml on GitHub: clay/Workbench look, about 1.4 s per frame, for daily videos.
+  - render-kaggle.yml on Kaggle: cinematic Cycles look, for hero videos and long-form 3D. There's a fixed GPU warm-up of a few minutes per run.
+- **Six 3D scenes in the engine:**
+  - general: bars3d, orbit3d (Kepler timing), fall3d (true fall times);
+  - special: earth_tunnel, moon_drive (chase/wide), everest_flood.
+  - Labels are pinned to the 3D objects in brand fonts, and the counters follow the motion's physics.
+- **Autopilot:** may now use any of the six for Counterfactual Atlas, always with a 2D fallback. Its next specs can come out partly 3D whenever a topic fits.
+- **Next kits:** S3 clay (8 channels), then the F overlay for footage, S2 POV, S4 technical, S5 glass UI, the S9 Kaggle AI worker (Wan 2.2, LatentSync), S6, S7, S8.
 
 ## 1. Proven today (spike, 13 Nov)
 - Blender 5.3 runs headless as a Python module (`pip install bpy`, no GPU, no display).
