@@ -15,7 +15,7 @@ It turns JSON video specs into finished YouTube videos with no paid services. `s
 
 ## Never do
 - Do not change upload or publishing behaviour, and do not try to make videos public. Uploads wait for Google's API audit.
-- Do not raise a channel's videos per day. Volume changes come from the learning loop in `autopilot/state/`.
+- Do not change a channel's videos per day on your own. SG set the rule on 14 Nov 2026: Counterfactual Atlas makes 3 a day; every other channel the engine runs makes 1 a day (a Short most days, a long video on two days a week; see `cadence_for` in `autopilot/playbooks.py`). Felix and GOTZ are SG's own and are not automated. Later volume changes come from SG or the learning loop in `autopilot/state/`.
 - Do not add `.agents/credentials/` or any file holding a key.
 
 ## Checks

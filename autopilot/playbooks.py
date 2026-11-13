@@ -13,7 +13,7 @@ SLOTS = ["14:00", "18:00", "00:30", "12:00", "16:00", "20:30", "03:30"]
 
 PLAYBOOKS: dict[str, dict] = {
     "Counterfactual Atlas": dict(
-        slug="atlas", cadence={"long": 1, "short": 2}, long_words=1250, short_words=105,
+        slug="atlas", fixed=True, cadence={"long": 1, "short": 2}, long_words=1250, short_words=105,
         promise="One impossible what-if per video, answered with real physics and numbers on screen.",
         audience="Curious people aged 16 to 34 worldwide who like science but not jargon.",
         voice="Calm, precise, quietly awed. Short declarative sentences. Never hype words like insane or crazy. The number does the shouting.",
@@ -222,3 +222,27 @@ PLAYBOOKS: dict[str, dict] = {
 
 def playbook(channel: str) -> dict:
     return PLAYBOOKS[channel]
+
+
+def cadence_for(channel: str, day) -> dict:
+    """What a channel makes on a given date. Decided by SG on 14 Nov 2026: Counterfactual Atlas makes 3 a day
+    (1 long + 2 Shorts); every other channel makes exactly 1 video a day: a Short on most days and a long video
+    on two days a week, staggered per channel so the network's long renders spread across the week.
+    Channels that only have one format (sleep and ambient channels, long only) make that format daily."""
+    pb = PLAYBOOKS[channel]
+    if pb.get("fixed"):
+        return dict(pb["cadence"])
+    c = pb["cadence"]
+    if not c.get("short"):
+        return {"long": 1, "short": 0}
+    if not c.get("long"):
+        return {"long": 0, "short": 1}
+    a = list(PLAYBOOKS).index(channel) % 7
+    return {"long": 1, "short": 0} if day.weekday() in {a, (a + 3) % 7} else {"long": 0, "short": 1}
+
+
+# Third wave (14 Nov 2026): the rest of the network, so every channel SG runs except Felix and GOTZ (his own
+# gaming channels) has a playbook.
+from .playbooks_more import MORE  # noqa: E402
+
+PLAYBOOKS.update(MORE)

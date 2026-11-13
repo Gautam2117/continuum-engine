@@ -122,11 +122,11 @@ def cmd_register(a) -> int:
 
 def cmd_slots(a) -> int:
     """Best publish times for a channel on a date, as ISO UTC lines (used by Claude-written specs too)."""
-    from autopilot.playbooks import PLAYBOOKS
+    from autopilot.playbooks import PLAYBOOKS, cadence_for
     from autopilot.slots import choose
     now = dt.datetime.now(dt.timezone.utc)
     day = dt.date.fromisoformat(a.date)
-    n = a.count or PLAYBOOKS[a.channel]["cadence"][a.format]
+    n = a.count or cadence_for(a.channel, day)[a.format]
     for when in choose(a.channel, a.format, n, day, insights.slot_stats(a.channel, a.format), now, min_lead_h=a.lead):
         print(when.strftime("%Y-%m-%dT%H:%M:00Z"))
     return 0

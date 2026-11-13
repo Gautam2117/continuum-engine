@@ -29,6 +29,40 @@ UA = "ContinuumEngine/1.0 (https://studio.continuumarc.tech; gautam@continuumarc
 SIZES = {"long": (1920, 1080), "short": (1080, 1920)}
 
 
+def fetch_persona(p: dict, spec_id: str, scene_no: int) -> Image.Image | None:
+    """A still of a disclosed AI persona (Sienna, Aditi, Kiara) from the private character-sheet set.
+
+    The sheets live in a private Kaggle dataset, never in this public repo; the render workflow downloads them into
+    PERSONA_DIR. `who` is sienna | aditi | kiara; `look` is portrait | outfit | place. A `_clean` copy of a file
+    always wins over its original. Never fatal: without the images the scene falls back to a text scene."""
+    import os
+    import re
+    folder = pathlib.Path(os.environ.get("PERSONA_DIR", ".cache/personas"))
+    who = str(p.get("who", "")).lower()
+    files = sorted(folder.glob(f"{who}_*.jp*g")) if who and folder.exists() else []
+    stems = {f.stem for f in files}
+    files = [f for f in files if not (f.stem + "_clean" in stems)]
+    pats = {
+        "portrait": r"_[a-z]\d+_(front|three_quarter|profile|laugh|wink|pout|surprise|eyeroll|softsmile|sideglance|annoyed|thoughtful|smirk|empathetic)",
+        "outfit": r"_[a-z]\d+_(body_|festive|boutique|evening|street_style)",
+    }
+    pat = pats.get(str(p.get("look", "portrait")))
+    if str(p.get("look")) == "place":
+        pool = [f for f in files if not re.search(pats["portrait"], f.name.lower()) and not re.search(pats["outfit"], f.name.lower())]
+    else:
+        pool = [f for f in files if pat and re.search(pat, f.name.lower())]
+    pool = pool or files
+    if not pool:
+        return None
+    pick = pool[(sum(map(ord, spec_id)) + scene_no * 7) % len(pool)]
+    try:
+        p.setdefault("credit", "AI-generated persona")
+        return Image.open(pick).convert("RGB")
+    except Exception as e:  # noqa: BLE001
+        print(f"  persona image unavailable ({e}); using a text scene", file=sys.stderr)
+        return None
+
+
 def fetch_image(p: dict) -> Image.Image | None:
     """Public-domain / CC image from Wikimedia Commons by URL or search query. Never fatal."""
     url = p.get("image_url")
@@ -195,8 +229,8 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
         cfg = {"captions": not (slug == "drift" and fmt == "long"), "host": sc.get("host", True)}
         stg = stage.Scene(layout, style, slug, spec["channel"], kind, say, dur, audio, ems, cfg, first=(si == 0))
         fn = S.SCENES[kind]
-        if kind == "image":
-            im = fetch_image(show)
+        if kind in ("image", "persona"):
+            im = fetch_persona(show, spec["id"], si) if kind == "persona" else fetch_image(show)
             first_image = first_image or im
             frames = fn(ctx, dur, show, words, image=im)
         else:

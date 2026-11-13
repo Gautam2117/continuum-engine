@@ -14,15 +14,15 @@ import re
 from engine.spec_check import problems
 
 from . import insights, prompts
-from .ground import ground
+from .ground import ground, ground_news, news_items
 from .llm import LLM, LLMError
 from .normalize import speakable
-from .playbooks import PLAYBOOKS
+from .playbooks import PLAYBOOKS, cadence_for
 from .slots import choose, slot_key
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SPECS = ROOT / "specs"
-DISCLOSURE = "Narration is a synthetic voice. Script and visuals are produced with AI tools and checked by automated quality gates."
+DISCLOSURE = "Narration is a synthetic voice. Script and visuals are produced with AI tools and checked by automated quality gates."  # shown on every video
 
 
 def _tokens(s: str) -> set[str]:
@@ -94,6 +94,14 @@ class Planner:
     def pick_topic(self, channel: str, fmt: str) -> dict:
         pb = PLAYBOOKS[channel]
         pool = self.topics.get((channel, fmt))
+        if not pool and pb.get("grounding") == "news":
+            seen = {e.get("topic", "") for e in insights.load("ledger.json", []) if e["channel"] == channel}
+            used = {m for p in SPECS.glob("*/*.json") for m in [json.loads(p.read_text()).get("meta", {}).get("news_url", "")] if m} if SPECS.exists() else set()
+            items = [i for i in news_items() if i["url"] not in used and i["title"] not in seen]
+            if not items:
+                raise LLMError("no fresh news items")
+            self.topics[(channel, fmt)] = [{"topic": i["title"], "axis": "news", "news": i} for i in items]
+            pool = self.topics[(channel, fmt)]
         if not pool:
             axes = insights.axis_weights(channel, pb["axes"])
             recent = recent_titles(channel)[-40:]
@@ -113,11 +121,23 @@ class Planner:
     # ---- drafting --------------------------------------------------------------------------------
     def _system(self, channel: str) -> str:
         pb = PLAYBOOKS[channel]
-        return (
-            prompts.CRAFT
-            + f"\n\nCHANNEL: {channel}\nPromise: {pb['promise']}\nAudience: {pb['audience']}\nVoice: {pb['voice']}\nHook: {pb['hook']}\n"
-            + f"Never: {'; '.join(pb['avoid'])}\nPreferred visuals: {', '.join(pb['scene_bias'])}"
-        )
+        parts = [
+            prompts.craft_for(pb),
+            f"CHANNEL: {channel}\nPromise: {pb['promise']}\nAudience: {pb['audience']}\nVoice: {pb['voice']}\nHook: {pb['hook']}\n"
+            f"Never: {'; '.join(pb['avoid'])}\nPreferred visuals: {', '.join(pb['scene_bias'])}",
+        ]
+        if pb.get("fiction"):
+            parts.append(prompts.FICTION)
+        if pb.get("host"):
+            h = pb["host"]
+            parts.append(prompts.HOST.format(name=h["name"], cast=json.dumps({**h["cast"], "name": h["name"], "action": "talk"})))
+        if pb.get("persona"):
+            parts.append(prompts.PERSONA.format(who=channel))
+        if pb.get("lang") == "hi":
+            parts.append("LANGUAGE: Hindi. Write every spoken line (say) in Devanagari script, simple and conversational; keep common English words in Latin script where people say them that way.")
+        if pb.get("rule"):
+            parts.append("CHANNEL RULE: " + pb["rule"])
+        return "\n\n".join(parts)
 
     def draft_short(self, channel: str, topic: dict, g: dict, fixes: list[str] | None = None) -> dict:
         pb = PLAYBOOKS[channel]
@@ -178,13 +198,31 @@ class Planner:
             title += " #shorts"
         desc = str(raw.get("description", "")).strip()
         srcs = "\n".join(f"- {s['title']}: {s['url']}" for s in g["sources"])
-        desc = (desc + ("\n\nSources (Wikipedia, CC BY-SA):\n" + srcs if srcs else "") + (f"\n\n{pb['disclose']}" if pb.get("disclose") else "") + f"\n\n{DISCLOSURE}").strip()
+        label = g.get("label") or "Sources (Wikipedia, CC BY-SA)"
+        notes = []
+        if pb.get("fiction"):
+            notes.append("This is a work of fiction.")
+        if pb.get("host"):
+            notes.append(f"The host, {pb['host']['name']}, is an animated AI character, not a real person.")
+        if pb.get("persona"):
+            notes.append(f"{channel} is an AI-generated persona, not a real person.")
+        if pb["slug"] == "benchwise":
+            notes.append("Some links may be affiliate links; if you buy through them the channel may earn a commission at no extra cost to you. Information is from published specifications; the channel has not tested these products.")
+        if pb["slug"] == "money":
+            notes.append("This is education, not financial advice.")
+        if pb["slug"] == "survive":
+            notes.append("General information only. In an emergency call your local emergency number.")
+        if pb["slug"] == "onedollar":
+            notes.append("These are plans, not tested builds. Take care with tools and heat.")
+        desc = (desc + (f"\n\n{label}:\n" + srcs if srcs else "") + (f"\n\n{pb['disclose']}" if pb.get("disclose") else "")
+                + ("\n\n" + " ".join(notes) if notes else "") + f"\n\n{DISCLOSURE}").strip()
         tags = [str(t) for t in (raw.get("tags") or [])][:12]
         tags = list(dict.fromkeys(tags + pb["tags"]))[:15]
         return {
             "id": spec_id, "channel": channel, "format": fmt, "title": title, "thumb": str(raw.get("thumb") or "")[:60] or title[:40],
             "description": desc, "tags": tags, "links": pb["links"], "publishAt": when.strftime("%Y-%m-%dT%H:%M:00Z"),
-            "meta": {"generator": "autopilot", "topic": topic["topic"], "axis": topic.get("axis", ""), "slot": slot_key(when)},
+            "meta": {"generator": "autopilot", "topic": topic["topic"], "axis": topic.get("axis", ""), "slot": slot_key(when),
+                     **({"news_url": topic["news"]["url"]} if topic.get("news") else {})},
             "scenes": scenes,
         }
 
@@ -200,7 +238,10 @@ class Planner:
     def make(self, channel: str, fmt: str, spec_id: str, when: dt.datetime) -> dict | None:
         pb = PLAYBOOKS[channel]
         topic = self.pick_topic(channel, fmt)
-        g = ground(topic.get("wiki_query") or topic["topic"]) if pb.get("grounded") else {"text": "", "sources": []}
+        if topic.get("news"):
+            g = ground_news(topic["news"])
+        else:
+            g = ground(topic.get("wiki_query") or topic["topic"]) if pb.get("grounded") else {"text": "", "sources": []}
         draft = self.draft_short if fmt == "short" else self.draft_long
         fixes: list[str] = []
         titles = recent_titles(channel)
@@ -235,7 +276,7 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
             if only and channel not in only:
                 continue
             for fmt in ("short", "long"):  # Shorts first: far cheaper per video when the free quota is tight
-                want = pb["cadence"].get(fmt, 0)
+                want = cadence_for(channel, day).get(fmt, 0)
                 have = 0
                 for p in folder.glob("*.json") if folder.exists() else []:
                     try:

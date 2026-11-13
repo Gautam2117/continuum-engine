@@ -14,7 +14,7 @@ on:
         description: "Days ahead to fill (today included)"
         default: "3"
       only:
-        description: "Channel (exact name)"
+        description: "Channel (exact name), several separated by |, or ALL for every channel"
         default: "Counterfactual Atlas"
         required: false
 
@@ -51,7 +51,10 @@ jobs:
         timeout-minutes: 40          # a long run must still commit what it wrote; the next run continues
         continue-on-error: true
         run: |
-          python3 scripts/autopilot.py plan --days "${{ github.event.inputs.days || '3' }}" --only "${{ github.event.inputs.only || 'Counterfactual Atlas' }}"
+          ONLY="${{ github.event.inputs.only || 'Counterfactual Atlas' }}"
+          ARGS=()
+          if [ "$ONLY" != "ALL" ]; then IFS='|' read -ra LIST <<< "$ONLY"; for c in "${LIST[@]}"; do ARGS+=(--only "$c"); done; fi
+          python3 scripts/autopilot.py plan --days "${{ github.event.inputs.days || '3' }}" "${ARGS[@]}"
       - name: Check the new specs
         if: always()
         run: |

@@ -5,7 +5,7 @@ from .scenes import SCENES
 from .styles import CHANNEL_STYLE
 
 REQUIRED = {"title": ["text"], "number": ["value"], "bars": ["items"], "orbit": ["ratio"], "fall": ["items"],
-            "list": ["items"], "timeline": ["events"], "verdict": ["scores"], "image": [], "b3d": ["scene"]}
+            "list": ["items"], "timeline": ["events"], "verdict": ["scores"], "image": [], "persona": ["who"], "b3d": ["scene"]}
 PLACEHOLDER = re.compile(r"lorem|todo|tbd|\[[^\]]*\]|\{[^}]*\}|as an ai|insert ", re.I)
 WPM = 150
 

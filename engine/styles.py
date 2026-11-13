@@ -90,3 +90,10 @@ def rgb(hex_: str, a: int | None = None) -> tuple:
     h = hex_.lstrip("#")
     c = tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
     return c if a is None else (*c, a)
+
+
+# Third wave (14 Nov 2026): the rest of the network. Kept in its own module so this file stays readable.
+from .styles_more import CHANNEL_MORE, MORE  # noqa: E402
+
+STYLES.update({s.slug: s for s in MORE})
+CHANNEL_STYLE.update(CHANNEL_MORE)

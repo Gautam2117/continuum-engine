@@ -58,3 +58,52 @@ Open loop to keep alive: {loop}"""
 CRITIC = """You are a strict editor for an automated explainer channel. Check this script against the GROUNDING and rules.
 Return JSON: {"hook": 1-10, "originality": 1-10, "accuracy": 1-10, "unsupported_claims": ["claims not backed by GROUNDING or settled knowledge"], "fixes": ["specific edits"], "pass": true|false}
 Pass only if hook >= 6, originality >= 6, accuracy >= 7 and no unsupported claim is a specific number, name, date or study."""
+
+
+# ---- per-channel prompt parts (14 Nov 2026) --------------------------------------------------------------------------
+B3D_DOCS = {
+    "bars3d": "bars3d: items [{label,value,highlight}] 2-6, unit. 3D columns rise one by one with values on top.",
+    "orbit3d": "orbit3d: ratio, a, b. Two moons orbit with Kepler timing.",
+    "fall3d": "fall3d: height (m), items [{label,g}] 2-4. Balls drop side by side in true time.",
+    "clay": 'clay: clay people, robots, mannequins or gummies on a set. params {"set":"tabletop|street|office|shop|space|studio","cast":[{"name","kind":"person|robot|mannequin|gummy","color":"#hex","skin":"#hex","x":-2..2,"to":-2..2,"action":"idle|talk|wave|point|walk|think|cheer","face":"happy|neutral|worried|shock","says":"<=8 word speech bubble"}] (max 5),"props":[{"kind":"rickshaw|chai_cart|coins|house|tree|desk|laptop|phone|sign|jar|lamp|box","x","y","label"}] (max 12),"camera":"push|wide|orbit|close","focus":0}',
+    "title3d": 'title3d: params {"text":"<=6 words","hl":"one word","sub":"optional","look":"plinth|float"}. A 3D title or chapter card.',
+    "corridor": 'corridor: params {"kind":"corridor|pool|hotel","lights":"warm|cold|flicker","door":"404 (optional)"}. Liminal or horror space, slow camera drift.',
+    "room_pov": 'room_pov: params {"kind":"classroom|bedroom|office","clock":"10:42","stamp":"optional word","look_to":"clock|window|door"}. First-person room with hands.',
+    "gears": "gears: params {n 2-5, labels [], glow index, explode 0..1}. A working gear train that explodes apart.",
+    "extrude": 'extrude: params {"blocks":n,"route":true} for a blueprint city block with a red route, or {"items":[{label,value,highlight}]} for a 3D bar map.',
+    "panels": 'panels: params {"cards":[{"title","body","highlight":true|false}]} 2-4 glass UI cards building in depth.',
+    "voxel": 'voxel: params {"hero":"#hex","level":"short label"}. A voxel island with a hero walking a path.',
+}
+
+B3D_HEAD = ('- {"type":"b3d","scene":"<name>","params":{...},"title":{"text":"...","hl":"one word"},"fallback":{"type":"say","text":"..."}}   '
+            "REAL 3D SHOT rendered in Blender. Scenes you may use on this channel and their params:\n")
+B3D_TAIL = '  Optional on any 3D scene: "title" (first scene of a section). ALWAYS include "fallback" (a 2D show from the list above). At most 3 per Short, 8 per long video.\n'
+
+
+def craft_for(pb: dict) -> str:
+    """CRAFT with the 3D paragraph (written for Counterfactual Atlas) swapped for this channel's own scenes."""
+    a = CRAFT.index('- {"type":"b3d"')
+    b = CRAFT.index('- {"type":"end"')
+    head, tail = CRAFT[:a], CRAFT[b:]
+    if pb.get("slug") == "atlas":
+        return CRAFT
+    scenes = [n for n in (pb.get("b3d") or []) if n in B3D_DOCS]
+    mid = ""
+    if scenes:
+        mid = B3D_HEAD + "".join("    " + B3D_DOCS[n] + "\n" for n in scenes) + B3D_TAIL
+    if pb.get("persona"):
+        mid += ('- {"type":"persona","who":"%s","look":"portrait|outfit|place","caption":"<=10 words"}   a still of the AI persona with a slow push-in. '
+                "Use it on most scenes, alternating look so the same photo does not repeat.\n" % pb["persona"])
+    return head + mid + tail
+
+
+FICTION = """FICTION CHANNEL. This channel tells invented stories, so the 'use only facts' rule applies only to any real-world fact you state
+(keep those settled and true). Invent characters, places and plots freely, but never use real people, real brands, real events,
+characters from existing books, films or games. No gore. The video is labelled as fiction. Keep the story to ONE clear idea."""
+
+HOST = """HOST. The narrator is an animated AI character named {name}, shown as a clay figure in the 3D scenes (cast {cast}). Write the
+narration in the host's voice. The host is not a real person: never say 'I built', 'I earned', 'my users', 'when I tested',
+never claim a personal history. Say 'a typical team', 'the usual cost is', 'here is how you could'."""
+
+PERSONA = """PERSONA. The narrator is {who}, a disclosed AI persona, speaking in first person. It is fine to describe a mood, a routine or a
+walk as part of the character. It is not a real person: no real-life claims, no advice about health, money or law, no real brands."""

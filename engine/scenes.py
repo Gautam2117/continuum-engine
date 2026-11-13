@@ -630,6 +630,7 @@ SCENES = {
     "orbit": scene_orbit,
     "fall": scene_fall,
     "image": scene_image,
+    "persona": scene_image,  # a still of a disclosed AI persona; render.py loads it from the private character sheets
     "list": scene_list,
     "timeline": scene_timeline,
     "verdict": scene_verdict,

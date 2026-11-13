@@ -76,6 +76,28 @@ jobs:
         with:
           path: ~/.cache/kokoro
           key: kokoro-v1.0
+      # Persona videos (Sienna, Aditi, Kiara) use stills from a PRIVATE Kaggle dataset; the images never enter this public repo.
+      - name: Persona stills
+        if: ${{ hashFiles(matrix.spec) != '' }}
+        env:
+          KUSER: ${{ secrets.KAGGLE_USERNAME || 'continuumarc' }}
+          KSECRET: ${{ secrets.KAGGLE_API_TOKEN || secrets.KAGGLE_KEY }}
+        run: |
+          if grep -q '"type": *"persona"' "${{ matrix.spec }}"; then
+            if [ -z "$KSECRET" ]; then echo "::warning::No Kaggle key; persona scenes fall back to text."; exit 0; fi
+            echo "::add-mask::$KSECRET"
+            pip install -q kaggle six
+            export KAGGLE_USERNAME="$KUSER"
+            if echo "$KSECRET" | grep -Eq '^[0-9a-f]{32}$'; then
+              mkdir -p ~/.kaggle && printf '{"username":"%s","key":"%s"}' "$KUSER" "$KSECRET" > ~/.kaggle/kaggle.json && chmod 600 ~/.kaggle/kaggle.json
+            else
+              export KAGGLE_API_TOKEN="$KSECRET"
+            fi
+            mkdir -p .cache/personas
+            kaggle datasets download "$KUSER/continuum-personas" -p .cache/personas --unzip -q || echo "::warning::persona dataset download failed"
+            find .cache/personas -type f -name '*.jp*g' -exec mv -n {} .cache/personas/ \; 2>/dev/null || true
+            ls .cache/personas | head -3
+          fi
       - name: Render
         run: python -m engine.render "${{ matrix.spec }}" --out out
       - name: Attach to release
