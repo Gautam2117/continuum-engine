@@ -1,0 +1,115 @@
+{
+ "id": "2026-11-14-10sec-s1",
+ "channel": "10SecScientist",
+ "format": "short",
+ "title": "Why onions make you cry (and how to stop it instantly) #shorts",
+ "thumb": "Onion tears hack",
+ "description": "Learn why cutting onions triggers tears and a quick way to avoid the sting. We explain the chemistry and give an instant tip you can try right now.\n\nNarration is a synthetic voice. Script and visuals are produced with AI tools and checked by automated quality gates.",
+ "tags": [
+  "onion",
+  "crying",
+  "kitchen science",
+  "chemistry",
+  "quick tip",
+  "food hack",
+  "shorts",
+  "science",
+  "science facts",
+  "explained",
+  "learn",
+  "physics"
+ ],
+ "links": [
+  {
+   "label": "More from Continuum Arc",
+   "url": "https://continuumarc.tech"
+  }
+ ],
+ "publishAt": "2026-11-14T14:02:00Z",
+ "meta": {
+  "generator": "autopilot",
+  "topic": "Why onions make you cry (and how to stop it instantly)",
+  "axis": "chemistry in the kitchen",
+  "slot": "14:00",
+  "review": {
+   "hook": 7,
+   "originality": 6,
+   "accuracy": 8
+  },
+  "model": "groq:openai/gpt-oss-120b"
+ },
+ "scenes": [
+  {
+   "say": "Why onions make you cry (and how to stop it instantly)",
+   "show": {
+    "type": "title",
+    "text": "Why onions make you cry?",
+    "kicker": "Instant tip"
+   }
+  },
+  {
+   "say": "When you slice an onion, it releases a volatile gas that irritates your eyes.",
+   "show": {
+    "type": "say",
+    "text": "Onion gas irritates eyes",
+    "hero": "👀"
+   }
+  },
+  {
+   "say": "The gas is syn‑propanethial‑S‑oxide, produced when the enzyme alliinase meets sulfur compounds.",
+   "show": {
+    "type": "say",
+    "text": "Syn‑propanethial‑S‑oxide",
+    "hero": "🧪"
+   }
+  },
+  {
+   "say": "The gas diffuses into the air and reaches your eyes in seconds.",
+   "show": {
+    "type": "number",
+    "from": 0,
+    "value": 30,
+    "unit": "cm",
+    "label": "distance gas travels",
+    "prefix": "",
+    "decimals": 0
+   }
+  },
+  {
+   "say": "In your tears it reacts with water, forming a tiny amount of sulfuric‑like acid that stings nerve endings.",
+   "show": {
+    "type": "say",
+    "text": "Tiny acid forms",
+    "hero": "⚡"
+   }
+  },
+  {
+   "say": "Cool the onion first to chilling it for about ten minutes slows the enzyme, so far less gas is made.",
+   "show": {
+    "type": "say",
+    "text": "Chill onion 10 min",
+    "hero": "❄️"
+   }
+  },
+  {
+   "say": "Another fast fix: cut the onion near a running tap or under a fan to blow the gas away.",
+   "show": {
+    "type": "list",
+    "title": "Instant tricks",
+    "items": [
+     "Cut near running water",
+     "Use a kitchen fan",
+     "Sharp knife reduces damage"
+    ]
+   }
+  },
+  {
+   "say": "Now you can dice without tears. Follow for more ten‑second science.",
+   "show": {
+    "type": "end",
+    "text": "Tear‑free cooking. Follow.",
+    "product": ""
+   }
+  }
+ ]
+}

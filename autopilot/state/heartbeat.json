@@ -1,14 +1,23 @@
 {
- "at": "2026-11-13T20:01:11+00:00",
+ "at": "2026-11-13T20:04:43+00:00",
  "days": [
-  "2026-11-13"
+  "2026-11-13",
+  "2026-11-14"
  ],
  "llm": [
   "gemini",
   "groq"
  ],
- "written": 0,
- "failed": [],
- "calls": 0,
- "by_model": {}
+ "written": 1,
+ "failed": [
+  "2026-11-14-oddly-l1: LLMError: all providers failed; last: groq/openai/gpt-oss-120b: 429 {\"error\":{\"message\":\"Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01m795whgxekr9y6ztqs4ctxwt` service tier `on_demand` on tokens per minute (TPM): Limit 8000, Used 4596, Requested 5122. Please try again in 12.885s. Need more tokens? Upgrade to Dev Tier today at https://con",
+  "2026-11-14-crazy-s1: LLMError: all providers failed; last: ",
+  "2026-11-14-wild-s1: LLMError: all providers failed; last: ",
+  "2026-11-14-foundbeam-l1: LLMError: all providers failed; last: "
+ ],
+ "calls": 22,
+ "by_model": {
+  "gemini:gemini-3.5-flash-lite": 1,
+  "groq:openai/gpt-oss-120b": 10
+ }
 }
