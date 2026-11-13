@@ -325,3 +325,17 @@ def test_review_inventory_restores_future_specs_without_overwriting_release(tmp_
     assert restore(source, destination, today) == 0
     assert release.read_text() == "tracked release"
     assert not (destination / "2026-11-13").exists()
+
+
+def test_pending_reviews_only_skip_exact_live_artifacts(tmp_path):
+    from scripts.review_inventory import pending_specs, review_artifact
+
+    day = tmp_path / "2026-11-14"
+    day.mkdir()
+    paths = [day / f"atlas-s{i}.json" for i in (1, 2)]
+    for path in paths:
+        path.write_text(json.dumps({"id": f"{day.name}-{path.stem}", "title": "Original"}))
+    available = {review_artifact(paths[0])}
+    assert pending_specs(paths, available) == [paths[1].as_posix()]
+    paths[0].write_text(paths[0].read_text().replace("Original", "Revised"))
+    assert pending_specs(paths, available) == [path.as_posix() for path in paths]

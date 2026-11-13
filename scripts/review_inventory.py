@@ -1,6 +1,8 @@
 """Restore review specs without replacing specs already tracked for release."""
 import datetime as dt
+import hashlib
 import json
+import re
 from pathlib import Path
 
 
@@ -22,6 +24,19 @@ def restore(source: Path, destination: Path, today: dt.date) -> int:
             target.write_bytes(path.read_bytes())
             restored += 1
     return restored
+
+
+def review_artifact(path: Path) -> str:
+    spec = json.loads(path.read_bytes())
+    identifier = spec["id"]
+    if identifier != f"{path.parent.name}-{path.stem}" or not re.fullmatch(r"[a-z0-9-]+", identifier):
+        raise ValueError(f"Invalid review spec identity: {path}")
+    digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    return f"review-{identifier}-{digest}"
+
+
+def pending_specs(paths: list[Path], available: set[str]) -> list[str]:
+    return [path.as_posix() for path in sorted(paths) if review_artifact(path) not in available]
 
 
 if __name__ == "__main__":

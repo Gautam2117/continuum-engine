@@ -22,12 +22,20 @@ jobs:
     outputs:
       specs: ${{ steps.list.outputs.specs }}
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: autopilot-preview
           path: preview
           run-id: ${{ inputs.plan_run }}
           github-token: ${{ github.token }}
+      - name: Find available review packages
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.expired == false and (.name | startswith("review-"))) | .name' > available-reviews.txt
       - id: list
         shell: python
         run: |
@@ -35,7 +43,12 @@ jobs:
           import os
           from pathlib import Path
 
-          specs = sorted(p.as_posix() for p in Path("preview/specs").glob("*/*.json"))
+          from scripts.review_inventory import pending_specs
+
+          receipts = Path("available-reviews.txt")
+          available = set(receipts.read_text().splitlines()) if receipts.exists() else set()
+          paths = list(Path("preview/specs").glob("*/*.json"))
+          specs = pending_specs(paths, available)[:100]
           with open(os.environ["GITHUB_OUTPUT"], "a") as out:
               print("specs=" + json.dumps(specs), file=out)
           if not specs:
@@ -94,9 +107,10 @@ jobs:
           result="$(dirname "$master")"
           ffprobe -v error -show_streams -show_format -of json "$master" > "$result/probe.json"
           (cd "$result" && sha256sum video.mp4 thumb.jpg pack.json > checksums.txt)
-          echo "id=$(basename "$result")" >> "$GITHUB_OUTPUT"
+          artifact="$(python -c 'import sys; from pathlib import Path; from scripts.review_inventory import review_artifact; print(review_artifact(Path(sys.argv[1])))' "$SPEC")"
+          echo "artifact=$artifact" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
-          name: review-${{ steps.render.outputs.id }}
+          name: ${{ steps.render.outputs.artifact }}
           path: out/
           if-no-files-found: error
