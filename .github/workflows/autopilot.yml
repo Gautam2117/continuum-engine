@@ -20,6 +20,11 @@ on:
         type: boolean
         default: false
 
+      render_review:
+        description: "Render accepted preview specs as review artifacts in the same run"
+        type: boolean
+        default: false
+
       start_offset:
         description: "Start this many UTC calendar days from today"
         default: "0"
@@ -34,7 +39,7 @@ permissions:
   actions: write
 
 concurrency:
-  group: ${{ github.event_name == 'schedule' && 'autopilot-network-review' || ( inputs.preview || inputs.render_from != '') && format('autopilot-review-{0}', github.run_id) || 'autopilot' }}
+  group: ${{ github.event_name == 'schedule' && 'autopilot-network-review' || ( inputs.preview || inputs.render_review || inputs.render_from != '') && format('autopilot-review-{0}', github.run_id) || 'autopilot' }}
   cancel-in-progress: false
 
 jobs:
@@ -43,6 +48,8 @@ jobs:
       inputs.render_from == '' &&
       (github.event_name != 'schedule' || vars.AUTOPILOT_NETWORK_REVIEW == '1')
     runs-on: ubuntu-latest
+    outputs:
+      preview_id: ${{ steps.upload-preview.outputs.artifact-id }}
     timeout-minutes: 60
     env:
       GH_TOKEN: ${{ github.token }}
@@ -96,7 +103,7 @@ jobs:
           if [ -n "$NEW" ]; then python3 scripts/validate.py --strict $NEW; fi
       - name: Commit
         id: commit
-        if: ${{ !cancelled() && steps.validate.outcome == 'success' && !inputs.preview && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+        if: ${{ !cancelled() && steps.validate.outcome == 'success' && !inputs.preview && !inputs.render_review && github.event_name != 'schedule' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
         run: |
           git config user.name "continuum-autopilot"
           git config user.email "autopilot@users.noreply.github.com"
@@ -118,7 +125,7 @@ jobs:
           if [ -n "$TODO" ]; then gh workflow run render.yml -f specs="$TODO"; echo "render started for: $TODO"; fi
       - name: Save preview evidence
         id: preview
-        if: ${{ !cancelled() && steps.validate.outcome == 'success' && (inputs.preview || github.event_name == 'schedule' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch)) && steps.plan.outcome != 'skipped' }}
+        if: ${{ !cancelled() && steps.validate.outcome == 'success' && (inputs.preview || inputs.render_review || github.event_name == 'schedule' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch)) && steps.plan.outcome != 'skipped' }}
         run: |
           mkdir -p preview
           if [ -f autopilot/state/heartbeat.json ]; then
@@ -134,7 +141,8 @@ jobs:
               cp --parents "$file" preview/
             done
       - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() && steps.validate.outcome == 'success' && (inputs.preview || github.event_name == 'schedule' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch)) && steps.plan.outcome != 'skipped' }}
+        id: upload-preview
+        if: ${{ !cancelled() && steps.validate.outcome == 'success' && (inputs.preview || inputs.render_review || github.event_name == 'schedule' || github.ref != format('refs/heads/{0}', github.event.repository.default_branch)) && steps.plan.outcome != 'skipped' }}
         with:
           name: autopilot-preview
           path: preview/
@@ -148,9 +156,9 @@ jobs:
     with:
       plan_run: ${{ inputs.render_from }}
 
-  render-scheduled-review:
+  render-planned-review:
     needs: run
-    if: github.event_name == 'schedule' && vars.AUTOPILOT_NETWORK_REVIEW == '1'
+    if: needs.run.outputs.preview_id != '' && (github.event_name == 'schedule' || inputs.render_review)
     permissions:
       actions: read
       contents: read
