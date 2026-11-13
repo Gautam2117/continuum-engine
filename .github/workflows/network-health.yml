@@ -1,0 +1,63 @@
+name: Continuum Network Health
+
+on:
+  schedule:
+    - cron: '41 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  issues: write
+
+concurrency:
+  group: continuum-network-health
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    if: vars.AUTOPILOT_NETWORK_REVIEW == '1'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Find recent scheduled review evidence
+        run: |
+          mkdir -p network-health
+          run_ids="$(gh run list --workflow autopilot.yml --event schedule --status completed --limit 12 --json databaseId --jq '.[].databaseId')"
+          for run_id in $run_ids; do
+            if gh run download "$run_id" -n autopilot-preview -D network-health; then
+              printf 'REVIEW_RUN_ID=%s\n' "$run_id" >> "$GITHUB_ENV"
+              break
+            fi
+          done
+      - name: Find available review artifacts
+        run: |
+          gh api --paginate "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" \
+            --jq '.artifacts[] | select(.expired == false and (.name | startswith("review-"))) | .name' \
+            > network-health/artifacts.txt
+      - name: Check network coverage
+        id: audit
+        run: |
+          python scripts/network_health.py \
+            --heartbeat network-health/heartbeat.json \
+            --artifacts network-health/artifacts.txt \
+            --run-id "${REVIEW_RUN_ID:-}" \
+            --output network-health/report.md
+          cat network-health/report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Create or update single actionable issue
+        if: steps.audit.outputs.alert == 'true'
+        run: |
+          issue="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --limit 100 --json number,title \
+            --jq '.[] | select(.title == "Continuum Network Health") | .number' | head -1)"
+          if [ -n "$issue" ]; then
+            gh issue edit "$issue" --repo "$GITHUB_REPOSITORY" --body-file network-health/report.md
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title 'Continuum Network Health' \
+              --body-file network-health/report.md
+          fi
