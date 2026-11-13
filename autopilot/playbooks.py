@@ -25,7 +25,7 @@ PLAYBOOKS: dict[str, dict] = {
         tags=["what if", "science", "physics", "space", "explained"], links=[CTA_DAYWILD],
     ),
     "10SecScientist": dict(
-        slug="10sec", cadence={"long": 1, "short": 1}, long_words=1150, short_words=100,
+        slug="10sec", cadence={"long": 1, "short": 1}, long_words=1150, short_words=24,
         promise="Science in ten seconds of insight: one surprising result, one clean explanation, one thing to try or notice.",
         audience="Students and curious adults who scroll fast and want something true.",
         voice="Quick, warm, a little playful. Talks like a friend who studied it. Active verbs. No filler.",

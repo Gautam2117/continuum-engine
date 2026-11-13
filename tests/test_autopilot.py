@@ -19,7 +19,7 @@ def short_script(title="What if the Sun vanished for one second?"):
         {"say": "You would not notice for eight minutes and twenty seconds.", "show": {"type": "number", "from": 0, "value": 500, "unit": "seconds", "label": "Light travel time from the Sun"}, "emoji": "☀️"},
         {"say": "Light takes that long to cross 149 million kilometres, and gravity travels at the same speed.", "show": {"type": "bars", "title": "Distance", "unit": "million km", "items": [{"label": "Moon", "value": 0.38}, {"label": "Sun", "value": 149.6, "highlight": True}]}},
         {"say": "So Earth keeps circling the empty spot for those eight minutes."},
-        {"say": "Then the sky goes dark and the pull ends.", "show": {"type": "say", "text": "Dark, then straight on", "hero": "🌑"}},
+        {"say": "Then the sky goes dark and the pull ends.", "show": {"type": "image", "query": "Sun NASA observatory photo", "caption": "Our star"}},
         {"say": "Without the pull, we would fly off in a straight line at thirty kilometres a second.", "show": {"type": "list", "title": "What changes", "items": ["No more orbit", "Straight-line travel", "Cold within days"]}},
         {"say": "But it is back after one second, and nothing would feel different.", "show": {"type": "number", "from": 0, "value": 1, "unit": "second", "label": "Gone"}},
         {"say": "So the Sun could vanish, and for eight minutes the universe would not know."},
@@ -46,6 +46,7 @@ class Scripted:
             return json.dumps({"title": "How the Sun keeps Earth in orbit", "thumb": "The Sun's invisible leash", "description": "A slow look at gravity and orbits.", "tags": ["gravity"], "chapters": [{"name": f"C{i}", "beats": "b", "open_loop": "l"} for i in range(6)]})
         if "Write chapter" in user:
             sc = [{"say": f"Sentence {i} about the long motion of the planets around the Sun, told clearly and calmly, with a specific number like {100 + i} kilometres per second.", "show": ([{"type": "number", "from": 0, "value": 30, "unit": "km/s", "label": "Orbital speed"}, {"type": "list", "title": "T", "items": ["a", "b"]}, None][i % 3])} for i in range(8)]
+            sc[2]["show"] = {"type": "orbit", "ratio": 0.5, "a": "Earth today", "b": "A second orbit"}
             for s in sc:
                 if s["show"] is None:
                     del s["show"]
@@ -434,6 +435,29 @@ def test_review_audio_rejects_muted_and_missing_audio_stats(tmp_path, monkeypatc
     monkeypatch.setattr(subprocess, "run", lambda *a, **k: fake_result("no measurements"))
     with pytest.raises(ValueError, match="Missing mean_volume"):
         verify_audio(video)
+
+
+def test_review_rejects_silent_3d_and_image_fallbacks(tmp_path):
+    import pytest
+    from PIL import Image
+    from scripts.verify_review import verify
+
+    thumb = tmp_path / "thumb.jpg"
+    Image.new("RGB", (40, 40)).save(thumb)
+    spec = {"id": "atlas", "channel": "Counterfactual Atlas", "format": "short",
+            "scenes": [{"show": {"type": "b3d", "scene": "orbit3d"}},
+                       {"show": {"type": "image", "query": "full moon"}}]}
+    pack = {"id": "atlas", "channel": "Counterfactual Atlas", "format": "short", "durationSec": 8}
+    probe = {"format": {"duration": "8"}, "streams": [
+        {"codec_type": "video", "codec_name": "h264", "width": 1080, "height": 1920},
+        {"codec_type": "audio", "codec_name": "aac"}]}
+    with pytest.raises(ValueError, match="3D scene"):
+        verify(spec, pack, probe, thumb)
+    pack["renderEvidence"] = {"b3dRequested": 1, "b3dRendered": 1, "imageFallbackScenes": [1]}
+    with pytest.raises(ValueError, match="licensed image"):
+        verify(spec, pack, probe, thumb)
+    pack["renderEvidence"]["imageFallbackScenes"] = []
+    verify(spec, pack, probe, thumb)
 
 
 def test_editor_cannot_pass_scores_below_threshold(monkeypatch):

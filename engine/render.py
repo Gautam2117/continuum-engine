@@ -27,6 +27,8 @@ from .tts import SR, speak
 
 UA = "ContinuumEngine/1.0 (https://studio.continuumarc.tech; gautam@continuumarc.tech)"
 SIZES = {"long": (1920, 1080), "short": (1080, 1920)}
+# Science what-if scenes own the visual field; no repeated cartoon mascot overlay.
+NO_MASCOT = frozenset({"atlas", "lowbat", "sienna", "aditi", "kiara"})
 
 
 def fetch_persona(p: dict, spec_id: str, scene_no: int) -> Image.Image | None:
@@ -210,13 +212,17 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "24" if fmt == "long" else "22", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
         "-c:a", "aac", "-b:a", "160k", "-shortest", str(video),
     ], stdin=subprocess.PIPE)
-    layout = stage.Layout(W, H, fmt, no_host=style.slug in ('sienna', 'aditi', 'kiara', 'lowbat'))
+    layout = stage.Layout(W, H, fmt, no_host=style.slug in NO_MASCOT)
     bd = S.Backdrop(style, W, H, seed=len(spec["id"]))
     ctx = S.Ctx(style, W, layout.view_h, bd, spec["channel"], vertical=layout.vertical)
     slug = style.slug
     first_image = None
     elapsed = 0.0
     prev_full = None
+    b3d_requested = b3d_rendered = 0
+    b3d_fallback_scenes: list[int] = []
+    image_fallback_scenes: list[int] = []
+    persona_fallback_scenes: list[int] = []
     for si, (sc, audio, dur) in enumerate(plan):
         show = dict(sc.get("show") or {"type": "say"})
         kind = show.pop("type")
@@ -230,14 +236,18 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
             show["hero"], ems = ems[0], []
         if kind in ("title", "end"):
             ems = ems[:1]
-        cfg = {"captions": not (slug == "drift" and fmt == "long"), "host": sc.get("host", True) and slug not in ("sienna", "aditi", "kiara", "lowbat")}
+        cfg = {"captions": not (slug == "drift" and fmt == "long"), "host": sc.get("host", True) and slug not in NO_MASCOT}
         stg = stage.Scene(layout, style, slug, spec["channel"], kind, say, dur, audio, ems, cfg, first=(si == 0))
         fn = S.SCENES[kind]
         if kind in ("image", "persona"):
             im = fetch_persona(show, spec["id"], si) if kind == "persona" else fetch_image(show)
             first_image = first_image or im
+            if im is None:
+                (persona_fallback_scenes if kind == "persona" else image_fallback_scenes).append(si)
             frames = fn(ctx, dur, show, words, image=im)
         else:
+            if kind == "b3d":
+                b3d_requested += 1
             frames = fn(ctx, dur, show, words)
         for k, vframe in enumerate(frames):
             t = k / S.FPS
@@ -257,6 +267,11 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
             stage.progress_bar(full, style, (elapsed + t) / total, layout.vertical)
             out_frame = full.convert("RGB")
             ff.stdin.write(out_frame.tobytes())
+        if kind == "b3d":
+            if show.get("_rendered3d") is True:
+                b3d_rendered += 1
+            else:
+                b3d_fallback_scenes.append(si)
         prev_full = out_frame
         elapsed += dur
     ff.stdin.close()
@@ -284,6 +299,12 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
         "synthetic": True,  # voice is synthetic: declare it
         "madeForKids": False,
         "durationSec": round(total, 1),
+        "renderEvidence": {
+            "b3dRequested": b3d_requested, "b3dRendered": b3d_rendered,
+            "b3dFallbackScenes": b3d_fallback_scenes,
+            "imageFallbackScenes": image_fallback_scenes,
+            "personaFallbackScenes": persona_fallback_scenes,
+        },
         "footageNeeded": spec["channel"] in FOOTAGE_LED,
     }
     (out / "pack.json").write_text(json.dumps(pack, indent=2, ensure_ascii=False))

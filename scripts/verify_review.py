@@ -14,6 +14,16 @@ def verify(spec: dict, pack: dict, probe: dict, thumbnail: Path) -> None:
     for key in ("id", "channel", "format", "publishAt"):
         if pack.get(key) != spec.get(key):
             raise ValueError(f"Pack {key} differs from the spec")
+    expected3d = sum((scene.get("show") or {}).get("type") == "b3d" for scene in spec["scenes"])
+    expected_images = sum((scene.get("show") or {}).get("type") == "image" for scene in spec["scenes"])
+    expected_personas = sum((scene.get("show") or {}).get("type") == "persona" for scene in spec["scenes"])
+    evidence = pack.get("renderEvidence") or {}
+    if expected3d and (evidence.get("b3dRequested") != expected3d or evidence.get("b3dRendered") != expected3d):
+        raise ValueError("Requested 3D scene silently fell back to 2D; creative review is not complete")
+    if expected_images and (not isinstance(evidence.get("imageFallbackScenes"), list) or evidence["imageFallbackScenes"]):
+        raise ValueError("Required licensed image was unavailable; creative review is not complete")
+    if expected_personas and (not isinstance(evidence.get("personaFallbackScenes"), list) or evidence["personaFallbackScenes"]):
+        raise ValueError("Required persona still was unavailable; creative review is not complete")
     dimensions = {"long": (1920, 1080), "short": (1080, 1920)}[spec["format"]]
     streams = probe["streams"]
     video = next((s for s in streams if s["codec_type"] == "video"), {})
@@ -24,6 +34,8 @@ def verify(spec: dict, pack: dict, probe: dict, thumbnail: Path) -> None:
         raise ValueError("Missing AAC audio")
     duration = float(probe["format"]["duration"])
     planned = float(pack["durationSec"])
+    if spec["channel"] == "10SecScientist" and not 8 <= duration <= 16:
+        raise ValueError(f"10SecScientist branded short must run about ten seconds, not {duration:.1f}s")
     # Scene frames are quantized separately, so allow one video frame per scene.
     tolerance = 0.25 + len(spec["scenes"]) / 24
     if not math.isfinite(duration) or not math.isfinite(planned) or min(duration, planned) <= 0 or abs(duration - planned) > tolerance:

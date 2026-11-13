@@ -1,0 +1,162 @@
+{
+  "id": "2026-11-16-atlas-s1",
+  "channel": "Counterfactual Atlas",
+  "format": "short",
+  "title": "What If the Moon Moved Twice as Close? The 8× Tide Surprise #shorts",
+  "thumb": "8× TIDAL PULL",
+  "description": "An evidence-based, idealized what-if: move the Moon to half its current average orbital distance while keeping its mass constant. Lunar tide-generating force scales with distance to the inverse third power, so the forcing rises eightfold. Actual local water heights do NOT become eight times larger by a simple rule; ocean geometry and resonance matter. With an ideal circular orbit and unchanged Earth-Moon masses, Kepler's third law predicts an orbital period around 9.7 days versus 27.32 today. This hypothetical is not a real forecast.\n\nSources:\nNASA Moon facts, mean distance 384,400 km: https://science.nasa.gov/moon/facts/\nNASA Moon fact sheet, sidereal period 27.3217 days: https://nssdc.gsfc.nasa.gov/planetary/factsheet/moonfact.html\nNOAA on inverse-cube tide-generating forces: https://oceanservice.noaa.gov/education/tutorial_tides/tides02_cause.html\nNASA on Kepler's third law: https://science.nasa.gov/solar-system/orbits-and-keplers-laws/\n\nDerived calculations: 384,400 / 2 = 192,200 km; (384,400 / 192,200)^3 = 8; 27.3217 × (0.5)^(3/2) ≈ 9.66 days.\n\nOriginal graphics, synthetic narration. No real-world disaster or measured coastal tide height is asserted.",
+  "tags": [
+    "what if",
+    "moon",
+    "tides",
+    "physics",
+    "space",
+    "science",
+    "orbit",
+    "shorts"
+  ],
+  "publishAt": "2026-11-16T14:00:00Z",
+  "synthetic": true,
+  "madeForKids": false,
+  "meta": {
+    "generator": "researched-editorial-pilot",
+    "topic": "Moon orbital radius halved",
+    "axis": "astronomy and orbits",
+    "sources": [
+      "NASA",
+      "NOAA"
+    ],
+    "reviewStatus": "requires-watched-approval"
+  },
+  "scenes": [
+    {
+      "say": "What if the Moon circled Earth at half its usual distance?",
+      "show": {
+        "type": "title",
+        "text": "HALF THE DISTANCE",
+        "kicker": "WHAT IF"
+      }
+    },
+    {
+      "say": "The Moon's tide-raising force would climb to roughly eight times today's.",
+      "show": {
+        "type": "b3d",
+        "scene": "orbit3d",
+        "params": {
+          "ratio": 0.5,
+          "a": "Today: 384,400 km",
+          "b": "What if: 192,200 km"
+        },
+        "title": {
+          "text": "The Moon moves closer",
+          "hl": "closer"
+        },
+        "fallback": {
+          "type": "orbit",
+          "ratio": 0.5,
+          "a": "Today: 384,400 km",
+          "b": "Half distance"
+        }
+      }
+    },
+    {
+      "say": "Right now, its average distance is about three hundred eighty-four thousand kilometres.",
+      "show": {
+        "type": "number",
+        "from": 0,
+        "value": 384400,
+        "unit": "km",
+        "label": "Today's average Moon distance",
+        "decimals": 0
+      }
+    },
+    {
+      "say": "At half the distance, roughly one hundred ninety-two thousand kilometres, the tide-generating pull changes dramatically.",
+      "show": {
+        "type": "number",
+        "from": 0,
+        "value": 192200,
+        "unit": "km",
+        "label": "Hypothetical separation",
+        "decimals": 0
+      }
+    },
+    {
+      "say": "Tidal forcing scales with the inverse cube of distance: half as far means eight times the force.",
+      "show": {
+        "type": "b3d",
+        "scene": "bars3d",
+        "params": {
+          "items": [
+            {
+              "label": "Today's lunar forcing",
+              "value": 1
+            },
+            {
+              "label": "Half distance",
+              "value": 8,
+              "highlight": true
+            }
+          ],
+          "unit": "relative strength"
+        },
+        "title": {
+          "text": "An eightfold increase",
+          "hl": "eightfold"
+        },
+        "fallback": {
+          "type": "bars",
+          "title": "Lunar tide-generating force",
+          "unit": "times today",
+          "items": [
+            {
+              "label": "Today",
+              "value": 1
+            },
+            {
+              "label": "Half distance",
+              "value": 8,
+              "highlight": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "say": "But this does not mean every beach sees water rise eight times higher.",
+      "show": {
+        "type": "list",
+        "title": "Force is NOT tide height",
+        "items": [
+          "Tidal forcing: 8×",
+          "Local tide height: not simply 8×",
+          "The ocean has its own dynamics"
+        ]
+      }
+    },
+    {
+      "say": "Coastline shape, ocean-basin depth, and resonance change how local tides respond.",
+      "show": {
+        "type": "image",
+        "query": "Bay of Fundy extreme tidal change coastline",
+        "caption": "Ocean basins shape the actual tide"
+      }
+    },
+    {
+      "say": "In an ideal circular orbit, the Moon's orbital month would shrink from twenty-seven days to roughly nine point seven days.",
+      "show": {
+        "type": "orbit",
+        "ratio": 0.5,
+        "a": "Today: 27.3 days",
+        "b": "Half distance: ~9.7 days"
+      }
+    },
+    {
+      "say": "The orbital math is clear. Predicting a real coast is much harder.",
+      "show": {
+        "type": "end",
+        "text": "8× FORCE ≠ 8× WATER"
+      }
+    }
+  ]
+}
