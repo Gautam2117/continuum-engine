@@ -286,7 +286,8 @@ def scene_moon_drive(p: dict, frames: int, pal: dict):
         earth.data.materials.append(m)
     for f in earth.data.polygons:
         c = Vector(f.center)  # mesh coordinates are already relative to the planet's centre
-        f.material_index = 2 if abs(c.normalized().z) > 0.88 else (1 if noise.noise(c * 1.25 + Vector((3, 1, 2))) > 0.1 else 0)
+        # north cap only: the planet is turned so its south pole faces the camera
+        f.material_index = 2 if c.normalized().z > 0.88 else (1 if noise.noise(c * 1.25 + Vector((3, 1, 2))) > 0.1 else 0)
     earth.rotation_euler = (math.radians(-90), 0, math.radians(15))   # show oceans and land, not the ice cap
     moon = ico("moon", 0.82, 3, loc=M, jitter=0.06, seed=4.0)
     link(moon, mat("moon", "#c9ccd6", 0.9))
@@ -599,6 +600,11 @@ def use_gpu(sc) -> bool:
             for d in prefs.devices:
                 d.use = d.type == kind
             sc.cycles.device = "GPU"
+            if kind == "OPTIX":
+                try:
+                    sc.cycles.denoiser = "OPTIX"  # denoise on the GPU too
+                except Exception:  # noqa: BLE001
+                    pass
             print(f"b3d: Cycles GPU {kind}: {', '.join(d.name for d in gpus)}", flush=True)
             return True
         except Exception as e:  # noqa: BLE001

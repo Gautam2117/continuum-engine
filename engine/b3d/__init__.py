@@ -27,7 +27,7 @@ from PIL import Image
 HERE = pathlib.Path(__file__).resolve().parent
 MAIN = HERE / "blender_main.py"
 SCENE_NAMES = ("earth_tunnel", "moon_drive", "everest_flood", "bars3d", "orbit3d", "fall3d")
-VERSION = "12"  # bump when blender_main.py changes in a way that should invalidate cached frames
+VERSION = "13"  # bump when blender_main.py changes in a way that should invalidate cached frames
 
 
 @functools.lru_cache(maxsize=1)
