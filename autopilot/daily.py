@@ -121,7 +121,8 @@ class Planner:
             user = (
                 f"Channel: {channel}\nPromise: {pb['promise']}\nAudience: {pb['audience']}\nFormat: {fmt}\n"
                 f"Subject areas (prefer earlier ones, but rotate): {json.dumps(axes)}\n"
-                f"Already made (do NOT repeat or paraphrase): {json.dumps(recent)}\n{insights.guidance(channel, fmt)}\n\n"
+                f"Already made (do NOT repeat or paraphrase): {json.dumps(recent)}\n{insights.guidance(channel, fmt)}\n"
+                f"Production constraints: {pb.get('topic_constraints', 'Follow the channel promise and subject areas.')}\n\n"
                 'Brainstorm 8 video topics most likely to hold attention. Return JSON: {"topics":[{"topic":"...","axis":"one subject area","wiki_query":"2-4 words to find a Wikipedia article with the facts","why":"one line"}]} ranked best first.'
             )
             data = as_obj(self._call("You are a sharp YouTube strategist. Reply with JSON only.", user, temperature=0.9), "topics")
@@ -276,7 +277,7 @@ class Planner:
         pb = PLAYBOOKS[channel]
         facts = f"{pb['promise']} {pb.get('rule', '')}".strip()
         fic = "This is a FICTION channel: invented characters and events are allowed and are not 'unsupported claims'. Only real-world facts need support.\n" if pb.get("fiction") else ""
-        user = (f"CHANNEL FACTS (always allowed to state): {facts}\n{fic}GROUNDING:\n{g['text'][:6000]}\n\n"
+        user = (f"CHANNEL BRIEF AND PRODUCTION CONSTRAINTS (violations require revision): {facts}\n{fic}GROUNDING:\n{g['text'][:6000]}\n\n"
                 f"TITLE: {spec['title']}\nDESCRIPTION: {spec['description']}\nSCRIPT:\n{script}")
         review = as_obj(self._call(prompts.CRITIC, user, temperature=0.2, max_tokens=1200, tier="best"), "fixes")
         if type(review.get("pass")) is not bool:
