@@ -1,0 +1,40 @@
+name: 3D check
+
+# Installs Blender exactly as render.yml does, runs the 3D tests with real renders and times a full-size shot.
+# Publishes nothing.
+on:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: System packages
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg fonts-inter fonts-crosextra-caladea fonts-dejavu-core fonts-noto-core libegl1 libgl1 libxkbcommon0 libsm6 libxi6 libxrender1 libxxf86vm1 libxfixes3 > /dev/null
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: python3.13 -m venv ~/bvenv && ~/bvenv/bin/pip install -q bpy==5.3.0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q -r requirements.txt pytest
+      - name: Tests with real renders
+        env:
+          B3D_TEST: "1"
+          B3D_PYTHON: /home/runner/bvenv/bin/python
+        run: python -m pytest -q tests
+      - name: Time a full-size 3D shot (48 frames, 1080x1160)
+        env:
+          B3D_PYTHON: /home/runner/bvenv/bin/python
+        run: |
+          nproc
+          python -m lab.action_preview b3d '{"scene":"everest_flood","params":{"h0":0.05,"h1":0.7},"hud":{"label":"Sea level","from":440,"to":6150,"unit":"m"}}' --short --dur 2 --out sheet.png
+      - uses: actions/upload-artifact@v4
+        with:
+          name: b3d-sheet
+          path: sheet.png
