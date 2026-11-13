@@ -45,6 +45,22 @@ def too_similar(title: str, others: list[str], limit: float = 0.6) -> bool:
     return any(a and (len(a & _tokens(o)) / len(a | _tokens(o))) >= limit for o in others)
 
 
+def network_topics(exclude: str, days: int = 21) -> list[str]:
+    """Topics and titles every OTHER channel made lately, so two channels never publish the same idea in the same weeks."""
+    out: list[str] = []
+    cutoff = (dt.date.today() - dt.timedelta(days=days)).isoformat()
+    for p in SPECS.glob("*/*.json"):
+        if p.parent.name < cutoff:
+            continue
+        try:
+            s = json.loads(p.read_text())
+        except json.JSONDecodeError:
+            continue
+        if s.get("channel") != exclude:
+            out += [s.get("title", ""), (s.get("meta") or {}).get("topic", "")]
+    return [x for x in out if x]
+
+
 def recent_titles(channel: str) -> list[str]:
     titles = [e["title"] for e in insights.load("ledger.json", []) if e["channel"] == channel]
     for p in SPECS.glob("*/*.json"):
@@ -112,7 +128,8 @@ class Planner:
                 'Brainstorm 8 video topics most likely to hold attention. Return JSON: {"topics":[{"topic":"...","axis":"one subject area","wiki_query":"2-4 words to find a Wikipedia article with the facts","why":"one line"}]} ranked best first.'
             )
             data = as_obj(self._call("You are a sharp YouTube strategist. Reply with JSON only.", user, temperature=0.9), "topics")
-            pool = [t for t in data.get("topics", []) if isinstance(t, dict) and t.get("topic") and not too_similar(t["topic"], recent)]
+            others = network_topics(channel)
+            pool = [t for t in data.get("topics", []) if isinstance(t, dict) and t.get("topic") and not too_similar(t["topic"], recent) and not too_similar(t["topic"], others, 0.5)]
             if not pool:
                 raise LLMError("no fresh topics")
             self.topics[(channel, fmt)] = pool
@@ -173,6 +190,21 @@ class Planner:
             scenes += [x for x in part.get("scenes", []) if isinstance(x, dict)]
         return {**{k: outline.get(k) for k in ("title", "thumb", "description", "tags")}, "scenes": scenes}
 
+    @staticmethod
+    def _lock_identity(pb: dict, item: dict) -> None:
+        """Keep a channel's recurring face the same in every video: a persona's name, or the host's clay look."""
+        show = item.get("show") or {}
+        if pb.get("persona") and show.get("type") == "persona":
+            show["who"] = pb["persona"]
+            if show.get("look") not in ("portrait", "outfit", "place"):
+                show["look"] = "portrait"
+        host = pb.get("host")
+        if host and show.get("type") == "b3d" and show.get("scene") == "clay":
+            params = show.setdefault("params", {})
+            cast = [c for c in params.get("cast", []) if isinstance(c, dict)] or [{}]
+            cast[0] = {**cast[0], **host["cast"], "name": host["name"], "action": cast[0].get("action", "talk")}
+            params["cast"] = cast[:5]
+
     # ---- finishing and gates ---------------------------------------------------------------------
     def finish(self, channel: str, fmt: str, raw: dict, topic: dict, g: dict, spec_id: str, when: dt.datetime) -> dict:
         pb = PLAYBOOKS[channel]
@@ -188,6 +220,7 @@ class Planner:
             if sc.get("emoji"):
                 item["emoji"] = sc["emoji"]
             if say:
+                self._lock_identity(pb, item)
                 scenes.append(item)
         if scenes and (scenes[0].get("show") or {}).get("type") != "title":
             scenes[0]["show"] = {"type": "title", "text": raw.get("thumb") or raw.get("title", "")[:48], "kicker": channel}
@@ -251,6 +284,8 @@ class Planner:
             bad = problems(spec, spec_id[:10], strict=True)
             if too_similar(spec["title"], titles, 0.7):
                 bad.append("title is too close to an earlier video; choose a different angle")
+            if too_similar(spec["title"], network_topics(channel), 0.55):
+                bad.append("another channel in the network covered this idea recently; choose a different angle")
             if not bad:
                 review = self.critic(channel, spec, g)
                 if review.get("pass", True):
