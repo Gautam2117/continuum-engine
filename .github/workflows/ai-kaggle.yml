@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       image:
-        description: "Image URL, or a path in this repo (e.g. lab/samples/clay_street.jpg)"
+        description: "Image URL, a path in this repo, or dataset:<slug>/<file> for a private Kaggle dataset (persona sheets)"
         required: true
       prompt:
         description: "What moves (camera and subject), one or two sentences"
@@ -53,8 +53,11 @@ jobs:
           IMG: ${{ github.event.inputs.image }}
           PROMPT: ${{ github.event.inputs.prompt }}
         run: |
+          DS=""
           case "$IMG" in
             http*) URL="$IMG";;
+            dataset:*) REST="${IMG#dataset:}"; SLUG="${REST%%/*}"; FILE="${REST#*/}"
+                       DS="\"${KAGGLE_USERNAME}/${SLUG}\""; URL="/kaggle/input/${SLUG}/${FILE}";;
             *) URL="https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${GITHUB_SHA}/$IMG";;
           esac
           mkdir -p job
@@ -68,8 +71,9 @@ jobs:
           cat > job/kernel-metadata.json <<META
           {"id": "${KAGGLE_USERNAME}/continuum-ai", "title": "continuum-ai", "code_file": "script.py",
            "language": "python", "kernel_type": "script", "is_private": true,
-           "enable_gpu": true, "enable_internet": true, "dataset_sources": [], "competition_sources": [], "kernel_sources": []}
+           "enable_gpu": true, "enable_internet": true, "dataset_sources": [${DS}], "competition_sources": [], "kernel_sources": []}
           META
+          cat job/kernel-metadata.json
           kaggle kernels push -p job
       - name: Wait for Kaggle
         run: |

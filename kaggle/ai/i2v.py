@@ -59,6 +59,10 @@ except Exception:  # noqa: BLE001
     pass
 print(f"prompt encoded; vram {torch.cuda.memory_allocated(0) / 1e9:.1f} GB", flush=True)
 
+if IMAGE_URL.startswith("/kaggle/input/"):  # private dataset files may sit one folder deeper
+    import glob
+    hits = glob.glob(IMAGE_URL) or glob.glob(f"/kaggle/input/**/{os.path.basename(IMAGE_URL)}", recursive=True)
+    IMAGE_URL = hits[0]
 img = load_image(IMAGE_URL).convert("RGB")
 # keep aspect; both sides multiples of 32, about 480p
 w0, h0 = img.size
