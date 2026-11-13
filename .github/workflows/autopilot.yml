@@ -18,6 +18,11 @@ on:
         default: "Counterfactual Atlas"
         required: false
 
+      preview:
+        description: "Run planning and validate specs without committing or dispatching renders"
+        type: boolean
+        default: false
+
 permissions:
   contents: write
   actions: write
@@ -71,7 +76,7 @@ jobs:
           if [ -n "$NEW" ]; then python3 scripts/validate.py --strict $NEW; fi
       - name: Commit
         id: commit
-        if: ${{ !cancelled() && steps.validate.outcome == 'success' }}
+        if: ${{ !cancelled() && steps.validate.outcome == 'success' && !inputs.preview }}
         run: |
           git config user.name "continuum-autopilot"
           git config user.email "autopilot@users.noreply.github.com"
@@ -91,3 +96,17 @@ jobs:
         run: |
           TODO="$(printf '%s\n' "$TODO" | xargs -n1 | sort -u | xargs)"
           if [ -n "$TODO" ]; then gh workflow run render.yml -f specs="$TODO"; echo "render started for: $TODO"; fi
+      - name: Save preview evidence
+        if: ${{ !cancelled() && inputs.preview && steps.plan.outcome != 'skipped' }}
+        run: |
+          mkdir -p preview
+          if [ -f autopilot/state/heartbeat.json ]; then
+            cp autopilot/state/heartbeat.json preview/
+          fi
+          git ls-files -z --others --exclude-standard specs |
+            while IFS= read -r -d '' file; do cp --parents "$file" preview/; done
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() && inputs.preview && steps.plan.outcome != 'skipped' }}
+        with:
+          name: autopilot-preview
+          path: preview/

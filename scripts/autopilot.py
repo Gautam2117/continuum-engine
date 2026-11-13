@@ -29,6 +29,10 @@ def emit(key: str, value: str) -> None:
 
 
 def cmd_plan(a) -> int:
+    unknown = sorted(set(a.only or ()) - daily.PLAYBOOKS.keys())
+    if unknown:
+        print(f"Unknown or creator-led channels: {', '.join(unknown)}", file=sys.stderr)
+        return 2
     now = dt.datetime.now(dt.timezone.utc)
     days = [now.date() + dt.timedelta(days=i) for i in range(a.days)]
     llm = LLM()

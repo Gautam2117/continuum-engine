@@ -323,12 +323,17 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
     planner = Planner(llm, max_calls=max_calls, log=log)
     out = {"written": [], "skipped": [], "failed": []}
     ledger = insights.load("ledger.json", [])
+    channels = [channel for channel in PLAYBOOKS if not only or channel in only]
+    if channels:
+        # A time-limited network run must not always start with the same channels.
+        window = int(now.timestamp() // (4 * 3600))
+        start = window % len(channels)
+        channels = channels[start:] + channels[:start]
     strikes = 0
-    for day in days:
+    for day in sorted(days):
         folder = SPECS / day.isoformat()
-        for channel, pb in PLAYBOOKS.items():
-            if only and channel not in only:
-                continue
+        for channel in channels:
+            pb = PLAYBOOKS[channel]
             for fmt in ("short", "long"):  # Shorts first: far cheaper per video when the free quota is tight
                 want = cadence_for(channel, day).get(fmt, 0)
                 have = 0

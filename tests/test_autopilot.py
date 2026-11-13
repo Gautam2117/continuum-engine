@@ -240,3 +240,22 @@ def test_missing_editor_decision_holds_spec(monkeypatch):
     monkeypatch.setattr(planner, "_call", lambda *a, **k: {"fixes": []})
     with pytest.raises(LLMError, match="valid pass decision"):
         planner.critic("Counterfactual Atlas", short_script(), {"text": ""})
+
+
+def test_network_plan_rotates_first_channel_between_windows(tmp_path, monkeypatch):
+    monkeypatch.setattr(daily, "SPECS", tmp_path / "specs")
+    monkeypatch.setattr(insights, "STATE", tmp_path / "state")
+    channels = ["Counterfactual Atlas", "10SecScientist"]
+    day = dt.date(2026, 11, 14)
+    seen = []
+
+    def exhaust_budget(self, channel, *args):
+        seen.append(channel)
+        raise LLMError("call budget for this run is used up")
+
+    monkeypatch.setattr(daily.Planner, "make", exhaust_budget)
+    now = dt.datetime(2026, 11, 13, tzinfo=dt.timezone.utc)
+    for offset in (0, 4):
+        daily.plan([day], llm_with(Scripted()), now + dt.timedelta(hours=offset), only=channels)
+    assert set(seen) == set(channels)
+    assert len(seen) == 2
