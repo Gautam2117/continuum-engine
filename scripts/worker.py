@@ -170,11 +170,14 @@ def recover_stale(db: sqlite3.Connection, now: dt.datetime, *, max_age_hours: fl
 
 
 def claim(db: sqlite3.Connection, now: dt.datetime | None = None, *,
-          window: tuple[dt.date, dt.date] | None = None) -> dict | None:
+          window: tuple[dt.date, dt.date] | None = None, job_key: str | None = None) -> dict | None:
     now = now or utcnow()
     db.execute("BEGIN IMMEDIATE")
     sql = "SELECT * FROM jobs WHERE state IN ('queued','retry') AND eligible_at <= ?"
     params = [iso(now)]
+    if job_key is not None:
+        sql += " AND job_key = ?"
+        params.append(job_key)
     if window is not None:
         start, end = window
         sql += " AND spec_id >= ? AND spec_id < ?"
@@ -343,9 +346,9 @@ def render_one(job: dict, *, review_root: pathlib.Path, time_budget: int = 7200,
 
 def process_next(db: sqlite3.Connection, *, review_root: pathlib.Path, now: dt.datetime | None = None,
                  render_fn=render_one, time_budget: int = 7200, max_attempts: int = 3,
-                 window: tuple[dt.date, dt.date] | None = None) -> dict:
+                 window: tuple[dt.date, dt.date] | None = None, job_key: str | None = None) -> dict:
     now = now or utcnow()
-    job = claim(db, now, window=window)
+    job = claim(db, now, window=window, job_key=job_key)
     if job is None:
         return {"status": "idle"}
     try:
@@ -395,7 +398,7 @@ def main():
     p.add_argument("action", choices=["scan", "once", "cycle", "status", "preflight"])
     p.add_argument("--db", type=pathlib.Path, default=ROOT / "var" / "worker.sqlite3")
     p.add_argument("--reviews", type=pathlib.Path, default=ROOT / "var" / "reviews")
-    p.add_argument("--spec", type=pathlib.Path, help="One specific repository-local spec for scan")
+    p.add_argument("--spec", type=pathlib.Path, help="One specific repository-local spec for scan or cycle")
     p.add_argument("--days", type=int, default=7, help="Future-day horizon for scan (1-30)")
     p.add_argument("--start-offset", type=int, default=0, help="Start scan this many days from today")
     p.add_argument("--limit", type=int, default=1, help="Max jobs for one invocation (1-10)")
@@ -406,6 +409,9 @@ def main():
         p.error("limit must be 1-10 and timeout 60-21600 seconds")
     if not 1 <= args.days <= 30 or not 0 <= args.start_offset <= 30:
         p.error("days must be 1-30 and start offset 0-30")
+
+    if args.spec and args.action not in ("scan", "cycle"):
+        p.error("--spec is only supported by scan or cycle")
 
     os.umask(0o077)  # protect the lock, SQLite queue, manifests and logs
 
@@ -418,12 +424,19 @@ def main():
 
     def run() -> dict:
         window = None
+        job_key = None
         with closing(connection(args.db)) as db:
             if args.action in ("scan", "cycle"):
                 today = utcnow().date()
                 start = today + dt.timedelta(days=args.start_offset)
                 if args.action == "cycle" and not args.spec:
                     window = (start, start + dt.timedelta(days=args.days - 1))
+                if args.action == "cycle" and args.spec:
+                    try:
+                        selected = spec_file(args.spec)
+                        job_key = f"{selected.parent.name}-{selected.stem}:{digest(selected)}"
+                    except (OSError, ValueError) as error:
+                        p.error(f"Invalid cycle spec: {error}")
                 files = [args.spec] if args.spec else future_specs(today=today, days=args.days, start_offset=args.start_offset)
                 imported = enqueue(db, files)
                 if args.action == "scan":
@@ -432,7 +445,7 @@ def main():
                 # Safe to recover immediately: an exclusive render lock proves
                 # no other same-host process owns any still-running jobs.
                 recovered = recover_stale(db, utcnow(), max_age_hours=0)
-                jobs = [process_next(db, review_root=args.reviews, time_budget=args.timeout, window=window)
+                jobs = [process_next(db, review_root=args.reviews, time_budget=args.timeout, window=window, job_key=job_key)
                         for _ in range(args.limit)]
                 return {"scan": imported if args.action == "cycle" else None,
                         "recovered": recovered, "jobs": jobs}
