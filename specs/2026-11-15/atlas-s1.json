@@ -1,0 +1,171 @@
+{
+  "id": "2026-11-15-atlas-s1",
+  "channel": "Counterfactual Atlas",
+  "format": "short",
+  "title": "What If Earth Stopped Rotating? One Sunrise a Year #shorts",
+  "thumb": "ONE YEAR DAY",
+  "description": "If Earth stopped rotating relative to distant stars, but its orbit and everything else were safely preserved, sunrise would return about once per year for many locations. This is an idealized thought experiment; a real instantaneous stop would be catastrophic. The Moon's orbit does not determine that solar day.\n\nSources:\nNASA Earth Facts: https://science.nasa.gov/earth/facts/\nNASA Spaceflight Reference Systems: https://science.nasa.gov/learn/basics-of-space-flight/chapter2-1/\nNASA GSFC answer on Earth stopping: https://science.gsfc.nasa.gov/attic/cosmicopia.gsfc.nasa.gov/qa_earth.html\nNASA Moon Facts: https://science.nasa.gov/moon/facts/\n\nOriginal diagrams and computer-generated narration. Simplified physical assumptions are stated in the video.",
+  "tags": [
+    "what if",
+    "earth rotation",
+    "solar day",
+    "earth orbit",
+    "physics",
+    "astronomy",
+    "science",
+    "shorts"
+  ],
+  "links": [],
+  "publishAt": "2026-11-15T14:07:00Z",
+  "meta": {
+    "generator": "autopilot",
+    "creativeDirector": {
+      "id": "Counterfactual Atlas",
+      "fingerprint": "a06dc4096b116f49f9acdd9db296bedea08fdd3a4a7f3fcb0ea5f295cfd91da8",
+      "version": 1,
+      "camera": "float",
+      "captions": "minimal"
+    },
+    "topic": "If Earth stopped axial rotation, what would cause the sunrise cycle?",
+    "axis": "astronomy and orbits",
+    "slot": "14:00",
+    "model": "ollama:qwen3.5:4b",
+    "review": {
+      "pass": true,
+      "hook": 7,
+      "originality": 7,
+      "accuracy": 9,
+      "unsupported_claims": [],
+      "fixes": []
+    },
+    "reviewStatus": "INDEPENDENT_SCRIPT_FACTCHECK_PRIVATE_RENDER_ONLY",
+    "editorialProvenance": {
+      "writer": "local Qwen draft, factually rejected and entirely reworked",
+      "reviewer": "separate GPT-6 source-grounded editorial review (not owner approval)",
+      "sources": [
+        "https://science.nasa.gov/earth/facts/",
+        "https://science.nasa.gov/learn/basics-of-space-flight/chapter2-1/",
+        "https://science.gsfc.nasa.gov/attic/cosmicopia.gsfc.nasa.gov/qa_earth.html",
+        "https://science.nasa.gov/moon/facts/"
+      ],
+      "assumptions": [
+        "axial spin stops relative to distant stars",
+        "orbital motion unchanged",
+        "catastrophic inertial effects excluded"
+      ],
+      "derived": [
+        "Equator speed ~ pi*12756km / 23.9h = 1676km/h, rounded 1670",
+        "With zero sidereal rotation, the Sun completes one apparent revolution per Earth orbit ~365.25 days"
+      ],
+      "rights": "Original motion diagrams, plus a public-domain NASA Earth image only if Commons verifies its rights and attribution; otherwise fail closed",
+      "release": "private render eligibility only; requires real full media review and exact owner approval to publish"
+    }
+  },
+  "scenes": [
+    {
+      "say": "What if Earth stopped spinning, but everything somehow slowed down safely?",
+      "show": {
+        "type": "title",
+        "text": "EARTH STOPS",
+        "kicker": "ONE-YEAR DAY"
+      }
+    },
+    {
+      "say": "Today the equator moves eastward at roughly seventeen hundred kilometres per hour.",
+      "show": {
+        "type": "number",
+        "from": 0,
+        "value": 1670,
+        "unit": "km/h",
+        "label": "Earth equator speed"
+      }
+    },
+    {
+      "say": "A real instant stop would be catastrophic, so this is a simplified thought experiment.",
+      "show": {
+        "type": "image",
+        "query": "The Blue Marble Apollo 17 Earth NASA 1972",
+        "caption": "Earth photographed by Apollo 17 (NASA)"
+      }
+    },
+    {
+      "say": "Earth would still complete one orbit around the Sun in roughly three hundred sixty-five days.",
+      "show": {
+        "type": "timeline",
+        "events": [
+          {
+            "year": "Now",
+            "label": "Earth spins daily"
+          },
+          {
+            "year": "365 days",
+            "label": "One solar orbit"
+          }
+        ]
+      }
+    },
+    {
+      "say": "Without axial spin, that orbit alone changes the Sun's direction in our sky.",
+      "show": {
+        "type": "number",
+        "from": 1,
+        "value": 365,
+        "unit": "days",
+        "label": "Simplified solar day"
+      }
+    },
+    {
+      "say": "Instead of sunrise every day, many places would see sunrise approximately once each year.",
+      "show": {
+        "type": "bars",
+        "title": "Time between sunrises",
+        "unit": "days",
+        "items": [
+          {
+            "label": "Now",
+            "value": 1
+          },
+          {
+            "label": "No spin",
+            "value": 365,
+            "highlight": true
+          }
+        ]
+      }
+    },
+    {
+      "say": "Around the equator, this means roughly six months of daylight and six months of darkness.",
+      "show": {
+        "type": "list",
+        "title": "Simplified equator",
+        "items": [
+          "About 6 months lit",
+          "About 6 months dark"
+        ]
+      }
+    },
+    {
+      "say": "The Moon still circles Earth every twenty-seven days, but that does not set the solar day.",
+      "show": {
+        "type": "timeline",
+        "events": [
+          {
+            "year": "27 days",
+            "label": "Moon's orbit"
+          },
+          {
+            "year": "365 days",
+            "label": "Earth's orbit"
+          }
+        ]
+      }
+    },
+    {
+      "say": "So the surprising answer is one year between sunrises, not fifty-eight days.",
+      "show": {
+        "type": "end",
+        "text": "ONE SOLAR DAY = ONE YEAR"
+      }
+    }
+  ]
+}
