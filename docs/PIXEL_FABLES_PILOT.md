@@ -26,3 +26,7 @@ Durable local review package: `~/Documents/ContentCreationLab/production/pixel-f
 ## Still unverified
 
 Creative audience reception, upload account authorization, distribution and monetization are unknown. Other 47 automated channels have independent creative specifications, but have not all passed bespoke frame-level acceptance. The continuously operated off-Mac worker and policy-compliant daily mass publishing are still separate production gates. The video is deliberately not posted.
+
+## Original click-surface upgrade
+
+The original Pixel Fables thumbnail is composed by `engine/pixel_thumbnail.py` directly from the **actual 3D bridge scene frame** at approximately 60% through that shot. It is not a stock image or the shared generic Engine background. The typography, hero, bridge and palette are original to this story. The full render pack records `pixelPosterFromReal3d=true`; `scripts/verify_review.py` rejects Pixel Fables media when that evidence is missing. Standalone 1280x720 JPEG and mobile-sized contact inspection were performed. The exact thumbnail and updated checksums are preserved alongside the video in the private review package. Predictive click-through and mobile feed exposure remain unmeasured; the owner must still approve the finished upload package.
