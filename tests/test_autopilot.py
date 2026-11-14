@@ -44,7 +44,7 @@ class Scripted:
         if "strict editor" in system:
             return json.dumps({"hook": 8, "originality": 7, "accuracy": 8, "unsupported_claims": [], "fixes": [], "pass": True})
         if "Plan a long video" in user:
-            return json.dumps({"title": "How the Sun keeps Earth in orbit", "thumb": "The Sun's invisible leash", "description": "A slow look at gravity and orbits.", "tags": ["gravity"], "chapters": [{"name": f"C{i}", "beats": "b", "open_loop": "l"} for i in range(6)]})
+            return json.dumps({"title": "How the Sun keeps Earth in orbit", "thumb": "The Sun's invisible leash", "description": "A slow look at gravity and orbits.", "tags": ["gravity"], "chapters": [{"name": f"C{i}", "beats": ["Explain gravity", "Show an orbit"], "open_loop": "l"} for i in range(6)]})
         if "Write chapter" in user:
             sc = [{"say": f"Sentence {i} about the long motion of the planets around the Sun, told clearly and calmly, with a specific number like {100 + i} kilometres per second.", "show": ([{"type": "number", "from": 0, "value": 30, "unit": "km/s", "label": "Orbital speed"}, {"type": "list", "title": "T", "items": ["a", "b"]}, None][i % 3])} for i in range(8)]
             sc[2]["show"] = {"type": "orbit", "ratio": 0.5, "a": "Earth today", "b": "A second orbit"}

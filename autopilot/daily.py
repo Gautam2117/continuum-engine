@@ -250,7 +250,14 @@ class Planner:
         for i, ch in enumerate(chapters, 1):
             first = "This chapter opens the video: first scene type \"title\", then deliver the promise inside 20 seconds. " if i == 1 else ""
             last = "This is the last chapter: answer the title, then finish with an \"end\" scene. " if i == len(chapters) else ""
-            prompt = prompts.CHAPTER.replace("{i}", str(i)).replace("{n}", str(len(chapters))).replace("{name}", ch.get("name", "")).replace("{words}", str(per)).replace("{scenes}", str(max(3, per // 55))).replace("{first}", first).replace("{last}", last).replace("{beats}", ch.get("beats", "")).replace("{loop}", ch.get("open_loop", ""))
+            fields = {}
+            for placeholder, field in (("name", "name"), ("beats", "beats"), ("loop", "open_loop")):
+                value = ch.get(field)
+                fields[placeholder] = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False) if value is not None else ""
+            prompt = (prompts.CHAPTER.replace("{i}", str(i)).replace("{n}", str(len(chapters)))
+                      .replace("{words}", str(per)).replace("{scenes}", str(max(3, per // 55)))
+                      .replace("{first}", first).replace("{last}", last))
+            prompt = re.sub(r"\{(name|beats|loop)\}", lambda match: fields[match[1]], prompt)
             if scenes:
                 prompt += f"\nPrevious chapter ended with: {scenes[-1].get('say', '')}"
             if fixes:
