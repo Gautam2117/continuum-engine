@@ -145,8 +145,57 @@ def discover_openai_compat(base: str, key: str, fallback: list[str], prefer: lis
     return ranked[:6]
 
 
+class OllamaProvider(Provider):
+    """Loopback-only, fully local, zero-paid-API draft generation.
+
+    Ollama's native /api/chat supports think=false; its OpenAI-compatible
+    endpoint may consume the token limit reasoning before returning JSON.
+    """
+    def __init__(self, model: str):
+        if not isinstance(model, str) or not model.strip() or len(model) > 120:
+            raise ValueError("OLLAMA_MODEL must name an installed model")
+        super().__init__(name="ollama", base="http://127.0.0.1:11434", key="",
+                         models=[model.strip()], best=[model.strip()])
+
+    def chat(self, model: str, system: str, user: str, temperature: float,
+             max_tokens: int, want_json: bool) -> str:
+        if model not in self.models:
+            raise LLMError("Unknown local model")
+        request_data = {
+            "model": model, "stream": False, "think": False,
+            "messages": [{"role": "system", "content": system},
+                         {"role": "user", "content": user}],
+            "options": {"temperature": temperature, "num_predict": max_tokens},
+        }
+        if want_json:
+            request_data["format"] = "json"
+        request = urllib.request.Request(
+            "http://127.0.0.1:11434/api/chat",
+            data=json.dumps(request_data).encode("utf-8"),
+            headers={"Content-Type": "application/json", "User-Agent": "continuum-local-drafts"},
+        )
+        # Ignore HTTP_PROXY or other ambient proxy settings for local inference.
+        try:
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            with opener.open(request, timeout=240) as resp:
+                data = json.load(resp)
+        except (urllib.error.URLError, OSError, TimeoutError, ValueError) as error:
+            raise LLMError(f"local Ollama unavailable: {type(error).__name__}") from error
+        result = data.get("message", {}).get("content")
+        if not isinstance(result, str) or not result.strip():
+            raise LLMError("local Ollama provided no usable response")
+        return result
+
+
 def providers_from_env() -> list[Provider]:
+    # Production's zero-paid-API local-only mode does not even inspect or
+    # contact remote providers, regardless of ambient secret variables.
+    local = os.environ.get("OLLAMA_MODEL", "").strip()
+    if os.environ.get("CONTINUUM_LLM_LOCAL_ONLY") == "1":
+        return [OllamaProvider(local)] if local else []
     out: list[Provider] = []
+    if local:
+        out.append(OllamaProvider(local))
     if k := os.environ.get("GEMINI_API_KEY"):
         best, bulk = discover_gemini(k)
         out.append(Provider("gemini", "https://generativelanguage.googleapis.com/v1beta/openai", k, bulk, best=best))

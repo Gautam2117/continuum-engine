@@ -177,10 +177,13 @@ class Planner:
         if pb["slug"] == "10sec":
             brief = ("Return JSON with title, thumb, description, tags, scenes. "
                      "Make an actual 9-to-14-second scientific Short, NOT a 40-second video: "
-                     "18-26 spoken words in exactly 4 scenes. "
-                     "Scene 1 is a one-line title hook (<=8 spoken words); "
-                     "scene 2 is a quantified or observed fact; scene 3 visibly demonstrates why; "
-                     "scene 4 is an end card with a one-line payoff, never a generic CTA. "
+                     "18-26 spoken words TOTAL in exactly 4 scenes. "
+                     "HARD CONSTRAINT: each scene.say must be 4 to 6 words; "
+                     "count the words before responding; never exceed 26 across all four scenes. "
+                     "Scene 1 is a 4-6-word title hook; "
+                     "scene 2 is a 4-6-word quantified or observed fact; "
+                     "scene 3 is a 4-6-word visual cause; "
+                     "scene 4 is a 4-6-word end-card payoff, never a generic CTA. "
                      "Use distinct visuals. Never add padding to reach a longer runtime. "
                      "Ground every specific claim. No experiment that requires risky materials.")
         user = (
@@ -372,6 +375,13 @@ class Planner:
                         "unsupported_claims": [], "fixes": [],
                     }
                     spec["meta"]["model"] = self.llm.last_model
+                    if (self.llm.last_model or "").startswith("ollama:"):
+                        # One small local model evaluating itself is not an
+                        # independent fact-check or creative approval.
+                        # Preserve its draft and scores, but deny render/publish
+                        # eligibility until a separate editor checks the work.
+                        spec["meta"]["review"]["pass"] = False
+                        spec["meta"]["reviewStatus"] = "LOCAL_DRAFT_INDEPENDENT_REVIEW_REQUIRED"
                     return spec
                 bad = [f"editor: {f}" for f in (review.get("fixes") or ["raise hook and accuracy"])][:5] + [f"unsupported: {c}" for c in (review.get("unsupported_claims") or [])][:3]
             self.log(f"  {spec_id}: attempt {attempt + 1} rejected ({len(bad)} issues): {bad[0][:100]}")

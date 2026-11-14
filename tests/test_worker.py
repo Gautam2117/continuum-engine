@@ -368,3 +368,18 @@ def test_missing_editorial_scores_block_before_starting_a_render(tmp_path, monke
     old['meta']['review']['unsupported_claims']=['Missing source']
     with pytest.raises(ValueError,match='unsupported claims'):
         editorial_gate(old)
+
+
+def test_unreviewed_local_model_draft_is_not_enqueued(tmp_path, monkeypatch):
+    spec = _sample(tmp_path, monkeypatch)
+    data=json.loads(spec.read_text())
+    data['meta']={'generator':'autopilot','model':'ollama:qwen3.5:4b',
+                  'review':{'pass':False,'hook':9,'accuracy':9,'originality':9,
+                            'unsupported_claims':[], 'fixes':[]}}
+    spec.write_text(json.dumps(data))
+    db=worker.connection(tmp_path/'db'/'queue.sqlite3')
+    try:
+        result=worker.enqueue(db,[spec],now=NOW)
+        assert result['imported']==0 and result['invalid']==1
+        assert db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0]==0
+    finally:db.close()
