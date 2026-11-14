@@ -241,6 +241,7 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
     asset_provenance: list[dict] = []
     elapsed = 0.0
     prev_full = None
+    pixel_poster_frame = None
     b3d_requested = b3d_rendered = 0
     b3d_fallback_scenes: list[int] = []
     image_fallback_scenes: list[int] = []
@@ -279,6 +280,11 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
             frames = fn(ctx, dur, show, words)
         for k, vframe in enumerate(frames):
             t = k / S.FPS
+            if (slug == "pixel" and kind == "b3d" and show.get("_rendered3d") is True
+                    and show.get("scene") == "voxel"
+                    and (show.get("params") or {}).get("act") == "bridge"
+                    and pixel_poster_frame is None and t >= dur * .6):
+                pixel_poster_frame = vframe.copy()
             view = stg.camera(vframe, t)
             stg.paint_stickers(view, t)
             if layout.vertical:
@@ -308,7 +314,11 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
     wav.unlink(missing_ok=True)
 
     # 4. Thumbnail and upload pack.
-    thumbnail(spec, style, out / "thumb.jpg", first_image)
+    if slug == "pixel" and pixel_poster_frame is not None:
+        from .pixel_thumbnail import pixel_poster
+        pixel_poster(spec, style, out / "thumb.jpg", pixel_poster_frame)
+    else:
+        thumbnail(spec, style, out / "thumb.jpg", first_image)
     links = spec.get("links") or []
     desc = spec.get("description", "").strip()
     if links:
@@ -330,6 +340,7 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
         "renderEvidence": {
             "b3dRequested": b3d_requested, "b3dRendered": b3d_rendered,
             "b3dFallbackScenes": b3d_fallback_scenes,
+            "pixelPosterFromReal3d": pixel_poster_frame is not None if slug == "pixel" else None,
             "imageFallbackScenes": image_fallback_scenes,
             "personaFallbackScenes": persona_fallback_scenes,
             "licensedImageAssets": asset_provenance,

@@ -20,6 +20,8 @@ def verify(spec: dict, pack: dict, probe: dict, thumbnail: Path) -> None:
     evidence = pack.get("renderEvidence") or {}
     if expected3d and (evidence.get("b3dRequested") != expected3d or evidence.get("b3dRendered") != expected3d):
         raise ValueError("Requested 3D scene silently fell back to 2D; creative review is not complete")
+    if spec["channel"] == "Pixel Fables" and evidence.get("pixelPosterFromReal3d") is not True:
+        raise ValueError("Pixel Fables click surface lacks a real original 3D story frame")
     if expected_images and (not isinstance(evidence.get("imageFallbackScenes"), list) or evidence["imageFallbackScenes"]):
         raise ValueError("Required licensed image was unavailable; creative review is not complete")
     if expected_personas and (not isinstance(evidence.get("personaFallbackScenes"), list) or evidence["personaFallbackScenes"]):
