@@ -197,6 +197,19 @@ def snapshot(specs: pathlib.Path, db: pathlib.Path, *, today: dt.date | None = N
     }
 
 
+def awake_argv(argv: list[str]) -> list[str]:
+    """Prevent idle sleep only while an active Mac work step is executing.
+
+    This cannot prevent shutdown, closed-lid sleep or power loss and is never
+    used on Linux/cloud workers. The wrapper inherits the process group so
+    the supervisor's timeout can still terminate the entire workload.
+    """
+    if sys.platform != "darwin":
+        return argv
+    caffeinate = shutil.which("caffeinate")
+    return [caffeinate, "-i", *argv] if caffeinate else argv
+
+
 def run_command(argv: list[str], *, timeout: int, log: pathlib.Path,
                 env: dict[str, str] | None = None) -> dict:
     """Never a shell, never logs environment values or model API credentials."""
@@ -204,7 +217,7 @@ def run_command(argv: list[str], *, timeout: int, log: pathlib.Path,
     t0 = time.monotonic()
     try:
         with log.open("a", encoding="utf-8") as output:
-            proc = subprocess.Popen(argv, cwd=ROOT, stdin=subprocess.DEVNULL,
+            proc = subprocess.Popen(awake_argv(argv), cwd=ROOT, stdin=subprocess.DEVNULL,
                                     stdout=output, stderr=subprocess.STDOUT,
                                     start_new_session=True, env=env)
             try:

@@ -200,3 +200,16 @@ def test_blender_probe_only_when_next_eligible_job_is_3d(monkeypatch, tmp_path):
                    ((date+dt.timedelta(hours=2)).isoformat(),))
         db.commit()
     assert sup.next_queued_job_needs_blender(db_path) is False
+
+
+def test_mac_prevents_idle_sleep_only_while_a_work_step_runs(monkeypatch):
+    command=['/some/bin/python','script.py','--no-public-upload']
+    monkeypatch.setattr(sup.sys,'platform','darwin')
+    monkeypatch.setattr(sup.shutil,'which',lambda name: '/usr/bin/caffeinate' if name=='caffeinate' else None)
+    assert sup.awake_argv(command)==['/usr/bin/caffeinate','-i',*command]
+    assert command==['/some/bin/python','script.py','--no-public-upload']
+    monkeypatch.setattr(sup.sys,'platform','linux')
+    assert sup.awake_argv(command)==command
+    monkeypatch.setattr(sup.sys,'platform','darwin')
+    monkeypatch.setattr(sup.shutil,'which',lambda name: None)
+    assert sup.awake_argv(command)==command
