@@ -168,11 +168,17 @@ def recover_stale(db: sqlite3.Connection, now: dt.datetime, *, max_age_hours: fl
     return updated.rowcount
 
 
-def claim(db: sqlite3.Connection, now: dt.datetime | None = None) -> dict | None:
+def claim(db: sqlite3.Connection, now: dt.datetime | None = None, *,
+          window: tuple[dt.date, dt.date] | None = None) -> dict | None:
     now = now or utcnow()
     db.execute("BEGIN IMMEDIATE")
-    row = db.execute("SELECT * FROM jobs WHERE state IN ('queued','retry') AND eligible_at <= ? "
-                     "ORDER BY eligible_at,job_key LIMIT 1", (iso(now),)).fetchone()
+    sql = "SELECT * FROM jobs WHERE state IN ('queued','retry') AND eligible_at <= ?"
+    params = [iso(now)]
+    if window is not None:
+        start, end = window
+        sql += " AND spec_id >= ? AND spec_id < ?"
+        params.extend([start.isoformat(), (end + dt.timedelta(days=1)).isoformat()])
+    row = db.execute(sql + " ORDER BY eligible_at,job_key LIMIT 1", params).fetchone()
     if row is None:
         db.commit()
         return None
@@ -335,9 +341,10 @@ def render_one(job: dict, *, review_root: pathlib.Path, time_budget: int = 7200,
 
 
 def process_next(db: sqlite3.Connection, *, review_root: pathlib.Path, now: dt.datetime | None = None,
-                 render_fn=render_one, time_budget: int = 7200, max_attempts: int = 3) -> dict:
+                 render_fn=render_one, time_budget: int = 7200, max_attempts: int = 3,
+                 window: tuple[dt.date, dt.date] | None = None) -> dict:
     now = now or utcnow()
-    job = claim(db, now)
+    job = claim(db, now, window=window)
     if job is None:
         return {"status": "idle"}
     try:
@@ -379,9 +386,14 @@ def main():
     os.umask(0o077)  # protect the lock, SQLite queue, manifests and logs
 
     def run() -> dict:
+        window = None
         with closing(connection(args.db)) as db:
             if args.action in ("scan", "cycle"):
-                files = [args.spec] if args.spec else future_specs(days=args.days, start_offset=args.start_offset)
+                today = utcnow().date()
+                start = today + dt.timedelta(days=args.start_offset)
+                if args.action == "cycle" and not args.spec:
+                    window = (start, start + dt.timedelta(days=args.days - 1))
+                files = [args.spec] if args.spec else future_specs(today=today, days=args.days, start_offset=args.start_offset)
                 imported = enqueue(db, files)
                 if args.action == "scan":
                     return imported
@@ -389,7 +401,7 @@ def main():
                 # Safe to recover immediately: an exclusive render lock proves
                 # no other same-host process owns any still-running jobs.
                 recovered = recover_stale(db, utcnow(), max_age_hours=0)
-                jobs = [process_next(db, review_root=args.reviews, time_budget=args.timeout)
+                jobs = [process_next(db, review_root=args.reviews, time_budget=args.timeout, window=window)
                         for _ in range(args.limit)]
                 return {"scan": imported if args.action == "cycle" else None,
                         "recovered": recovered, "jobs": jobs}

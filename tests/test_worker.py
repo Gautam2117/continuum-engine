@@ -257,3 +257,20 @@ def test_scan_reactivates_a_previously_superseded_spec_after_rollback(tmp_path, 
         assert worker.claim(db, NOW) is None
     finally:
         db.close()
+
+
+def test_cycle_window_prioritizes_current_backlog_over_older_queued_specs(tmp_path, monkeypatch):
+    current = _sample(tmp_path, monkeypatch)
+    old = current.parent.parent / "2026-11-15" / current.name
+    old.parent.mkdir()
+    old.write_text(current.read_text().replace("2026-11-16", "2026-11-15"))
+    db = worker.connection(tmp_path / "queue.db")
+    try:
+        worker.enqueue(db, [old, current], now=NOW)
+        today = dt.date(2026, 11, 16)
+        job = worker.claim(db, NOW, window=(today, today))
+        assert job and job["spec_id"] == "2026-11-16-atlas-s1"
+        assert worker.claim(db, NOW, window=(today, today)) is None
+        assert worker.claim(db, NOW)["spec_id"] == "2026-11-15-atlas-s1"
+    finally:
+        db.close()
