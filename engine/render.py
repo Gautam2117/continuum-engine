@@ -234,6 +234,8 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
     bd = S.Backdrop(style, W, H, seed=len(spec["id"]))
     ctx = S.Ctx(style, W, layout.view_h, bd, spec["channel"], vertical=layout.vertical)
     slug = style.slug
+    from autopilot.directors import DIRECTORS
+    direction = DIRECTORS.get(spec["channel"])
     first_image = None
     asset_provenance: list[dict] = []
     elapsed = 0.0
@@ -256,7 +258,10 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
             show["hero"], ems = ems[0], []
         if kind in ("title", "end"):
             ems = ems[:1]
-        cfg = {"captions": not (slug == "drift" and fmt == "long"), "host": sc.get("host", True) and slug not in NO_MASCOT}
+        cfg = {"captions": not (slug == "drift" and fmt == "long"),
+               "host": sc.get("host", True) and slug not in NO_MASCOT,
+               "camera": direction.camera if direction else "push",
+               "caption_mode": direction.captions if direction else "impact"}
         stg = stage.Scene(layout, style, slug, spec["channel"], kind, say, dur, audio, ems, cfg, first=(si == 0))
         fn = S.SCENES[kind]
         if kind in ("image", "persona"):

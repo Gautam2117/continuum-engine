@@ -15,6 +15,7 @@ import re
 from engine.spec_check import problems
 
 from . import insights, prompts
+from .directors import director_for
 from .ground import ground, ground_news, news_items
 from .llm import LLM, LLMError
 from .normalize import speakable
@@ -76,18 +77,17 @@ def recent_titles(channel: str) -> list[str]:
 
 def exemplar(channel: str, fmt: str) -> str:
     """A compact real spec to copy the shape from (same channel if there is one, otherwise any)."""
+    # Never seed one channel with a different channel's animation grammar.
+    # This previous fallback homogenized brand-new channels across the network.
     best = None
     for p in sorted(SPECS.glob("*/*.json"), reverse=True):
         try:
             s = json.loads(p.read_text())
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, OSError):
             continue
-        if s.get("format") != fmt:
-            continue
-        if s.get("channel") == channel:
+        if s.get("format") == fmt and s.get("channel") == channel:
             best = s
             break
-        best = best or s
     if not best:
         return ""
     keep = {"title": best["title"], "thumb": best.get("thumb"), "scenes": best["scenes"][: 6 if fmt == "short" else 5]}
@@ -154,6 +154,7 @@ class Planner:
             prompts.craft_for(pb),
             f"CHANNEL: {channel}\nPromise: {pb['promise']}\nAudience: {pb['audience']}\nVoice: {pb['voice']}\nHook: {pb['hook']}\n"
             f"Never: {'; '.join(pb['avoid'])}\nPreferred visuals: {', '.join(pb['scene_bias'])}",
+            director_for(channel).prompt(),
         ]
         if pb.get("fiction"):
             parts.append(prompts.FICTION)
@@ -291,7 +292,10 @@ class Planner:
         return {
             "id": spec_id, "channel": channel, "format": fmt, "title": title, "thumb": str(raw.get("thumb") or "")[:60] or title[:40],
             "description": desc, "tags": tags, "links": pb["links"], "publishAt": when.strftime("%Y-%m-%dT%H:%M:00Z"),
-            "meta": {"generator": "autopilot", "topic": topic["topic"], "axis": topic.get("axis", ""), "slot": slot_key(when),
+            "meta": {"generator": "autopilot", "creativeDirector": {
+                         "id": channel, "fingerprint": director_for(channel).fingerprint(), "version": 1,
+                         "camera": director_for(channel).camera, "captions": director_for(channel).captions},
+                     "topic": topic["topic"], "axis": topic.get("axis", ""), "slot": slot_key(when),
                      **({"news_url": topic["news"]["url"]} if topic.get("news") else {})},
             "scenes": scenes,
         }
@@ -302,7 +306,7 @@ class Planner:
             for scene in spec["scenes"]
         )
         pb = PLAYBOOKS[channel]
-        facts = f"{pb['promise']} {pb.get('rule', '')}".strip()
+        facts = f"{pb['promise']} {pb.get('rule', '')}\n{director_for(channel).prompt()}".strip()
         fic = "This is a FICTION channel: invented characters and events are allowed and are not 'unsupported claims'. Only real-world facts need support.\n" if pb.get("fiction") else ""
         user = (f"CHANNEL BRIEF AND PRODUCTION CONSTRAINTS (violations require revision): {facts}\n{fic}GROUNDING:\n{g['text'][:6000]}\n\n"
                 f"TITLE: {spec['title']}\nDESCRIPTION: {spec['description']}\nSCRIPT:\n{script}")
