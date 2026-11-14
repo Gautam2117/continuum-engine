@@ -50,3 +50,20 @@ The service is **NOT enabled by this repository change**. This systemd configura
 Monitor `python scripts/worker.py status` and `/var/lib/continuum/reviews`. Blocked jobs need a source/code fix and deliberate re-enqueue of an updated spec. Do not edit DB rows to make failed media appear verified. Artifacts and 3D caches consume storage, so retain only the evidence you need and archive verified videos securely with owner consent. Workers must not run over internet-exposed shared storage without additional locking and authentication.
 
 Avoid committing secrets, downloaded Kokoro weights, generated videos, SQLite state, OAuth tokens, face stills, or media requiring third-party rights clearance. The existing GitHub owner-approval workflow is *not* automatically compatible with local worker manifests because it requires a GitHub review run ID. This deliberate mismatch prevents an unreviewed local artifact from bypassing owner approval.
+
+## Import a private worker package for editorial review
+
+Transfer the worker's package directory through your authenticated SSH connection to
+a private landing directory. Verify the host key and keep the files off public release
+storage. From the editor's engine checkout, run:
+
+```bash
+python -m scripts.import_private_review /private/landing/episode \
+  specs/2026-11-16/atlas-s1.json /private/editor-inbox
+```
+
+The importer checks a copied snapshot against the tracked spec, the manifest and
+checksums, decodes the media, and moves the package into the private inbox atomically.
+Reimports of the identical cut reuse the same path. The editor can review the exact video
+and thumbnail there. Import preserves the worker's unapproved state. The existing
+GitHub release workflow still requires its own approval and artifact provenance.
