@@ -63,7 +63,7 @@
       "say": "Right now, its average distance is about three hundred eighty-four thousand kilometres.",
       "show": {
         "type": "number",
-        "from": 0,
+        "from": 384400,
         "value": 384400,
         "unit": "km",
         "label": "Today's average Moon distance",
@@ -74,7 +74,7 @@
       "say": "At half the distance, roughly one hundred ninety-two thousand kilometres, the tide-generating pull changes dramatically.",
       "show": {
         "type": "number",
-        "from": 0,
+        "from": 192200,
         "value": 192200,
         "unit": "km",
         "label": "Hypothetical separation",
