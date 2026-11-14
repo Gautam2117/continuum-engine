@@ -712,3 +712,7 @@ SCENES.update(_scene3d.SCENES)
 from .pip import pip  # noqa: E402
 
 SCENES["pip"] = pip
+
+# Original independent illustration stage for Foundbeam's documented acquisition cases.
+from .foundbeam import scene_foundbeam_flow  # noqa: E402
+SCENES["foundbeam_flow"] = scene_foundbeam_flow
