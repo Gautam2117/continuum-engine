@@ -31,7 +31,7 @@ The worker does **not** produce the owner approval record required by `scripts/r
 
 These templates assume an intentionally provisioned `/opt/continuum-engine` checkout, a `continuum` system account, `/opt/continuum-engine/.venv` with tested dependencies, and `ffmpeg`/font dependencies installed. The required paths do not exist until the machine is provisioned. **Do not execute these steps on a random computer or an account without authorization.**
 
-The two unit files in [`docs/systemd`](systemd) set a 10-minute timer. Running services cannot overlap and the SQLite lock is the final guard. They use a fixed non-root user, private state directory and a read-only project install. `KOKORO_DIR` and `B3D_CACHE` are writable caches under `/var/cache/continuum`. 3D Blender Python must be installed and benchmarked separately on the chosen hardware, especially on ARM machines.
+The two unit files in [`docs/systemd`](systemd) set a 10-minute timer. Running services cannot overlap and the SQLite lock is the final guard. They use a fixed non-root user, private state directory and a read-only project install. Kokoro models cache under `/var/cache/continuum`. Blender frames are temporary within each job and removed after the render, or on recovery of an interrupted staging directory. 3D Blender Python must be installed and benchmarked separately on the chosen hardware, especially on ARM machines.
 
 Once the host prerequisites actually exist, its administrator installs and enables the timer:
 

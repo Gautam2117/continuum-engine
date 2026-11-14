@@ -322,3 +322,25 @@ def test_retry_delay_starts_after_render_failure(tmp_path, monkeypatch):
         assert row["eligible_at"] == worker.iso(finished + dt.timedelta(minutes=15))
     finally:
         db.close()
+
+
+def test_worker_removes_generated_blender_frames_on_render_failure(tmp_path, monkeypatch):
+    spec = _sample(tmp_path, monkeypatch)
+    from engine import spec_check
+    monkeypatch.setattr(spec_check, "problems", lambda *args, **kwargs: [])
+    monkeypatch.setattr(worker.shutil, "disk_usage",
+                        lambda path: type("Disk", (), {"free": 4 * 1024**3})())
+    review = tmp_path / "reviews"
+
+    def fail(command, *, env, **kwargs):
+        cache = worker.pathlib.Path(env["B3D_CACHE"])
+        (cache / "frame.png").write_bytes(b"derived frame")
+        raise RuntimeError("render interrupted")
+
+    monkeypatch.setattr(worker, "execute", fail)
+    sha = worker.digest(spec)
+    with pytest.raises(RuntimeError, match="render interrupted"):
+        worker.render_one({"spec_path": str(spec), "spec_sha256": sha, "job_key": f"{spec.stem}:{sha}"},
+                          review_root=review)
+    assert list(review.glob(".failed-*"))
+    assert not list(review.rglob("frame.png"))
