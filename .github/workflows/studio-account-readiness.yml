@@ -87,6 +87,10 @@ jobs:
           d=json.loads(pathlib.Path(sys.argv[1]).read_text())
           if d.get('ready') is not True or d.get('channel')!='Counterfactual Atlas' or d.get('identityMatch') is not True:
               raise SystemExit('Atlas OAuth identity mismatch; publishing stays disabled')
+          if d.get('atlasOnlyPublisherEnabled') is not True:
+              raise SystemExit('Atlas-only pilot publishing switch not enabled on deployed Studio')
+          if d.get('publicAutoPublisherEnabled') is not False:
+              raise SystemExit('Global publishing switch unexpectedly enabled: stop the Atlas-only pilot')
           channel_id=d.get('youtubeChannelId','')
           if not channel_id.startswith('UC') or len(channel_id)!=24:
               raise SystemExit('Invalid live Atlas YouTube channel ID')
@@ -99,6 +103,7 @@ jobs:
               '- 28-day stored views: **'+str(d.get('reportedViews28','unknown'))+'**',
               '- Atlas upload authorization: **NOT GRANTED by this test**',
               '- Global automated publisher: **'+str(bool(d.get('publicAutoPublisherEnabled')))+'**',
+              '- Atlas-only approved-media publisher: **'+str(bool(d.get('atlasOnlyPublisherEnabled')))+'**',
               '',
               'No credentials, token or email is shown. No video was uploaded.'
           ]
