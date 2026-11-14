@@ -197,7 +197,8 @@ def snapshot(specs: pathlib.Path, db: pathlib.Path, *, today: dt.date | None = N
     }
 
 
-def run_command(argv: list[str], *, timeout: int, log: pathlib.Path) -> dict:
+def run_command(argv: list[str], *, timeout: int, log: pathlib.Path,
+                env: dict[str, str] | None = None) -> dict:
     """Never a shell, never logs environment values or model API credentials."""
     log.parent.mkdir(parents=True, exist_ok=True)
     t0 = time.monotonic()
@@ -205,7 +206,7 @@ def run_command(argv: list[str], *, timeout: int, log: pathlib.Path) -> dict:
         with log.open("a", encoding="utf-8") as output:
             proc = subprocess.Popen(argv, cwd=ROOT, stdin=subprocess.DEVNULL,
                                     stdout=output, stderr=subprocess.STDOUT,
-                                    start_new_session=True)
+                                    start_new_session=True, env=env)
             try:
                 ret = proc.wait(timeout=timeout)
             except subprocess.TimeoutExpired:
@@ -267,6 +268,7 @@ def allowed_planner() -> tuple[bool, str]:
 def cycle(args) -> dict:
     state = args.state.resolve()
     specs = args.specs.resolve()
+    spool_env = {**os.environ, "CONTINUUM_SPEC_DIR": str(specs)}
     review_db = args.db.resolve()
     review_dir = args.reviews.resolve()
     started = now_utc()
@@ -279,7 +281,7 @@ def cycle(args) -> dict:
                     [sys.executable, str(ROOT / "scripts/autopilot.py"), "plan",
                      "--days", str(args.days), "--start-offset", "1",
                      "--max-calls", str(args.max_calls)],
-                    timeout=args.plan_timeout, log=state/"planner.log")
+                    timeout=args.plan_timeout, log=state/"planner.log", env=spool_env)
             else:
                 steps["plan"] = {"status": "not-run", "reason": message}
         if args.render:
@@ -301,7 +303,7 @@ def cycle(args) -> dict:
                      "--db", str(review_db), "--reviews", str(review_dir),
                      "--limit", str(args.render_limit), "--timeout", str(args.render_timeout)],
                     timeout=args.render_timeout * args.render_limit + 120,
-                    log=state/"render.log")
+                    log=state/"render.log", env=spool_env)
         archive_root = os.environ.get("CONTINUUM_ARCHIVE_ROOT", "").strip()
         if archive_root:
             if os.environ.get("CONTINUUM_ARCHIVE_MOUNT_ENCRYPTED") != "1":
