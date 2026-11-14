@@ -133,3 +133,15 @@ def test_structurally_valid_unreviewed_autopilot_spec_does_not_count_as_render_r
     assert report['missingSpecs']==49
     assert report['missingRenderReady']==50
     assert 'editorial score' in report['editorialHolds'][0]['reason']
+
+
+def test_archive_needs_an_explicit_trusted_mount(monkeypatch,tmp_path):
+    args=sup.parser().parse_args(['cycle','--state',str(tmp_path/'private'),
+        '--db',str(tmp_path/'db.sqlite3'),'--specs',str(tmp_path/'spool'),
+        '--reviews',str(tmp_path/'reviews'),'--days','1'])
+    monkeypatch.setenv('CONTINUUM_ARCHIVE_ROOT',str(tmp_path/'otherdisk'))
+    monkeypatch.delenv('CONTINUUM_ARCHIVE_MOUNT_ENCRYPTED',raising=False)
+    x=sup.cycle(args)
+    assert x['steps']['archive']['status']=='not-run'
+    assert x['steps']['archive']['reason']=='trusted encrypted mount not confirmed'
+    assert not (tmp_path/'otherdisk').exists()
