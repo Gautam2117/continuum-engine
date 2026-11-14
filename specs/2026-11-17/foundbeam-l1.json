@@ -124,7 +124,7 @@
       "say": "In his 2010 talk, cofounder Drew Houston described this as a problem for Dropbox’s early acquisition efforts.",
       "show": {
         "type": "foundbeam_flow",
-        "variant": "signup"
+        "variant": "split"
       }
     },
     {
@@ -227,7 +227,7 @@
       "say": "Some recipients could ignore it. That number tells you how often users shared an invitation, with every send counted as an invitation.",
       "show": {
         "type": "foundbeam_flow",
-        "variant": "milestone"
+        "variant": "referral"
       }
     },
     {
@@ -322,7 +322,7 @@
       "say": "Imagine that you can see only one line on a dashboard: total registered users. The line goes up after the invitation feature ships.",
       "show": {
         "type": "foundbeam_flow",
-        "variant": "signup"
+        "variant": "split"
       }
     },
     {
@@ -350,7 +350,7 @@
       "say": "On the invitation path, the first question is whether Sam understands why joining is worth the trouble.",
       "show": {
         "type": "foundbeam_flow",
-        "variant": "signup"
+        "variant": "referral"
       }
     },
     {
@@ -378,7 +378,7 @@
       "say": "Give the person receiving it a reason to care, and measure that path from the first click through signup.",
       "show": {
         "type": "foundbeam_flow",
-        "variant": "signup"
+        "variant": "return"
       }
     },
     {
@@ -399,7 +399,7 @@
       "say": "It does not give us the probability that any single invite converted, or tell us which channel caused each early milestone.",
       "show": {
         "type": "foundbeam_flow",
-        "variant": "signup"
+        "variant": "split"
       }
     },
     {
@@ -413,14 +413,14 @@
       "say": "The useful lesson is more concrete: show which user action introduces the product, which action asks someone new to join, and exactly what each number counts.",
       "show": {
         "type": "foundbeam_flow",
-        "variant": "milestone"
+        "variant": "return"
       }
     },
     {
       "say": "If those are separate questions in the actual product, they deserve separate measures in the story too.",
       "show": {
         "type": "foundbeam_flow",
-        "variant": "signup"
+        "variant": "split"
       }
     },
     {
@@ -434,7 +434,7 @@
       "say": "The two registration figures are snapshots many months apart. Put all three on the same chart and their different meanings disappear.",
       "show": {
         "type": "foundbeam_flow",
-        "variant": "signup"
+        "variant": "milestone"
       }
     },
     {
@@ -448,14 +448,14 @@
       "say": "The other thing to keep in view is what the reward asks people to do.",
       "show": {
         "type": "foundbeam_flow",
-        "variant": "milestone"
+        "variant": "meter"
       }
     },
     {
       "say": "In our illustration, Alex already has a file to send and Sam already has a reason to open it. A referral is a separate request.",
       "show": {
         "type": "foundbeam_flow",
-        "variant": "signup"
+        "variant": "folder"
       }
     },
     {
