@@ -20,3 +20,7 @@ It turns JSON video specs into finished YouTube videos with no paid services. `s
 
 ## Checks
 `python -m pytest -q tests` must pass before a commit. Commit specs and code separately.
+
+## Original motion skill routing for creative development
+
+Before authoring or replacing an animation scene, consult `docs/CHANNEL_SKILL_ROUTING.json` and the full identity in `autopilot/directors.py`. Read and apply only that channel's primary, supporting and QA skills from the local, pinned `~/.agents/skills/` collection. Validate with `python scripts/verify_skill_routes.py --installed` on an authorized workstation. In CI, run without `--installed` to verify mapping without local user files. Skills are agent guidance; they do not make the daily JSON planner a Remotion, Manim or Three.js renderer. Author new scene code, then review real video frames and rights before granting approval. Never fetch a paid service or copy a competitor's visual identity.
