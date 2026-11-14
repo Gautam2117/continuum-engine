@@ -58,11 +58,17 @@ def pop(dur: float = 0.12) -> np.ndarray:
 
 # ---------- layout ----------
 class Layout:
-    def __init__(self, W: int, H: int, fmt: str, no_host: bool = False):
+    def __init__(self, W: int, H: int, fmt: str, no_host: bool = False, *, world_focus: bool = False):
         self.W, self.H, self.fmt = W, H, fmt
         self.vertical = fmt == "short"
         self.view_h = (1500 if no_host else 1160) if self.vertical else H  # persona channels: no mascot, the picture takes the room
         self.cap_y = self.view_h + (70 if no_host else 95) if self.vertical else int(H * 0.88)
+        if self.vertical and world_focus:
+            # Pixel-world channels put the picture across most of the vertical
+            # screen. Captions overlay the lower edge of the scene, leaving a
+            # small bottom region for native Shorts controls.
+            self.view_h = min(int(H * .91), H - 100)
+            self.cap_y = min(int(H * .81), self.view_h - 110)
         self.host_size = 640 if self.vertical else 320
         self.host_xy = ((W - self.host_size) // 2, self.view_h + 90) if self.vertical else (W - self.host_size - 40, H - self.host_size - 28)
 

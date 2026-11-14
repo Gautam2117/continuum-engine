@@ -67,6 +67,16 @@ def problems(spec: dict, folder: str | None = None, *, strict: bool = False) -> 
             from .b3d import SCENE_NAMES
             if show.get("scene") not in SCENE_NAMES:
                 out.append(f"scene {i}: unknown 3D scene {show.get('scene')!r}")
+            if show.get("scene") == "voxel":
+                params = show.get("params") or {}
+                if not isinstance(params, dict) or params.get("act", "wander") not in {
+                    "wander", "warning", "bridge", "arrival"
+                }:
+                    out.append(f"scene {i}: unsupported voxel narrative act")
+                if spec["channel"] != "Pixel Fables" and isinstance(params, dict) and params.get("act") in {
+                    "warning", "bridge", "arrival"
+                }:
+                    out.append(f"scene {i}: Pixel Fables-specific voxel story cannot be used on another channel")
             fb = (show.get("fallback") or {}).get("type")
             if fb and fb not in SCENES:
                 out.append(f"scene {i}: unknown fallback type {fb!r}")

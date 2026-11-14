@@ -2,9 +2,9 @@
   "id": "2026-11-17-pixel-s1",
   "channel": "Pixel Fables",
   "format": "short",
-  "title": "The Map Forgot One Thing | Original Pixel Fable #Shorts",
-  "thumb": "THE MAP WAS WRONG",
-  "description": "An original fictional pixel-world miniature about a traveler who learns that progress is a choice rather than a perfect map. Original procedural voxel terrain, original animated voxel protagonist and synthetic narration. Fictional story: no real historical or scientific claims, no borrowed game sprites, music, characters or creator identity. This is a technical review proposal, not a published video.",
+  "title": "The Road That Appeared Only When He Walked | Pixel Fables #Shorts",
+  "thumb": "THE ROAD DID NOT EXIST",
+  "description": "An original fictional voxel fable. A traveller finds a warning where the map ends, then discovers that every step creates a new piece of the road. Story, character, map animation, island, bridge and arch are original procedural creations. All scenes are fiction, with synthetic narration and no borrowed game designs, voices or music. Technical review proposal; not published.",
   "tags": [
     "pixel animation",
     "short fable",
@@ -18,8 +18,8 @@
   "madeForKids": false,
   "meta": {
     "generator": "original-human-editorial-pilot",
-    "topic": "A path that never stays straight",
-    "axis": "courage and steady progress",
+    "topic": "A missing road that builds itself beneath a traveller",
+    "axis": "original fictional route-making twist",
     "reviewStatus": "TECHNICAL_QA_ONLY_NOT_APPROVED",
     "creativeDirector": {
       "id": "Pixel Fables",
@@ -31,74 +31,75 @@
   },
   "scenes": [
     {
-      "say": "The map promised an easy path. It forgot to mention courage.",
+      "say": "The sign said: NO ROAD AHEAD. But his map showed a path.",
       "show": {
         "type": "b3d",
         "scene": "voxel",
         "params": {
           "seed": 19,
-          "hero": "#ec743c",
-          "level": "THE FIRST STEP"
+          "act": "warning",
+          "hero": "#ec743c"
         },
         "fallback": {
           "type": "title",
-          "text": "THE FIRST STEP"
+          "text": "NO ROAD AHEAD"
         }
       }
     },
     {
-      "say": "A small traveler checked every direction. None of them felt like the one he had imagined.",
+      "say": "He searched every corner. The road was missing. The map must be wrong.",
       "show": {
         "type": "pixel_map",
         "phase": "lost",
-        "title": "THE MAP NEVER KNEW"
+        "title": "THE MAP ENDS HERE"
       }
     },
     {
-      "say": "He followed the road anyway. Every turn revealed another hill, another surprise and another decision.",
+      "say": "So he stepped into the empty space. A square of land rose beneath his foot.",
       "show": {
         "type": "b3d",
         "scene": "voxel",
         "params": {
-          "seed": 20,
+          "seed": 19,
+          "act": "bridge",
           "hero": "#ec743c",
-          "level": "ONE MORE TURN"
+          "level": "THE LAND APPEARS"
         },
         "fallback": {
           "type": "title",
-          "text": "ONE MORE TURN"
+          "text": "A NEW STEP"
         }
       }
     },
     {
-      "say": "Then he made a new rule. He would choose a step that he could actually take today.",
+      "say": "Another step. Another square. The path was not waiting to be found.",
       "show": {
         "type": "pixel_map",
         "phase": "choice",
-        "title": "ONE STEP AT A TIME"
+        "title": "EACH STEP MAKES A PATH"
       }
     },
     {
-      "say": "The path was still uncertain. But with every little step, the traveler became someone who kept going.",
+      "say": "At the end, he finally understood. The map had never been finished.",
       "show": {
         "type": "b3d",
         "scene": "voxel",
         "params": {
-          "seed": 21,
-          "hero": "#ec743c",
-          "level": "KEEP GOING"
+          "seed": 19,
+          "act": "arrival",
+          "hero": "#ec743c"
         },
         "fallback": {
           "type": "title",
-          "text": "KEEP GOING"
+          "text": "THE END OF THE MAP"
         }
       }
     },
     {
-      "say": "Maybe the map was never the point. The courage to move was.",
+      "say": "It was recording every step he dared to take. Where would you walk?",
       "show": {
         "type": "end",
-        "text": "A PATH BEGINS WITH ONE STEP"
+        "text": "WHERE WOULD YOU WALK?"
       }
     }
   ]

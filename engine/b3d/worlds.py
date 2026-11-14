@@ -306,6 +306,9 @@ def scenes(bm):
 
     # ------------------------------------------------------------ voxel island
     def scene_voxel(p, frames, pal):
+        act = str(p.get("act", "wander"))
+        if act not in {"wander", "warning", "bridge", "arrival"}:
+            raise ValueError("voxel act must be wander, warning, bridge or arrival")
         rnd = random.Random(int(p.get("seed", 6)))
         grass, dirt, water = mat("vgrass", "#6cc24a", 0.8), mat("vdirt", "#8a5a3a", 0.9), mat("vwater", "#3aa0e8", 0.2, emit=0.2)
         stone, leaf, wood = mat("vstone", "#9a9aa3", 0.8), mat("vleaf", "#2f8f4e", 0.8), mat("vwood", "#7a5230", 0.9)
@@ -320,6 +323,10 @@ def scenes(bm):
             for y in range(-R, R + 1):
                 d = math.hypot(x, y)
                 if d > R:
+                    continue
+                # The bridge chapter has a visible broken crossing. Animated
+                # stepping blocks return under the protagonist's feet later.
+                if act == "bridge" and -3 <= x <= 3 and -4 <= y <= -1:
                     continue
                 h = int(max(0, 3 - d * 0.35 + rnd.uniform(-0.6, 0.6)))
                 for z in range(-2, h):
@@ -401,6 +408,38 @@ def scenes(bm):
             return (h - 1) * 0.5 + 0.28
         path = [Vector((x, y, on_surface(x, y))) for x, y in path_xy]
 
+        if act == "warning":
+            # A physically modelled warning sign, not a floating narrator sticker.
+            signwood = mat("voxel sign wood", "#94714d", 0.85)
+            signface = mat("voxel warning face", "#edbb53", 0.65)
+            post = box("warning signpost", (0.11, 0.12, 1.0),
+                       (0.30, -1.85, 1.0), signwood)
+            box("warning sign", (0.78, 0.12, 0.33), (0.30, -1.94, 1.5), signface)
+            bm.ANCHORS["warning_sign"] = post
+            bm.LABELS.append({"anchor": "warning_sign", "text": "NO ROAD AHEAD", "style": "tag", "hl": True})
+        elif act in ("bridge", "arrival"):
+            # Instead of a reused generic island, each path tile grows up from
+            # below the missing road as the traveller arrives at that choice.
+            tilemat = mat("newly created path", pal["accent"], 0.52)
+            for i, pt in enumerate(path):
+                stepping = box(f"created step {i}", (0.65, 0.85, 0.23),
+                               (pt.x, pt.y, pt.z-0.12), tilemat)
+                for fr in range(1, frames + 1):
+                    t = (fr - 1) / max(1, frames - 1)
+                    born = bm.ease((t - max(0, i/(len(path)-1)-0.2)) / 0.24)
+                    stepping.location.z = pt.z - 0.12 - (1.35 * (1-born))
+                    stepping.keyframe_insert("location", frame=fr)
+            if act == "arrival":
+                # A story-specific goal becomes visible only in the last act.
+                gold = mat("guide light", "#ffd65e", 0.35, emit=2.0)
+                pillar = mat("mapmaker stone", "#b1d5dd", 0.8)
+                box("goal foundation", (1.4, 1.0, 0.23), (2.5, 0.5, 0.65), pillar)
+                box("goal left", (0.18, 0.23, 1.65), (1.88, 0.5, 1.44), pillar)
+                box("goal right", (0.18, 0.23, 1.65), (3.12, 0.5, 1.44), pillar)
+                box("goal lintel", (1.5, 0.25, 0.24), (2.5, 0.5, 2.34), gold)
+                bm.ANCHORS["goal"] = lambda fr: Vector((2.5, 0.5, 2.72))
+                bm.LABELS.append({"anchor": "goal", "text": "YOU MADE THE MAP", "style": "tag", "hl": True})
+
         def at(t):
             s_ = min(1.0, max(0.0, t)) * (len(path) - 1)
             i = min(int(s_), len(path) - 2)
@@ -428,7 +467,12 @@ def scenes(bm):
         bm.lights(pal, 3.8)
         cam, tgt = bm.camera((0, 0, 0), (0, 0, 0.8), lens=30)
         d = 11 if vertical() else 8.5
-        bm.key_path(cam, frames, lambda t: Vector((math.cos(math.radians(-60 + 25 * t)) * d, math.sin(math.radians(-60 + 25 * t)) * d, d * 0.75)))
+        angle = {"warning": (-67, -42), "bridge": (-72, -55),
+                 "arrival": (-48, -27), "wander": (-60, -35)}[act]
+        bm.key_path(cam, frames, lambda t: Vector((
+            math.cos(math.radians(angle[0] + (angle[1]-angle[0]) * bm.ease(t))) * d,
+            math.sin(math.radians(angle[0] + (angle[1]-angle[0]) * bm.ease(t))) * d,
+            d * (0.71 + (0.09 * bm.ease(t) if act == "arrival" else 0.0)))))
         cam.data.type = "ORTHO"
         cam.data.ortho_scale = 9.5 if vertical() else 8.0
         return cam
