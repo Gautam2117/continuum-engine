@@ -1,0 +1,439 @@
+{
+  "schemaVersion": 1,
+  "scope": "agent_assisted_creative_authoring_only",
+  "note": "Installed SKILL.md files guide coding agents. They are not automatically invoked by the unattended JSON planner or the existing Pillow/Blender renderer.",
+  "routes": {
+    "Counterfactual Atlas": {
+      "primary": "manim",
+      "secondary": "threejs-animation",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "physics scenes, calibrated orbital measurements, original 3D space models"
+    },
+    "10SecScientist": {
+      "primary": "diagram-animation",
+      "secondary": "short-form-video",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "one visible experiment and a measured ten-second payoff"
+    },
+    "Oddly Proven": {
+      "primary": "chart-animation",
+      "secondary": "case-file-explainer",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "peer-reviewed study cards and replication evidence"
+    },
+    "Crazy Clipz": {
+      "primary": "countdown-video",
+      "secondary": "beat-sync-editing",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "verified records conveyed through motion and sound"
+    },
+    "Wild Creature Files": {
+      "primary": "isometric-animation",
+      "secondary": "anatomy",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "species-accurate anatomy and habitat depth"
+    },
+    "Foundbeam": {
+      "primary": "case-file-explainer",
+      "secondary": "animated-infographic",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "source-led business case diagrams and causal timelines"
+    },
+    "Workflow Verdict": {
+      "primary": "presentation-video",
+      "secondary": "chart-animation",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "dated software comparison attributes and fair scoring"
+    },
+    "History to Drift To": {
+      "primary": "whiteboard-animation",
+      "secondary": "soundtrack",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "calm illustrated historical scenes with original soft score"
+    },
+    "What Happens in 10": {
+      "primary": "countdown-video",
+      "secondary": "diagram-animation",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "stepwise process diagrams locked to the clock"
+    },
+    "What Drives It": {
+      "primary": "anatomy",
+      "secondary": "threejs",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "mechanical assemblies with real part movement"
+    },
+    "OH, THIS EXISTS": {
+      "primary": "isometric-animation",
+      "secondary": "shot-composition",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "verified odd inventions in museum-like product compositions"
+    },
+    "What If Anomaly": {
+      "primary": "shader-glsl",
+      "secondary": "luminous-cosmos-3d",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "clearly fictional rule changes with cinematic 3D atmospheres"
+    },
+    "Gears Unseen": {
+      "primary": "anatomy",
+      "secondary": "threejs-animation",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "meshing gear trains and exploded-view mechanics"
+    },
+    "Brain Fool Lab": {
+      "primary": "javascript-animation",
+      "secondary": "caption-animation",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "interactive optical tests and accurate reveals"
+    },
+    "Drawn Out Minds": {
+      "primary": "whiteboard-animation",
+      "secondary": "canvas-explainer",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "hand-drawn mental models, visible erasure and redraw"
+    },
+    "Think Beyond This": {
+      "primary": "luminous-cosmos-3d",
+      "secondary": "kinetic-typography",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "visual philosophical paradoxes with quiet symbolism"
+    },
+    "The Low Battery Show": {
+      "primary": "blender-claymation",
+      "secondary": "animated-video",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "physically staged character performance and original miniature sets"
+    },
+    "Strata": {
+      "primary": "flowcast",
+      "secondary": "remotion-captions",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "real app captures and demonstrable interactions"
+    },
+    "Sienna Carter": {
+      "primary": "canvas-explainer",
+      "secondary": "shot-composition",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "coherent original fictional persona diary visuals"
+    },
+    "Aditi Raichand": {
+      "primary": "vector-world-explainer",
+      "secondary": "caption-animation",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "Hindi typography and location-consistent original storytelling"
+    },
+    "Kiara": {
+      "primary": "glass-bubble-3d",
+      "secondary": "motion-art-direction",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "original fictional editorial vignettes"
+    },
+    "Samjho System": {
+      "primary": "diagram-animation",
+      "secondary": "manimce-best-practices",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "accurate Hindi-first technical system visualization"
+    },
+    "Inkbound": {
+      "primary": "kinetic-typography",
+      "secondary": "javascript-animation",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "original written lines transforming into animated shapes"
+    },
+    "Founder, Actually": {
+      "primary": "animated-video",
+      "secondary": "case-file-explainer",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "fictional simulated startup scenes with sourced facts"
+    },
+    "LifeSpawn": {
+      "primary": "isometric-animation",
+      "secondary": "threejs-animation",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "biological cycles animated at stage-level granularity"
+    },
+    "Next Frame": {
+      "primary": "motion-design",
+      "secondary": "shot-composition",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "film composition demonstrations and frame-by-frame comparisons"
+    },
+    "Majority Rules": {
+      "primary": "chart-animation",
+      "secondary": "animated-infographic",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "real voting mechanisms and correctly counted tokens"
+    },
+    "Room 404": {
+      "primary": "shader-glsl",
+      "secondary": "threejs",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "continuous original liminal corridor visual narrative"
+    },
+    "Epic Elsewhere": {
+      "primary": "threejs",
+      "secondary": "luminous-cosmos-3d",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "original fantasy worldbuilding and spatial travel"
+    },
+    "The Night Archive": {
+      "primary": "case-file-explainer",
+      "secondary": "motion-background",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "historical archival evidence with atmospheric texture"
+    },
+    "The Odd Units": {
+      "primary": "manim",
+      "secondary": "chart-animation",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "truthful scale and unit conversion visualizations"
+    },
+    "Unreal Goods Co.": {
+      "primary": "cartoon-3d-short",
+      "secondary": "remotion-video",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "clearly fictional absurd product commercials with original models"
+    },
+    "Tiny Histories": {
+      "primary": "whiteboard-animation",
+      "secondary": "case-file-explainer",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "verified microhistory built around one artifact"
+    },
+    "Sent In": {
+      "primary": "kinetic-typography",
+      "secondary": "vector-world-explainer",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "original fictional letters enacted in visuals"
+    },
+    "The Builders Long Game": {
+      "primary": "animated-infographic",
+      "secondary": "map-animation",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "construction decisions over sourced timelines"
+    },
+    "One-Dollar Builds": {
+      "primary": "anatomy",
+      "secondary": "diagram-animation",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "realistic low-cost physical build plans and clear pricing caveats"
+    },
+    "Unsealed Show": {
+      "primary": "case-file-explainer",
+      "secondary": "presentation-video",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "source-led forensic document unpacking"
+    },
+    "Heist & Con": {
+      "primary": "case-file-explainer",
+      "secondary": "whiteboard-animation",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "non-operational historical crime and prevention diagrams"
+    },
+    "Survive This": {
+      "primary": "manim",
+      "secondary": "animated-infographic",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "bounded physics survival thought experiments without unsafe demonstrations"
+    },
+    "News From 2099": {
+      "primary": "glass-bubble-3d",
+      "secondary": "shader-glsl",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "clearly labelled fictional future broadcast visuals"
+    },
+    "Money Has Mechanics": {
+      "primary": "chart-animation",
+      "secondary": "motion-art-direction",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "correct financial flow arithmetic and dated assumptions"
+    },
+    "The India Machine": {
+      "primary": "map-animation",
+      "secondary": "diagram-animation",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "accurate Indian infrastructure geography and systems"
+    },
+    "Truth Over Propaganda": {
+      "primary": "case-file-explainer",
+      "secondary": "chart-animation",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "primary-source claim comparisons with visible uncertainty"
+    },
+    "BLANK HOURS": {
+      "primary": "shader-glsl",
+      "secondary": "soundtrack",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "original ambient low-motion visualizer and rights-cleared score"
+    },
+    "Benchwisedeals": {
+      "primary": "chart-animation",
+      "secondary": "presentation-video",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "date-stamped sourced prices and transparent product trade-offs"
+    },
+    "Brieflylatest": {
+      "primary": "short-form-video",
+      "secondary": "animated-infographic",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "date-verified news with concise source-led motion"
+    },
+    "OHGUMMY": {
+      "primary": "blender-claymation",
+      "secondary": "cartoon-3d-short",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "original squash-stretch character humor and custom foley"
+    },
+    "Pixel Fables": {
+      "primary": "pixel-arcade",
+      "secondary": "javascript-animation",
+      "qa": [
+        "motion-art-direction",
+        "shot-composition"
+      ],
+      "purpose": "original voxel narrative worlds and deterministic sprite movement"
+    }
+  }
+}
