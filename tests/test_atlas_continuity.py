@@ -9,9 +9,9 @@ def test_runway_reports_three_missing_each_day_without_misreporting_uploads(tmp_
     report=atlas_continuity.audit(tmp_path/'specs',tmp_path/'missing.sqlite3',today=DAY,days=8)
     assert len(report['runway'])==8
     assert report['completeSpecDays']==0
-    assert report['dailyTarget']=={'short':3,'longWeekdays':[0,2,5]}
-    assert report['plannedEndDate'] == '2027-01-20'
-    assert all(r['specSlotsMissing']==r['required'] and r['publicYouTubeVideos'] is None for r in report['runway'])
+    assert report['dailyTarget']=={'short':2,'long':1}
+    assert report['plannedEndDate'] is None
+    assert all(r['specSlotsMissing']==3 and r['publicYouTubeVideos'] is None for r in report['runway'])
     assert all(r['privateWorkerStates']=={} for r in report['runway'])
 
 def test_runway_cannot_silently_accept_wrong_horizon(tmp_path):
