@@ -23,9 +23,11 @@ def allowed_scene_types(channel: str) -> list[str]:
     return sorted(allowed | {"title", "end", "say"})
 
 
-def visual_scene(channel: str, *, ten_seconds: bool = False) -> dict:
-    words = {"type": "string", "minLength": 5 if ten_seconds else 25,
-             "maxLength": 95 if ten_seconds else 115}
+def visual_scene(channel: str, *, ten_seconds: bool = False,
+                 atlas_long: bool = False) -> dict:
+    words = {"type": "string",
+             "minLength": 5 if ten_seconds else 90 if atlas_long else 25,
+             "maxLength": 95 if ten_seconds else 160 if atlas_long else 115}
     if PLAYBOOKS[channel].get("lang") == "hi":
         # The normal independent script reviewer still enforces the >=60%
         # Devanagari ratio. The schema only prevents fully romanized Hindi.
@@ -96,9 +98,12 @@ def long_outline(chapters: int) -> dict:
 
 
 def chapter(channel: str) -> dict:
+    # A 1,250-word Atlas episode needs roughly 72 cuts of 17-22 spoken
+    # words. Old 3-scene chapters could produce a 1-minute "long" video.
+    atlas_long = channel == "Counterfactual Atlas"
     return {"type": "object", "properties": {
-        "scenes": {"type": "array", "items": visual_scene(channel),
-                   "minItems": 3, "maxItems": 12},
+        "scenes": {"type": "array", "items": visual_scene(channel, atlas_long=atlas_long),
+                   "minItems": 12 if atlas_long else 3, "maxItems": 12},
     }, "required": ["scenes"], "additionalProperties": False}
 
 EDITOR = {"type": "object", "properties": {

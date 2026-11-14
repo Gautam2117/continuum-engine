@@ -133,4 +133,8 @@ def test_atlas_native_schema_restricts_3d_scene_names():
     assert set(allowed)=={"bars3d","orbit3d","fall3d","earth_tunnel","moon_drive","everest_flood"}
     assert set(allowed).issubset(SCENE_NAMES)
     assert "fall" not in allowed
-    assert schemas.chapter("Counterfactual Atlas")["properties"]["scenes"]["items"] == visual
+    chapter = schemas.chapter("Counterfactual Atlas")["properties"]["scenes"]
+    assert chapter["minItems"] == chapter["maxItems"] == 12
+    assert chapter["items"]["properties"]["say"]["minLength"] >= 90
+    assert chapter["items"]["properties"]["show"]["properties"]["scene"]["enum"] == allowed
+    assert schemas.chapter("Foundbeam")["properties"]["scenes"]["minItems"] == 3
