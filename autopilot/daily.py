@@ -190,9 +190,45 @@ class Planner:
             f"TOPIC: {topic['topic']}\n\nGROUNDING (the only source of specific facts):\n{g['text'] or '(none found: use only settled textbook knowledge and say roughly)'}\n\n"
             + brief + "\n\n" + exemplar(channel, "short")
         )
+        # Small models sometimes return the visual-only shape
+        # {"type":"title","text":"..."} as a scene. That format has no
+        # spoken narration, and must not be silently treated as a valid script.
+        shape = (
+            "\n\nSTRICT OUTPUT SCHEMA (CHECK EVERY SCENE BEFORE RETURNING): "
+            "Each element of scenes MUST be exactly a scene object with a NONEMPTY "
+            "spoken sentence string in `say`, and its display instructions in `show`. "
+            "Example: {\"say\":\"Here is what the number really measures.\", "
+            "\"show\":{\"type\":\"number\",\"value\":12,\"unit\":\"km\",\"label\":\"Distance\"}}. "
+            "DO NOT put type, text, from, value, or scene props directly in a scene. "
+            f"Write about {pb['short_words']} spoken words across all scenes, "
+            "except the ten-second channel uses exactly 4 scenes with 4-6 words per say. "
+            "No invented facts, claims, quotes or tests; use the supplied grounding."
+        )
+        user += shape
         if fixes:
             user += "\n\nYOUR PREVIOUS ATTEMPT WAS REJECTED. Fix all of these:\n- " + "\n- ".join(fixes)
-        return as_obj(self._call(self._system(channel), user, temperature=0.8, tier="best"), "scenes")
+        system = self._system(channel)
+        raw = as_obj(self._call(system, user, temperature=0.65, tier="best"), "scenes")
+        scenes = raw.get("scenes")
+        if (isinstance(scenes, list) and scenes and any(
+            isinstance(scene, dict) and not str(scene.get("say", "")).strip()
+            for scene in scenes
+        )):
+            # A single bounded repair call may re-author voiceover from the
+            # original grounding and visual plan. Never turn on-screen text into
+            # unverified narration or skip the normal editorial quality gates.
+            repair = (
+                f"TOPIC: {topic['topic']}\nSOURCE GROUNDING: {g['text']}\n"
+                + brief + shape + "\n\n"
+                "REWRITE THIS MALFORMED JSON. It has visual fields at the scene level "
+                "and lacks say. Give every scene a distinct, factual spoken sentence "
+                "in say. Nest its original visuals under show, preserving visual "
+                "variety and the topic. Do not fill with repetition or unsupported "
+                "claims. Return the complete corrected JSON object only.\n"
+                + json.dumps(raw, ensure_ascii=False)
+            )
+            return as_obj(self._call(system, repair, temperature=0.35, tier="best"), "scenes")
+        return raw
 
     def draft_long(self, channel: str, topic: dict, g: dict, fixes: list[str] | None = None) -> dict:
         pb = PLAYBOOKS[channel]
