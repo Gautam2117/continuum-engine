@@ -434,7 +434,7 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
     channels = [channel for channel in PLAYBOOKS if not only or channel in only]
     if channels:
         # A time-limited network run must not always start with the same channels.
-        window = int(now.timestamp() // (4 * 3600))
+        window = int(now.timestamp() // (15 * 60))
         start = window % len(channels)
         channels = channels[start:] + channels[:start]
     strikes = 0
