@@ -184,11 +184,15 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
 
     # 1. Narration per scene; the scene lasts as long as its line (plus a beat).
     plan = []
-    for sc in spec["scenes"]:
+    scene_count = len(spec["scenes"])
+    print(f"{spec['id']}: synthesizing narration for {scene_count} scenes", flush=True)
+    for index, sc in enumerate(spec["scenes"], start=1):
         text = sc.get("say", "").strip()
         audio = speak(text, style.voice, style.speed, style.lang) if text else np.zeros(int(SR * 0.4), np.float32)
         dur = max(float(sc.get("min", 2.4)), len(audio) / SR + float(sc.get("hold", 0.35)))
         plan.append((sc, audio, dur))
+        if index % 10 == 0 and index < scene_count:
+            print(f"{spec['id']}: narration {index}/{scene_count} scenes complete", flush=True)
         if preview and sum(p[2] for p in plan) >= preview:
             break
     total = sum(p[2] for p in plan)
