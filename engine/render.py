@@ -30,8 +30,8 @@ from .tts import SR, speak
 UA = "ContinuumEngine/1.0 (https://studio.continuumarc.tech; gautam@continuumarc.tech)"
 SIZES = {"long": (1920, 1080), "short": (1080, 1920)}
 # Science what-if scenes own the visual field; no repeated cartoon mascot overlay.
-NO_MASCOT = frozenset({"atlas", "foundbeam", "lowbat", "sienna", "aditi", "kiara"})
-NO_STICKERS = frozenset({"atlas", "foundbeam", "lowbat"})
+NO_MASCOT = frozenset({"atlas", "foundbeam", "pixel", "lowbat", "sienna", "aditi", "kiara"})
+NO_STICKERS = frozenset({"atlas", "foundbeam", "pixel", "lowbat"})
 
 
 def fetch_persona(p: dict, spec_id: str, scene_no: int) -> Image.Image | None:

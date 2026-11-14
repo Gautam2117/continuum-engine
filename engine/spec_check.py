@@ -41,6 +41,12 @@ def problems(spec: dict, folder: str | None = None, *, strict: bool = False) -> 
         for f in REQUIRED.get(t, []):
             if f not in show:
                 out.append(f"scene {i}: {t} needs {f}")
+        if t == "pixel_map":
+            from .pixel_map import PHASES
+            if spec["channel"] != "Pixel Fables" or show.get("phase") not in PHASES:
+                out.append(f"scene {i}: invalid Pixel Fables map phase or channel")
+            if show.keys() - {"type", "phase", "title"}:
+                out.append(f"scene {i}: unsupported Pixel Fables map fields")
         if t == "foundbeam_flow":
             from .foundbeam import VARIANTS
             if spec["channel"] != "Foundbeam" or show.get("variant") not in VARIANTS:
