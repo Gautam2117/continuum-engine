@@ -134,6 +134,10 @@ def strip_html(s: str) -> str:
 
 
 def write_wav(path: pathlib.Path, audio: np.ndarray):
+    # Preserve the mix balance while leaving headroom for AAC encoding.
+    peak = float(np.max(np.abs(audio), initial=0.0))
+    if peak > 0.8:
+        audio = audio * (0.8 / peak)
     pcm = (np.clip(audio, -1, 1) * 32767).astype(np.int16)
     with wave.open(str(path), "wb") as w:
         w.setnchannels(1)
