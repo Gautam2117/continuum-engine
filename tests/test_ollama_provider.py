@@ -123,3 +123,14 @@ def test_schema_says_not_just_visual_fields_and_limits_short_run_length():
     assert set(hindi['properties']['show']['properties']['scene']['enum'])=={'clay','title3d','panels'}
     assert 'pattern' not in schemas.short_script('Pixel Fables')['properties']['scenes']['items']['properties']['say']
     assert schemas.chapter('Samjho System')['properties']['scenes']['items']['required']==['say','show']
+
+
+def test_atlas_native_schema_restricts_3d_scene_names():
+    from autopilot import schemas
+    from engine.b3d import SCENE_NAMES
+    visual=schemas.visual_scene("Counterfactual Atlas")
+    allowed=visual["properties"]["show"]["properties"]["scene"]["enum"]
+    assert set(allowed)=={"bars3d","orbit3d","fall3d","earth_tunnel","moon_drive","everest_flood"}
+    assert set(allowed).issubset(SCENE_NAMES)
+    assert "fall" not in allowed
+    assert schemas.chapter("Counterfactual Atlas")["properties"]["scenes"]["items"] == visual
