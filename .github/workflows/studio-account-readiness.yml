@@ -66,3 +66,44 @@ jobs:
           if os.environ.get('GITHUB_STEP_SUMMARY'):
               with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as file:file.write(content)
           PY
+      - name: Verify Atlas OAuth token against the actual Google-selected YouTube channel
+        env:
+          AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${AUTOPILOT_SECRET:-}" ]]; then
+            echo '::error::Atlas cannot verify OAuth without Studio diagnostic authorization'
+            exit 2
+          fi
+          result="${RUNNER_TEMP}/atlas-oauth.json"
+          curl --fail-with-body --silent --show-error \
+            --connect-timeout 5 --max-time 30 --retry 1 \
+            --header "Authorization: Bearer ${AUTOPILOT_SECRET}" \
+            --header 'Accept: application/json' \
+            'https://studio.continuumarc.tech/api/autopilot/atlas-preflight' > "$result"
+          python3 - "$result" <<'PY'
+          import json,os,pathlib,sys
+          d=json.loads(pathlib.Path(sys.argv[1]).read_text())
+          if d.get('ready') is not True or d.get('channel')!='Counterfactual Atlas' or d.get('identityMatch') is not True:
+              raise SystemExit('Atlas OAuth identity mismatch; publishing stays disabled')
+          channel_id=d.get('youtubeChannelId','')
+          if not channel_id.startswith('UC') or len(channel_id)!=24:
+              raise SystemExit('Invalid live Atlas YouTube channel ID')
+          lines=[
+              '## Atlas live Google OAuth preflight',
+              '- Exact OAuth channel identity: **MATCHED**',
+              '- Upload scope and synchronization: **verified by Studio**',
+              '- Live channel video count: **'+str(d.get('currentPublicVideoCount','unknown'))+'**',
+              '- Live subscribers: **'+str(d.get('subscribers','unknown'))+'**',
+              '- 28-day stored views: **'+str(d.get('reportedViews28','unknown'))+'**',
+              '- Atlas upload authorization: **NOT GRANTED by this test**',
+              '- Global automated publisher: **'+str(bool(d.get('publicAutoPublisherEnabled')))+'**',
+              '',
+              'No credentials, token or email is shown. No video was uploaded.'
+          ]
+          output='\n'.join(lines)+'\n'
+          print(output)
+          if os.environ.get('GITHUB_STEP_SUMMARY'):
+              with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as f:f.write(output)
+          PY
