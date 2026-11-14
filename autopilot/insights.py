@@ -7,6 +7,7 @@ import os
 import pathlib
 import re
 import statistics
+import tempfile
 
 STATE = pathlib.Path(os.environ.get("CONTINUUM_STATE_DIR") or (pathlib.Path(__file__).parent / "state")).resolve()
 
@@ -25,7 +26,15 @@ def load(name: str, default):
 
 def save(name: str, data) -> None:
     STATE.mkdir(parents=True, exist_ok=True)
-    (STATE / name).write_text(json.dumps(data, indent=1, ensure_ascii=False) + "\n")
+    payload = json.dumps(data, indent=1, ensure_ascii=False) + "\n"
+    with tempfile.NamedTemporaryFile(dir=STATE, delete=False) as output:
+        draft = pathlib.Path(output.name)
+        try:
+            output.write(payload.encode("utf-8"))
+            output.close()
+            draft.replace(STATE / name)
+        finally:
+            draft.unlink(missing_ok=True)
 
 
 def joined(channel: str) -> list[dict]:
