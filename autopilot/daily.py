@@ -14,7 +14,7 @@ import re
 
 from engine.spec_check import problems
 
-from . import insights, prompts
+from . import insights, prompts, market
 from .directors import director_for
 from .ground import ground, ground_news, news_items
 from .llm import LLM, LLMError
@@ -135,7 +135,9 @@ class Planner:
             user = (
                 f"Channel: {channel}\nPromise: {pb['promise']}\nAudience: {pb['audience']}\nFormat: {fmt}\n"
                 f"Subject areas (prefer earlier ones, but rotate): {json.dumps(axes)}\n"
-                f"Already made (do NOT repeat or paraphrase): {json.dumps(recent)}\n{insights.guidance(channel, fmt)}\n"
+                f"Already made (do NOT repeat or paraphrase): {json.dumps(recent)}\n"
+                f"OWN-CHANNEL VERIFIED ANALYTICS:\n{insights.guidance(channel, fmt)}\n"
+                f"INDEPENDENT PUBLIC DEMAND SIGNALS (noncausal):\n{market.guidance(channel)}\n"
                 f"Production constraints: {pb.get('topic_constraints', 'Follow the channel promise and subject areas.')}\n\n"
                 'Brainstorm 8 video topics most likely to hold attention. Return JSON: {"topics":[{"topic":"...","axis":"one subject area","wiki_query":"2-4 words to find a Wikipedia article with the facts","why":"one line"}]} ranked best first.'
             )
