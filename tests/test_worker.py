@@ -283,3 +283,21 @@ def test_preflight_reports_missing_host_tools(tmp_path, monkeypatch):
     assert checks["ready"] is False
     assert checks["tools"] == {"ffmpeg": False, "ffprobe": True, "fc-match": True}
     assert checks["blender"] is None
+
+
+def test_exact_worker_claim_does_not_take_another_queued_episode(tmp_path, monkeypatch):
+    spec = _sample(tmp_path, monkeypatch)
+    other = spec.with_name("atlas-s2.json")
+    other.write_text(spec.read_text().replace("atlas-s1", "atlas-s2"))
+    db = worker.connection(tmp_path / "queue.db")
+    try:
+        worker.enqueue(db, [spec, other], now=NOW)
+        key = f"2026-11-16-atlas-s2:{worker.digest(other)}"
+        def render(job, **kwargs):
+            assert job["job_key"] == key
+            return {"mp4Sha256": "a" * 64, "durationSec": 1, "reviewPath": str(tmp_path)}
+        assert worker.process_next(db, review_root=tmp_path, now=NOW, job_key=key, render_fn=render)["state"] == "verified"
+        assert worker.claim(db, NOW, job_key=key) is None
+        assert worker.claim(db, NOW)["spec_id"] == "2026-11-16-atlas-s1"
+    finally:
+        db.close()
