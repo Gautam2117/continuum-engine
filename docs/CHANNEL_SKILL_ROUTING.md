@@ -8,7 +8,7 @@ When authoring a new channel scene, choose the channel from `docs/CHANNEL_SKILL_
 
 Render a representative 6–10-second sample. Inspect opening, middle, last, extreme camera, numeric labels, captions, foley, sound peaks and credited sources. A unit test is not a substitute for reviewing the actual MP4.
 
-All 68 installed third-party agent skills are optional documentation and helpers. Many need additional packages or artist-made assets. They are not 68 operational services and they do not run unless a coding agent explicitly loads them.
+As of 14 November 2026, the authorized Mac has 85 pinned third-party agent skill instruction directories (68 previous plus 17 reviewed additions). They are optional documentation and helpers. Many need additional packages or artist-made assets. They are not 68 operational services and they do not run unless a coding agent explicitly loads them.
 
 ## Operating and licensing constraints
 

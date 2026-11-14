@@ -2,6 +2,8 @@
 
 This is a public repo. Never commit API keys, tokens, passwords or channel credentials. Secrets live only in GitHub Actions secrets.
 
+Read `docs/OPERATIONS_HANDOFF_2026-11-14.md` before claiming current production, monetization, upload or infrastructure readiness. Respect its VERIFIED-versus-OPEN status distinctions.
+
 ## What this repo does
 It turns JSON video specs into finished YouTube videos with no paid services. `specs/` holds one spec per video, `engine/` renders, `autopilot/` drafts and plans specifications; the old bulk GitHub Actions schedule is paused for platform compliance. GitHub Actions is reserved for isolated software QA. A separate, compliant dedicated execution host is required for unattended production. Continuum Studio (separate repo) ingests only exact owner-approved releases. A channel playbook lives in `autopilot/playbooks.py`; the craft and honesty rules live in `autopilot/prompts.py`. Read both before editing any script.
 

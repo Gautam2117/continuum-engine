@@ -1,0 +1,105 @@
+{
+  "id": "2026-11-17-pixel-s1",
+  "channel": "Pixel Fables",
+  "format": "short",
+  "title": "The Map Forgot One Thing | Original Pixel Fable #Shorts",
+  "thumb": "THE MAP WAS WRONG",
+  "description": "An original fictional pixel-world miniature about a traveler who learns that progress is a choice rather than a perfect map. Original procedural voxel terrain, original animated voxel protagonist and synthetic narration. Fictional story: no real historical or scientific claims, no borrowed game sprites, music, characters or creator identity. This is a technical review proposal, not a published video.",
+  "tags": [
+    "pixel animation",
+    "short fable",
+    "original animation",
+    "voxel world",
+    "story",
+    "shorts"
+  ],
+  "publishAt": "2026-11-17T14:00:00Z",
+  "synthetic": true,
+  "madeForKids": false,
+  "meta": {
+    "generator": "original-human-editorial-pilot",
+    "topic": "A path that never stays straight",
+    "axis": "courage and steady progress",
+    "reviewStatus": "TECHNICAL_QA_ONLY_NOT_APPROVED",
+    "creativeDirector": {
+      "id": "Pixel Fables",
+      "version": 1,
+      "fingerprint": "c416f8fe5e1dcb6a7c51fa6814c1639143ab9e0d5499378ed0411e80497c0c36",
+      "camera": "parallax",
+      "captions": "typewriter"
+    }
+  },
+  "scenes": [
+    {
+      "say": "The map promised an easy path. It forgot to mention courage.",
+      "show": {
+        "type": "b3d",
+        "scene": "voxel",
+        "params": {
+          "seed": 19,
+          "hero": "#ec743c",
+          "level": "THE FIRST STEP"
+        },
+        "fallback": {
+          "type": "title",
+          "text": "THE FIRST STEP"
+        }
+      }
+    },
+    {
+      "say": "A small traveler checked every direction. None of them felt like the one he had imagined.",
+      "show": {
+        "type": "pixel_map",
+        "phase": "lost",
+        "title": "THE MAP NEVER KNEW"
+      }
+    },
+    {
+      "say": "He followed the road anyway. Every turn revealed another hill, another surprise and another decision.",
+      "show": {
+        "type": "b3d",
+        "scene": "voxel",
+        "params": {
+          "seed": 20,
+          "hero": "#ec743c",
+          "level": "ONE MORE TURN"
+        },
+        "fallback": {
+          "type": "title",
+          "text": "ONE MORE TURN"
+        }
+      }
+    },
+    {
+      "say": "Then he made a new rule. He would choose a step that he could actually take today.",
+      "show": {
+        "type": "pixel_map",
+        "phase": "choice",
+        "title": "ONE STEP AT A TIME"
+      }
+    },
+    {
+      "say": "The path was still uncertain. But with every little step, the traveler became someone who kept going.",
+      "show": {
+        "type": "b3d",
+        "scene": "voxel",
+        "params": {
+          "seed": 21,
+          "hero": "#ec743c",
+          "level": "KEEP GOING"
+        },
+        "fallback": {
+          "type": "title",
+          "text": "KEEP GOING"
+        }
+      }
+    },
+    {
+      "say": "Maybe the map was never the point. The courage to move was.",
+      "show": {
+        "type": "end",
+        "text": "A PATH BEGINS WITH ONE STEP"
+      }
+    }
+  ]
+}

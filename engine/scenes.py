@@ -716,3 +716,7 @@ SCENES["pip"] = pip
 # Original independent illustration stage for Foundbeam's documented acquisition cases.
 from .foundbeam import scene_foundbeam_flow  # noqa: E402
 SCENES["foundbeam_flow"] = scene_foundbeam_flow
+
+# Original Pixel Fables in-world animated route maps, no generic emoji host.
+from .pixel_map import scene_pixel_map  # noqa: E402
+SCENES["pixel_map"] = scene_pixel_map
