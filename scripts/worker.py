@@ -369,9 +369,10 @@ def main():
     if not 1 <= args.days <= 30 or not 0 <= args.start_offset <= 30:
         p.error("days must be 1-30 and start offset 0-30")
 
+    os.umask(0o077)  # protect the lock, SQLite queue, manifests and logs
+
     def run() -> dict:
-        os.umask(0o077)  # prevent world-readable SQLite queue, manifests and logs
-    with closing(connection(args.db)) as db:
+        with closing(connection(args.db)) as db:
             if args.action in ("scan", "cycle"):
                 files = [args.spec] if args.spec else future_specs(days=args.days, start_offset=args.start_offset)
                 imported = enqueue(db, files)

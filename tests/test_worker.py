@@ -227,3 +227,16 @@ def test_existing_review_with_wrong_spec_digest_is_not_adopted(tmp_path, monkeyp
         "specSha256": "f" * 64, "publicationStatus": "NOT_APPROVED_FOR_PUBLICATION"}))
     with pytest.raises(ValueError, match="wrong source identity"):
         worker.adopt_verified_review(root.parent, job, spec)
+
+
+def test_worker_cli_status_and_empty_cycle(tmp_path):
+    import subprocess
+    import sys
+
+    for action, expected in (("status", {}), ("once", {"scan": None, "recovered": 0, "jobs": [{"status": "idle"}]})):
+        result = subprocess.run(
+            [sys.executable, str(worker.ROOT / "scripts" / "worker.py"), action,
+             "--db", str(tmp_path / "queue.sqlite3"), "--reviews", str(tmp_path / "reviews")],
+            capture_output=True, text=True, check=True,
+        )
+        assert json.loads(result.stdout) == expected
