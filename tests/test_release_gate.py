@@ -168,3 +168,40 @@ def test_private_stage_binds_worker_provenance_and_exact_media(tmp_path, monkeyp
     (exact / "video.mp4").write_text("replaced master")
     with pytest.raises(gate.ReleaseRejected, match="bytes changed"):
         gate.stage_private(spec, exact, tmp_path / "another-stage", now=NOW)
+
+
+def test_owner_schedule_override_reuses_exact_media_hash_and_requires_future(tmp_path,monkeypatch):
+    spec,path,approval=fixture(tmp_path,monkeypatch)
+    now=NOW+dt.timedelta(days=4)
+    with pytest.raises(gate.ReleaseRejected,match='schedule'):
+        gate.approval_for(spec,now=now)
+    override='2026-11-19T14:30:00Z'
+    approval['scheduledPublishAt']=override
+    path.write_text(json.dumps(approval))
+    assert gate.approval_for(spec,now=now)['scheduledPublishAt']==override
+    approval['scheduledPublishAt']='2026-11-15T14:00:00Z'
+    path.write_text(json.dumps(approval))
+    with pytest.raises(gate.ReleaseRejected,match='schedule'):
+        gate.approval_for(spec,now=now)
+
+
+def test_owner_schedule_override_is_preserved_in_staged_pack(tmp_path,monkeypatch):
+    spec,path,approval=fixture(tmp_path,monkeypatch)
+    result=tmp_path/'reviewed'/approval['id'];result.mkdir(parents=True)
+    (result/'spec.json').write_bytes(spec.read_bytes())
+    for name in gate.CHECKSUM_FILES-{'spec.json'}:
+        (result/name).write_bytes(b'test '+name.encode())
+    (result/'pack.json').write_text(json.dumps({'id':approval['id'],'publishAt':'2026-11-16T12:00:00Z'}))
+    (result/'probe.json').write_text(json.dumps({'format':{'duration':45},'streams':[]}))
+    (result/'checksums.txt').write_text(''.join(f'{gate._sha(result/name)}  {name}\n' for name in sorted(gate.CHECKSUM_FILES)))
+    approval['videoSha256']=gate._sha(result/'video.mp4')
+    approval['thumbnailSha256']=gate._sha(result/'thumb.jpg')
+    approval['scheduledPublishAt']='2026-11-18T15:00:00Z'
+    path.write_text(json.dumps(approval))
+    monkeypatch.setattr(gate,'verify',lambda *a:None)
+    monkeypatch.setattr(gate,'verify_audio',lambda *a:None)
+    gate.stage(spec,tmp_path/'reviewed',now=NOW)
+    pack=json.loads((result/'pack.json').read_text())
+    assert pack['publishAt']=='2026-11-18T15:00:00Z'
+    assert pack['editorialApproval']['scheduledPublishAt']=='2026-11-18T15:00:00Z'
+    assert pack['editorialApproval']['videoSha256']==approval['videoSha256']

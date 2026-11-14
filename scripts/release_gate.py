@@ -80,9 +80,17 @@ def approval_for(spec_path: Path, *, now: dt.datetime | None = None, private: bo
         moment = now or dt.datetime.now(dt.timezone.utc)
         if when > moment + dt.timedelta(minutes=5) or when < moment - dt.timedelta(days=60):
             raise ReleaseRejected("Approval time is outside the valid window")
-        publish_at = dt.datetime.fromisoformat(str(spec["publishAt"]).replace("Z", "+00:00"))
+        # A separately owner-signed scheduling override can move the *same*
+        # checksum-verified video to a future slot without pretending that a
+        # changed spec has the same hash or wasting CPU re-rendering it.
+        # Original narration, scenes and reviewed media remain immutable.
+        actual_schedule = approval.get("scheduledPublishAt") or spec["publishAt"]
+        publish_at = dt.datetime.fromisoformat(str(actual_schedule).replace("Z", "+00:00"))
         if publish_at.tzinfo is None or publish_at < moment + dt.timedelta(minutes=30):
             raise ReleaseRejected("Release schedule must be at least 30 minutes in the future")
+        if approval.get("scheduledPublishAt"):
+            if not isinstance(approval.get("scheduledPublishAt"), str) or len(approval["scheduledPublishAt"]) > 50:
+                raise ReleaseRejected("Owner scheduling override must be an explicit ISO date string")
         return approval
     except ReleaseRejected:
         raise
@@ -136,6 +144,8 @@ def stage_files(spec_path: Path, result: Path, approval: dict) -> Path:
     probe = json.loads((result / "probe.json").read_text())
     verify(spec, pack, probe, result / "thumb.jpg")
     verify_audio(result / "video.mp4")
+    if approval.get("scheduledPublishAt"):
+        pack["publishAt"] = approval["scheduledPublishAt"]
     pack["editorialApproval"] = {
         "status": "approved", "specSha256": approval["specSha256"],
         "reviewArtifact": approval["reviewArtifact"], "reviewedAt": approval["reviewedAt"],
@@ -143,6 +153,8 @@ def stage_files(spec_path: Path, result: Path, approval: dict) -> Path:
            else {"reviewSource": approval["reviewSource"]}),
         "videoSha256": approval["videoSha256"], "thumbnailSha256": approval["thumbnailSha256"],
         "reviewer": "owner",
+        **({"scheduledPublishAt": approval["scheduledPublishAt"]}
+           if approval.get("scheduledPublishAt") else {}),
     }
     (result / "pack.json").write_text(json.dumps(pack, ensure_ascii=False, indent=2) + "\n")
     return result
