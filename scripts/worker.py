@@ -143,6 +143,13 @@ def enqueue(db: sqlite3.Connection, files: list[pathlib.Path], *, now: dt.dateti
             "VALUES (?,?,?,?,?,?,?,?,?)",
             (job_key, spec["id"], str(path), sha, spec["channel"], spec["format"], "queued", iso(now), iso(now)),
         )
+        if not result.rowcount:
+            # A checkout can restore earlier bytes after a revision was queued.
+            # Only reactivate superseded work. Verified and blocked rows retain their receipts.
+            result = db.execute(
+                "UPDATE jobs SET state='queued',attempt=0,eligible_at=?,started_at=NULL,updated_at=?,last_error=NULL "
+                "WHERE job_key=? AND state='superseded'", (iso(now), iso(now), job_key),
+            )
         if result.rowcount:
             imported += 1
         else:
