@@ -33,6 +33,7 @@ def test_visuals_use_independent_storyboard_and_verified_numbers():
     assert '2.8 million' in figures and '35%' in figures and '20%' in figures
     assert '100,000' in figures and 'four million' in figures
     assert spec['meta']['reviewStatus']=='EDITORIAL_HOLD_NOT_APPROVED'
+    assert spec['meta']['visualRevision']=='distinct-episode-diagrams-v2'
     assert '500 MB' not in ' '.join(s['say'] for s in spec['scenes'])
     assert 'first 100,000 users solely' in figures
     assert 'actual Dropbox interface' not in figures.lower()

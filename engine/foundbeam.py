@@ -52,8 +52,96 @@ def _letter(draw,x,y,unit,ink,accent,scale=1.0):
     return (w,h)
 
 
+
+def _folder_story(d, W, H, u, reveal, *, ink, muted, accent, secondary, body, strong):
+    """One large folder moves to one recipient, without a signup claim."""
+    x0, x1 = W*.10, W*.61
+    top, bottom = H*.32, H*.69
+    _rounded(d,(x0,top,x1,bottom),(31,43,51,255),u*1.5,
+             outline=(*secondary,255),width=max(2,int(u*.3)))
+    _label(d,x0+u*2,top+u*2,'ALEX  /  OPEN PROJECT',strong,ink,x1-x0-u*4)
+    fx,fy=x0+(x1-x0)*.5,(top+bottom)*.55
+    fw,fh=(x1-x0)*.56,(bottom-top)*.29
+    _rounded(d,(fx-fw*.5,fy-fh*.5,fx+fw*.5,fy+fh*.5),(*secondary,255),u*.8)
+    _rounded(d,(fx-fw*.42,fy-fh*.66,fx-fw*.10,fy-fh*.33),(*secondary,255),u*.4)
+    _label(d,x0+u*2,bottom-u*4,'SHARE ACCESS  ≠  REWARD',body,accent,x1-x0-u*4)
+    sy=(top+bottom)*.50
+    sx=W*.82
+    rad=min(W,H)*.070
+    d.ellipse((sx-rad,sy-rad,sx+rad,sy+rad),fill=(71,57,87,255),outline=(177,143,211,255),width=max(2,int(u*.35)))
+    _label(d,sx-rad*.38,sy-rad*.57,'S',strong,ink,rad)
+    _label(d,sx-rad*1.0,sy+rad*1.5,'SAM',strong,ink,rad*2)
+    d.line((x1+u*.7,sy,sx-rad-u*.6,sy),fill=(*accent,220),width=max(2,int(u*.48)))
+    token_x=x1+u*.7+(sx-rad-u*1.3-x1)*reveal
+    _rounded(d,(token_x-u*.9,sy-u*.6,token_x+u*.9,sy+u*.6),(*ink,255),u*.34)
+    _label(d,W*.10,H*.75,'A FOLDER CAN TRAVEL WITHOUT A NEW ACCOUNT',body,muted,W*.78)
+
+
+def _referral_story(d, W, H, u, reveal, *, ink, muted, accent, secondary, body, strong):
+    """A separate invitation-to-join sequence; no fabricated conversion rate."""
+    parts=(('1','INVITATION','Send a request'),('2','SIGNUP','Person may join'),('3','REWARD','Both may benefit'))
+    for j,(number,heading,description) in enumerate(parts):
+        x0=W*(.07+j*.305)
+        x1=x0+W*.268
+        yy=H*(.35+.018*math.sin(j*1.9))
+        y1=H*.66
+        active=reveal>j*.27
+        _rounded(d,(x0,yy,x1,y1),(37,33,41,255),u*.85,
+                 outline=(*accent,240) if active else (*muted,120),width=max(2,int(u*.4)))
+        nf=font('Inter Display:style=Black',max(20,int(u*6.2)))
+        _label(d,x0+u*2,yy+u*1.2,number,nf,accent if active else muted,W*.12)
+        _label(d,x0+u*2,yy+H*.10,heading,strong,ink,W*.23)
+        _label(d,x0+u*2,y1-u*4.4,description,body,muted,W*.24)
+        if j<2:
+            xc=x1+W*.019
+            yc=(yy+y1)*.49
+            d.line((xc-W*.012,yc,xc+W*.012,yc),fill=(*accent,220),width=max(2,int(u*.5)))
+            d.polygon([(xc+W*.012,yc),(xc+W*.002,yc-u*.8),(xc+W*.002,yc+u*.8)],fill=accent)
+    _label(d,W*.09,H*.75,'AN INVITE IS NOT A MEASURED CONVERSION',body,muted,W*.82)
+
+
+def _reward_story(d, W, H, u, reveal, *, ink, muted, accent, secondary, body, strong):
+    """Abstract two-sided storage incentive without implying an amount."""
+    d.line((W*.17,H*.43,W*.83,H*.43),fill=(*muted,110),width=max(2,int(u*.3)))
+    for j,(person,color) in enumerate((('ALEX',accent),('SAM',(165,128,220)))):
+        center=W*(.30 if j==0 else .70)
+        yy=H*.52
+        r=min(W,H)*.112
+        d.ellipse((center-r,yy-r,center+r,yy+r),fill=(30,31,40,255),outline=(*color,255),width=max(3,int(u*.65)))
+        _label(d,center-r*.67,yy-r*.52,person,strong,ink,r*1.6)
+        bx=center-r*.55
+        by=yy+r*.1
+        for k in range(3):
+            phase=min(1,max(0,reveal*2.5-(k*.42+j*.05)))
+            size=u*(.45+phase*.55)
+            x=bx+k*u*2.2
+            _rounded(d,(x,by-size,x+size*2,by+size),(*color,int(85+170*phase)),u*.3)
+        _label(d,center-r*.95,yy+r*1.5,'STORAGE',body,muted,r*1.9)
+    _label(d,W*.10,H*.80,'INCENTIVE: STORAGE  |  AMOUNT NOT ASSERTED',body,muted,W*.78)
+
+
+def _decision_story(d, W, H, u, reveal, *, ink, muted, accent, secondary, body, strong):
+    """Two differently motivated decisions, without made-up numbers."""
+    x=W*.13
+    yy=H*.49
+    rad=min(W,H)*.06
+    d.ellipse((x-rad,yy-rad,x+rad,yy+rad),fill=(*accent,255))
+    _label(d,x-rad*.42,yy-rad*.50,'?',strong,(10,10,18),rad)
+    d.line((x+rad,yy,W*.42,yy),fill=(*accent,220),width=max(2,int(u*.5)))
+    cards=(('OPEN THE FILE','Already needs the file',H*.30,secondary),
+           ('TRY THE PRODUCT','Invitation to join',H*.55,(162,125,208)))
+    for i,(title,detail,y,col) in enumerate(cards):
+        d.line((W*.42,yy,W*.47,y+H*.11),fill=(*col,255),width=max(3,int(u*.35)))
+        left=W*.49
+        _rounded(d,(left,y,left+W*.43,y+H*.205),(38,37,47,255),u,
+                 outline=(*col,255),width=max(2,int(u*.4)))
+        _label(d,left+u*2.2,y+u*2,title,strong,ink,W*.39)
+        _label(d,left+u*2.2,y+H*.105,detail,body,muted,W*.39)
+    _label(d,W*.11,H*.80,'TWO DIFFERENT ACTIONS NEED DIFFERENT METRICS',body,accent,W*.82)
+
+
 def scene_foundbeam_flow(c, dur: float, p: dict, words: list[str]) -> Iterator[Image.Image]:
-    """Dual-desktop storyboard, geometry and motion all rendered, no external media."""
+    """Distinct original compositions for seven factual storytelling beats."""
     variant=p.get("variant","split")
     if variant not in VARIANTS:
         raise ValueError(f"Unknown Foundbeam acquisition-story variant: {variant}")
@@ -122,6 +210,15 @@ def scene_foundbeam_flow(c, dur: float, p: dict, words: list[str]) -> Iterator[I
                 _label(d,xx,y,number,f,ink,W*.35)
                 _label(d,xx,y+u*7,date,strong,accent,W*.35)
                 _label(d,xx,y+u*11,unit_label,body,muted,W*.35)
+        elif variant in {"folder", "referral", "meter", "return"}:
+            render = {
+                "folder": _folder_story,
+                "referral": _referral_story,
+                "meter": _reward_story,
+                "return": _decision_story,
+            }[variant]
+            render(d,W,H,u,reveal,ink=ink,muted=muted,accent=accent,
+                   secondary=secondary,body=body,strong=strong)
         else:
             margin=W*.095
             gap=W*.045
