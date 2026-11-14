@@ -44,3 +44,73 @@ def slot_key(when: dt.datetime) -> str:
     mins = when.hour * 60 + when.minute
     best = min(SLOTS, key=lambda s: abs(int(s[:2]) * 60 + int(s[3:]) - mins))
     return best
+
+
+# Three genuinely separated geographic experiments for Counterfactual Atlas.
+# Times are UTC, not local-device times; the daily plan survives travel or DST.
+# Actual per-format, maturity-filtered YouTube metrics supersede the cold-start
+# ordering once enough genuine channel videos have been observed.
+ATLAS_WINDOWS = (
+    ("Asia-Pacific", ("00:30", "03:30")),
+    ("Europe-Africa", ("12:00", "14:00")),
+    ("Americas", ("18:00", "20:30")),
+)
+
+
+def atlas_daily_slots(day: dt.date, now: dt.datetime,
+                      stats_short: dict[str, tuple[int, float]],
+                      stats_long: dict[str, tuple[int, float]], *,
+                      existing: tuple[dt.datetime, ...] = (),
+                      need_short: int = 2, need_long: int = 1,
+                      min_lead_h: float = 4.5) -> dict[str, list[dt.datetime]]:
+    """Three independent daily slots, one per geographic window; never claim
+    a best time when there is no meaningful observed audience data.
+
+    A completed partial plan keeps its existing times. On restarts we fill only
+    missing slots; any time already occupied is excluded from new suggestions.
+    Failed or late drafts cannot be assigned a slot in the past.
+    """
+    if now.tzinfo is None or any(x.tzinfo is None for x in existing):
+        raise ValueError("Atlas slot scheduling requires timezone-aware timestamps")
+    if not 0 <= need_short <= 2 or not 0 <= need_long <= 1 or need_short + need_long > 3:
+        raise ValueError("Atlas cadence must be 2 Shorts and 1 long per day")
+    results: dict[str, list[dt.datetime]] = {"short": [], "long": []}
+    occupied = tuple(existing)
+    # Rotate long-form exposure across all three time-of-day cohorts instead of
+    # assigning long videos to the same geography forever.
+    long_window = day.toordinal() % len(ATLAS_WINDOWS)
+    order = ([long_window] + [i for i in range(len(ATLAS_WINDOWS)) if i != long_window]
+             if need_long else list(range(len(ATLAS_WINDOWS))))
+    allocation = (["long"] * need_long) + (["short"] * need_short)
+    used_windows: set[int] = set()
+    for fmt in allocation:
+        for window_index in order:
+            if window_index in used_windows:
+                continue
+            _, slots = ATLAS_WINDOWS[window_index]
+            stats = stats_long if fmt == "long" else stats_short
+            samples = sum(count for count, _ in stats.values())
+            choices = []
+            for k, slot in enumerate(slots):
+                hh, mm = map(int, slot.split(":"))
+                jitter = (_h("atlas", day, fmt, slot, "jitter") % 15) - 7
+                when = dt.datetime.combine(day, dt.time(hh, mm), tzinfo=dt.timezone.utc) + dt.timedelta(minutes=jitter)
+                if when < now + dt.timedelta(hours=min_lead_h):
+                    continue
+                if any(abs((when - other).total_seconds()) < 3 * 3600 for other in (*occupied, *results["long"], *results["short"])):
+                    continue
+                count, mean = stats.get(slot, (0, 0.0))
+                # Cold-start: deterministic 50/50 exploration within each region.
+                # Later: an evidence-backed UCB preference for mature performance.
+                exploration = (2.0 if count == 0 else
+                               0.5 * math.sqrt(math.log(samples + 2) / count))
+                prior = (_h("atlas", day, window_index, slot, "explore") % 1000) / 10000
+                choices.append((mean + exploration + prior, when))
+            if choices:
+                _, chosen = max(choices)
+                results[fmt].append(chosen)
+                used_windows.add(window_index)
+                break
+    for fmt in results:
+        results[fmt].sort()
+    return results

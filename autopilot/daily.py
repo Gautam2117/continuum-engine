@@ -21,7 +21,7 @@ from .llm import LLM, LLMError
 from .normalize import speakable
 from . import schemas
 from .playbooks import PLAYBOOKS, cadence_for
-from .slots import choose, slot_key
+from .slots import choose, atlas_daily_slots, slot_key
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SPECS = pathlib.Path(os.environ.get("CONTINUUM_SPEC_DIR") or (ROOT / "specs")).resolve()
@@ -474,13 +474,24 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
                         continue
                     if parsed.tzinfo is not None:
                         occupied.append(parsed)
+            atlas_slots = None
+            if channel == "Counterfactual Atlas":
+                goals = cadence_for(channel, day)
+                missing_short = max(0, goals.get("short", 0) - sum(item.get("format") == "short" for item in existing))
+                missing_long = max(0, goals.get("long", 0) - sum(item.get("format") == "long" for item in existing))
+                atlas_slots = atlas_daily_slots(
+                    day, now, insights.slot_stats(channel, "short"), insights.slot_stats(channel, "long"),
+                    existing=tuple(occupied), need_short=missing_short, need_long=missing_long,
+                )
             for fmt in ("short", "long"):
                 want = cadence_for(channel, day).get(fmt, 0)
                 have = sum(saved.get("format") == fmt for saved in existing)
                 missing = want - have
                 if missing <= 0:
                     continue
-                slots = choose(channel, fmt, missing, day, insights.slot_stats(channel, fmt), now, occupied=tuple(occupied))
+                slots = (atlas_slots[fmt] if atlas_slots is not None else
+                         choose(channel, fmt, missing, day, insights.slot_stats(channel, fmt), now,
+                                occupied=tuple(occupied)))
                 prefix = f"{pb['slug']}-{fmt[0]}"
                 serial = 0
                 for when in slots:

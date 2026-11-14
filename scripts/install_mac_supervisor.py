@@ -34,10 +34,10 @@ def configuration(*, root: pathlib.Path = ROOT, interval: int = 900) -> dict:
     path = ':'.join(['/opt/homebrew/bin','/usr/local/bin','/usr/bin','/bin','/usr/sbin','/sbin'])
     return {
         'Label': LABEL,
-        'ProgramArguments': [str(python), str(runner), 'cycle', '--days', '3',
+        'ProgramArguments': [str(python), str(runner), 'cycle', '--days', '7',
                              '--plan', '--render', '--require-blender',
                              '--render-limit', '1', '--render-timeout', '7200',
-                             '--max-calls', '10', '--plan-timeout', '600',
+                             '--max-calls', '24', '--plan-timeout', '1200',
                              '--min-free-gib', '20'],
         'WorkingDirectory': str(root),
         'EnvironmentVariables': {
