@@ -2,6 +2,7 @@
 
 feedback.json comes from Studio (/api/autopilot/feedback); ledger.json is written by the planner and ties every
 published video back to the choices that produced it (topic axis, publish slot, format)."""
+import datetime as dt
 import json
 import os
 import pathlib
@@ -38,34 +39,88 @@ def save(name: str, data) -> None:
 
 
 def joined(channel: str) -> list[dict]:
-    """Ledger entries for a channel with their measured results (when Studio has them)."""
+    """Use exact Engine spec IDs supplied by Studio's published YouTube lineage.
+
+    Never match performance to a script by title: titles can be edited, reused
+    and frequently repeat across Shorts. A missing source link means unlinked,
+    not a zero-performing or missing upload.
+    """
     feedback = load("feedback.json", {})
     ledger = load("ledger.json", [])
-    vids = {}
+    matched: dict[str, list[dict]] = {}
     for ch in feedback.get("channels", []):
-        if _norm(ch.get("title", "")) == _norm(channel):
-            for v in ch.get("videos", []):
-                vids[_norm(v.get("title", ""))] = v
-    out = []
-    for e in ledger:
-        if e["channel"] != channel:
+        if _norm(str(ch.get("title") or "")) != _norm(channel):
             continue
-        v = vids.get(_norm(e["title"]))
-        if v and v.get("views") is not None:
-            out.append({**e, **{k: v.get(k) for k in ("views", "minutes", "avgPct", "subsGained", "publishedAt")}})
+        for video in ch.get("videos", []):
+            spec_id = video.get("engineSpecId")
+            if isinstance(spec_id, str) and spec_id:
+                matched.setdefault(spec_id, []).append(video)
+    out = []
+    for entry in ledger:
+        if entry.get("channel") != channel or not isinstance(entry.get("id"), str):
+            continue
+        candidates = matched.get(entry["id"], [])
+        # One video per spec is the accepted learning unit. Reuploads must be
+        # investigated instead of silently overwriting the original metrics.
+        if len(candidates) != 1 or candidates[0].get("views") is None:
+            continue
+        v = candidates[0]
+        out.append({**entry, **{k: v.get(k) for k in
+                                 ("views", "minutes", "avgPct", "subsGained", "publishedAt")},
+                    "youtubeVideoId": v.get("id")})
     return out
+
+
+def mature(row: dict, *, now: dt.datetime | None = None) -> bool:
+    """Wait for a minimum 48 hours of distribution and analytics lag."""
+    when = row.get("publishedAt")
+    if not isinstance(when, str) or not when:
+        return False
+    try:
+        parsed = dt.datetime.fromisoformat(when.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            return False
+    except ValueError:
+        return False
+    now = now or dt.datetime.now(dt.timezone.utc)
+    return dt.timedelta(hours=48) <= now - parsed <= dt.timedelta(days=180)
+
+
+def previous_channel_examples(channel: str, fmt: str) -> str:
+    """Existing videos provide observed audience context, not credited Engine wins.
+
+    We deliberately don't infer a script's axis, editing style or causality
+    from their titles. Only 48h+ examples can enter this observation note.
+    """
+    feedback = load("feedback.json", {})
+    videos = [v for c in feedback.get("channels", [])
+              if _norm(str(c.get("title") or "")) == _norm(channel)
+              for v in c.get("videos", [])
+              if v.get("format") == fmt and v.get("views") is not None and mature(v)]
+    if len(videos) < 4:
+        return ""
+    ranked = sorted(videos, key=lambda v: max(0, v.get("views") or 0), reverse=True)
+    best, low = ranked[:2], ranked[-2:]
+    def example(v: dict) -> str:
+        return f'- "{str(v.get("title") or "").strip()[:100]}" ({int(v["views"])} views)'
+    return ("OBSERVED HISTORICAL VIDEOS FROM THIS SAME CHANNEL (not controlled experiments, no causal conclusions):\n"
+            + "Higher-view examples:\n" + "\n".join(map(example, best))
+            + "\nLower-view examples:\n" + "\n".join(map(example, low)))
 
 
 def score(v: dict, med_views: float) -> float:
     """One number per video: views relative to the channel's median, nudged by retention and subscribers."""
-    rel = (v.get("views") or 0) / max(med_views, 1)
-    ret = (v.get("avgPct") or 0) / 100
-    subs = min((v.get("subsGained") or 0) / max(v.get("views") or 1, 1) * 100, 3) / 3
+    views = max(0, v.get("views") or 0)
+    rel = views / max(med_views, 1)
+    # Zero avgPct is frequently API lag or missing data, not a 0%-retention video.
+    raw_ret = v.get("avgPct")
+    ret = min(max(float(raw_ret) / 100, 0), 1.5) if raw_ret and raw_ret > 0 else 0.5
+    subs = min(max((v.get("subsGained") or 0) / max(views, 1) * 100, 0), 3) / 3
     return round(0.6 * min(rel, 5) / 5 + 0.25 * ret + 0.15 * subs, 4)
 
 
 def slot_stats(channel: str, fmt: str) -> dict[str, tuple[int, float]]:
-    rows = [r for r in joined(channel) if r.get("format") == fmt and r.get("slot")]
+    rows = [r for r in joined(channel) if r.get("format") == fmt and r.get("slot") and mature(r)]
     if not rows:
         return {}
     med = statistics.median([r["views"] or 0 for r in rows]) or 1
@@ -77,9 +132,9 @@ def slot_stats(channel: str, fmt: str) -> dict[str, tuple[int, float]]:
 
 def guidance(channel: str, fmt: str) -> str:
     """A short paragraph for the planner prompt: what has worked and flopped on this channel."""
-    rows = [r for r in joined(channel) if r.get("format") == fmt]
+    rows = [r for r in joined(channel) if r.get("format") == fmt and mature(r)]
     if len(rows) < 4:
-        return ""
+        return previous_channel_examples(channel, fmt)
     med = statistics.median([r["views"] or 0 for r in rows]) or 1
     ranked = sorted(rows, key=lambda r: score(r, med), reverse=True)
     best, worst = ranked[:3], ranked[-2:]
@@ -89,7 +144,7 @@ def guidance(channel: str, fmt: str) -> str:
 
 def axis_weights(channel: str, axes: list[str]) -> list[str]:
     """Axes ordered best-first once there is data; otherwise unchanged."""
-    rows = [r for r in joined(channel) if r.get("axis")]
+    rows = [r for r in joined(channel) if r.get("axis") and mature(r)]
     if len(rows) < 6:
         return axes
     med = statistics.median([r["views"] or 0 for r in rows]) or 1
