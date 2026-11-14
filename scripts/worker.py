@@ -347,27 +347,26 @@ def render_one(job: dict, *, review_root: pathlib.Path, time_budget: int = 7200,
 def process_next(db: sqlite3.Connection, *, review_root: pathlib.Path, now: dt.datetime | None = None,
                  render_fn=render_one, time_budget: int = 7200, max_attempts: int = 3,
                  window: tuple[dt.date, dt.date] | None = None, job_key: str | None = None) -> dict:
-    now = now or utcnow()
     job = claim(db, now, window=window, job_key=job_key)
     if job is None:
         return {"status": "idle"}
     try:
         details = render_fn(job, review_root=review_root, time_budget=time_budget)
     except FileExistsError as error:
-        state = finish(db, job["job_key"], "superseded", error=str(error), now=now)
+        state = finish(db, job["job_key"], "superseded", error=str(error), now=now or utcnow())
     except ValueError as error:
-        state = finish(db, job["job_key"], "blocked", error=str(error), now=now)
+        state = finish(db, job["job_key"], "blocked", error=str(error), now=now or utcnow())
     except (OSError, RuntimeError, subprocess.SubprocessError) as error:
-        state = finish(db, job["job_key"], "retry", error=str(error), attempt=job["attempt"], now=now,
+        state = finish(db, job["job_key"], "retry", error=str(error), attempt=job["attempt"], now=now or utcnow(),
                        max_attempts=max_attempts)
     except Exception as error:
         # A programming error or malformed external dependency must be visible
         # as a blocked job, rather than crashing the whole service and silently
         # leaving an indefinite in-progress lease.
         state = finish(db, job["job_key"], "blocked",
-                       error=f"Unexpected {type(error).__name__}: {error}", now=now)
+                       error=f"Unexpected {type(error).__name__}: {error}", now=now or utcnow())
     else:
-        state = finish(db, job["job_key"], "verified", media=details, now=now)
+        state = finish(db, job["job_key"], "verified", media=details, now=now or utcnow())
     return {"id": job["spec_id"], "state": state, "attempt": job["attempt"]}
 
 

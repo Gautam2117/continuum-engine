@@ -301,3 +301,24 @@ def test_exact_worker_claim_does_not_take_another_queued_episode(tmp_path, monke
         assert worker.claim(db, NOW)["spec_id"] == "2026-11-16-atlas-s1"
     finally:
         db.close()
+
+
+def test_retry_delay_starts_after_render_failure(tmp_path, monkeypatch):
+    spec = _sample(tmp_path, monkeypatch)
+    db = worker.connection(tmp_path / "queue.db")
+    finished = NOW + dt.timedelta(hours=1)
+    clock = iter([NOW, finished])
+    monkeypatch.setattr(worker, "utcnow", lambda: next(clock))
+
+    def render(job, **kwargs):
+        raise RuntimeError("Temporary renderer outage")
+
+    try:
+        worker.enqueue(db, [spec], now=NOW)
+        result = worker.process_next(db, review_root=tmp_path, render_fn=render)
+        assert result["state"] == "retry"
+        row = db.execute("SELECT updated_at, eligible_at FROM jobs").fetchone()
+        assert row["updated_at"] == worker.iso(finished)
+        assert row["eligible_at"] == worker.iso(finished + dt.timedelta(minutes=15))
+    finally:
+        db.close()
