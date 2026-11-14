@@ -21,7 +21,9 @@ PLAYBOOKS: dict[str, dict] = {
         axes=["astronomy and orbits", "the human body at extremes", "weather and climate", "geology and the deep Earth", "oceans and tides", "energy and power", "materials and engineering", "light, sound and speed", "scale: size and distance", "time and duration", "animals and ecosystems", "everyday objects pushed to extremes"],
         titles=["What if the Moon were twice as close?", "What if you fell through the Earth?", "What if the Sun vanished for one second?"],
         avoid=["claiming certainty where physics is speculative; say 'roughly' or 'on the order of'", "gore", "real people", "predictions about real disasters"],
-        scene_bias=["b3d (when the topic fits a 3D scene)", "number", "tide (for ocean/coastline scenarios)", "orbit", "fall", "bars", "timeline", "say"], grounded=True,
+        scene_bias=["b3d (when the topic fits a 3D scene)", "number", "tide (for ocean/coastline scenarios)", "orbit", "fall", "bars", "timeline", "say"],
+        b3d=["bars3d", "orbit3d", "fall3d", "earth_tunnel", "moon_drive", "everest_flood"],
+        grounded=True,
         tags=["what if", "science", "physics", "space", "explained"], links=[CTA_DAYWILD],
     ),
     "10SecScientist": dict(
