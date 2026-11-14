@@ -17,8 +17,8 @@ def test_exact_daily_48_individual_contracts():
         date = DAY+dt.timedelta(days=offset)
         plan = sup.target(date)
         assert len(plan) == 48
-        assert sum(sum(v.values()) for v in plan.values()) == 50
-        assert sum(plan['Counterfactual Atlas'].values()) == 3
+        assert sum(sum(v.values()) for v in plan.values()) == 47 + sum(plan['Counterfactual Atlas'].values())
+        assert sum(plan['Counterfactual Atlas'].values()) == 3 + int(date.weekday() in (0,2,5))
         assert all(sum(v.values()) == 1 for name,v in plan.items() if name != 'Counterfactual Atlas')
         assert not any('felix' in x.lower() or 'gotz' in x.lower() for x in plan)
 
@@ -26,8 +26,8 @@ def test_exact_daily_48_individual_contracts():
 def test_empty_spool_never_claims_made_videos(tmp_path):
     snap = sup.snapshot(tmp_path/'specs', tmp_path/'worker.sqlite3', today=DAY, days=3)
     assert snap['channels']==48
-    assert snap['requiredEpisodes']==150
-    assert snap['validSpecs']==0 and snap['missingSpecs']==150
+    assert snap['requiredEpisodes']==152
+    assert snap['validSpecs']==0 and snap['missingSpecs']==152
     assert len(snap['channelsDetail'])==48
     assert snap['worker']['verifiedEpisodes']==0
     assert snap['publishing']==sup.RELEASE_STATE
@@ -43,7 +43,7 @@ def test_invalid_spec_does_not_satisfy_channel_quota(tmp_path):
     }))
     snap=sup.snapshot(tmp_path/'specs',tmp_path/'state.db',today=DAY,days=1)
     assert snap['validSpecs']==0 and snap['invalidSpecCount']==1
-    assert snap['missingSpecs']==50
+    assert snap['missingSpecs']==51
     assert snap['invalidSpecs'][0]['file'].endswith('atlas-s1.json')
 
 
@@ -77,12 +77,12 @@ def test_report_only_cycle_is_idempotent_and_never_publishes(monkeypatch,tmp_pat
         '--reviews',str(tmp_path/'reviews'),'--days','2','--plan'])
     monkeypatch.setattr(sup,'allowed_planner',lambda: (False,'no zero-cost provider'))
     r=sup.cycle(args)
-    assert r['requiredEpisodes']==100
+    assert r['requiredEpisodes']==101
     assert r['validSpecs']==0
     assert r['steps']['plan']['status']=='not-run'
     assert json.loads((tmp_path/'private'/'latest.json').read_text())['missingSpecs']==100
     r2=sup.cycle(args)
-    assert r2['requiredEpisodes']==100
+    assert r2['requiredEpisodes']==101
     assert not list((tmp_path/'reviews').rglob('*.mp4')) if (tmp_path/'reviews').exists() else True
 
 
@@ -130,8 +130,8 @@ def test_structurally_valid_unreviewed_autopilot_spec_does_not_count_as_render_r
     assert report['validSpecs']==1
     assert report['renderEligibleSpecs']==0
     assert report['editorialHoldCount']==1
-    assert report['missingSpecs']==49
-    assert report['missingRenderReady']==50
+    assert report['missingSpecs']==50
+    assert report['missingRenderReady']==51
     assert 'editorial score' in report['editorialHolds'][0]['reason']
 
 
@@ -233,7 +233,7 @@ def test_atlas_focus_file_only_routes_work_not_48_channel_contract(monkeypatch,t
     (tmp_path/'reviews').mkdir()
     report=sup.cycle(args)
     assert report['productionFocus']=='Counterfactual Atlas'
-    assert report['channels']==48 and report['requiredEpisodes']==100
+    assert report['channels']==48 and report['requiredEpisodes']==101
     assert len(seen)==2
     assert seen[0][-2:]==['--channel','Counterfactual Atlas']
     assert seen[1][-2:]==['--only','Counterfactual Atlas']

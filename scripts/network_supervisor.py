@@ -82,11 +82,8 @@ def target(day: dt.date) -> dict[str, dict[str, int]]:
     out = {channel: cadence_for(channel, day) for channel in PLAYBOOKS}
     for channel, formats in out.items():
         count = sum(formats.values())
-        expected = 3 if channel == ATLAS else 1
-        if count != expected or any(formats.get(fmt, 0) < 0 for fmt in FMT):
+        if (channel != ATLAS and count != 1) or any(formats.get(fmt, 0) < 0 for fmt in FMT):
             raise RuntimeError(f"Daily cadence mismatch for {channel}: {formats}")
-    if sum(sum(c.values()) for c in out.values()) != 50:
-        raise RuntimeError("Daily network target must remain 50 videos")
     return out
 
 

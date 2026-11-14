@@ -4,6 +4,11 @@ adds to them (see insights.py). One playbook per channel the engine renders end 
 The honesty rules matter as much as the style: these channels are sold to viewers as explainers, so nothing is
 invented. Facts come from the grounding text the planner fetches, or from long-settled knowledge."""
 
+from datetime import date
+
+ATLAS_END_DATE = date(2027, 1, 20)
+ATLAS_LONG_WEEKDAYS = (0, 2, 5)  # Monday, Wednesday, Saturday
+
 CTA_DAYWILD = {"label": "Explore real places on your own missions with Daywild", "url": "https://daywild.continuumarc.tech"}
 CTA_ARC = {"label": "More from Continuum Arc", "url": "https://continuumarc.tech"}
 
@@ -13,7 +18,7 @@ SLOTS = ["14:00", "18:00", "00:30", "12:00", "16:00", "20:30", "03:30"]
 
 PLAYBOOKS: dict[str, dict] = {
     "Counterfactual Atlas": dict(
-        slug="atlas", fixed=True, cadence={"long": 1, "short": 2}, long_words=1250, short_words=105,
+        slug="atlas", fixed=True, cadence={"long": 1, "short": 3}, long_words=1250, short_words=105,
         promise="One impossible what-if per video, answered with real physics and numbers on screen.",
         audience="Curious people aged 16 to 34 worldwide who like science but not jargon.",
         voice="Calm, precise, quietly awed. Short declarative sentences. Never hype words like insane or crazy. The number does the shouting.",
@@ -229,10 +234,11 @@ def playbook(channel: str) -> dict:
 
 
 def cadence_for(channel: str, day) -> dict:
-    """What a channel makes on a given date. Decided by SG on 14 Nov 2026: Counterfactual Atlas makes 3 a day
-    (1 long + 2 Shorts); every other channel makes exactly 1 video a day: a Short on most days and a long video
-    on two days a week, staggered per channel so the network's long renders spread across the week.
-    Channels that only have one format (sleep and ambient channels, long only) make that format daily."""
+    """Return the format targets for the given production date."""
+    if channel == "Counterfactual Atlas":
+        if day > ATLAS_END_DATE:
+            return {"short": 0, "long": 0}
+        return {"short": 3, "long": int(day.weekday() in ATLAS_LONG_WEEKDAYS)}
     pb = PLAYBOOKS[channel]
     if pb.get("fixed"):
         return dict(pb["cadence"])

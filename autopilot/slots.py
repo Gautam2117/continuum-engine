@@ -7,7 +7,7 @@ import datetime as dt
 import hashlib
 import math
 
-from .playbooks import SLOTS
+from .playbooks import SLOTS, cadence_for
 
 
 def _h(*parts) -> int:
@@ -39,10 +39,11 @@ def choose(channel: str, fmt: str, n: int, day: dt.date, stats: dict[str, tuple[
     return sorted(picked)
 
 
-def slot_key(when: dt.datetime) -> str:
+def slot_key(when: dt.datetime, *, atlas: bool = False) -> str:
     """Nearest candidate slot label for a datetime, so results map back to arms."""
     mins = when.hour * 60 + when.minute
-    best = min(SLOTS, key=lambda s: abs(int(s[:2]) * 60 + int(s[3:]) - mins))
+    candidates = [slot for _, slots in ATLAS_WINDOWS for slot in slots] + list(ATLAS_LONG_SLOTS) if atlas else SLOTS
+    best = min(candidates, key=lambda s: abs(int(s[:2]) * 60 + int(s[3:]) - mins))
     return best
 
 
@@ -53,15 +54,18 @@ def slot_key(when: dt.datetime) -> str:
 ATLAS_WINDOWS = (
     ("Asia-Pacific", ("00:30", "03:30")),
     ("Europe-Africa", ("12:00", "14:00")),
-    ("Americas", ("18:00", "20:30")),
+    ("Americas", ("17:30", "18:00")),
 )
+
+
+ATLAS_LONG_SLOTS = ("07:00", "08:00")
 
 
 def atlas_daily_slots(day: dt.date, now: dt.datetime,
                       stats_short: dict[str, tuple[int, float]],
                       stats_long: dict[str, tuple[int, float]], *,
                       existing: tuple[dt.datetime, ...] = (),
-                      need_short: int = 2, need_long: int = 1,
+                      need_short: int | None = None, need_long: int | None = None,
                       min_lead_h: float = 4.5) -> dict[str, list[dt.datetime]]:
     """Three independent daily slots, one per geographic window; never claim
     a best time when there is no meaningful observed audience data.
@@ -72,22 +76,25 @@ def atlas_daily_slots(day: dt.date, now: dt.datetime,
     """
     if now.tzinfo is None or any(x.tzinfo is None for x in existing):
         raise ValueError("Atlas slot scheduling requires timezone-aware timestamps")
-    if not 0 <= need_short <= 2 or not 0 <= need_long <= 1 or need_short + need_long > 3:
-        raise ValueError("Atlas cadence must be 2 Shorts and 1 long per day")
+    target = cadence_for("Counterfactual Atlas", day)
+    need_short = target["short"] if need_short is None else need_short
+    need_long = target["long"] if need_long is None else need_long
+    if not 0 <= need_short <= target["short"] or not 0 <= need_long <= target["long"]:
+        raise ValueError("Atlas slot requests exceed the date's format targets")
     results: dict[str, list[dt.datetime]] = {"short": [], "long": []}
     occupied = tuple(existing)
-    # Rotate long-form exposure across all three time-of-day cohorts instead of
-    # assigning long videos to the same geography forever.
-    long_window = day.toordinal() % len(ATLAS_WINDOWS)
-    order = ([long_window] + [i for i in range(len(ATLAS_WINDOWS)) if i != long_window]
-             if need_long else list(range(len(ATLAS_WINDOWS))))
-    allocation = (["long"] * need_long) + (["short"] * need_short)
+    windows = [slots for _, slots in ATLAS_WINDOWS]
+    allocation = [("short", range(len(windows)))] * need_short
+    if need_long:
+        # Midday in India, with at least three hours to either neighboring Short.
+        allocation.append(("long", (len(windows),)))
+        windows.append(ATLAS_LONG_SLOTS)
     used_windows: set[int] = set()
-    for fmt in allocation:
+    for fmt, order in allocation:
         for window_index in order:
             if window_index in used_windows:
                 continue
-            _, slots = ATLAS_WINDOWS[window_index]
+            slots = windows[window_index]
             stats = stats_long if fmt == "long" else stats_short
             samples = sum(count for count, _ in stats.values())
             choices = []
