@@ -46,10 +46,15 @@ jobs:
           if not isinstance(linked,int) or not 0<=linked<=48 or attention!=48-linked:
               raise SystemExit('Inconsistent live connection counts')
           counters=collections.Counter(x.get('state','unknown') for x in result['channels'])
+          atlas=[c for c in result['channels'] if c.get('slug')=='atlas' and c.get('name')=='Counterfactual Atlas']
+          if len(atlas)!=1:
+              raise SystemExit('Atlas account identity missing or ambiguous; fail closed')
+          atlas_state=atlas[0].get('state','unknown')
           report=[
               '## Continuum Studio: actual connection evidence',
               f'Linked and recently synced: **{linked}/48**',
               f'Attention required: **{attention}/48**',
+              f'Counterfactual Atlas exact account state: **{atlas_state}**',
               f'Duplicate explicit routing mappings: **{result.get("duplicateMappings",0)}**',
               f'Automatic publishing switch: **{bool(result.get("youtubePublisherEnabled"))}**',
               '', 'Readiness groups (not subscriber counts):',
