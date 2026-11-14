@@ -17,7 +17,7 @@ from engine.spec_check import problems
 from . import insights, prompts, market
 from .directors import director_for
 from .ground import ground, ground_news, news_items
-from .llm import LLM, LLMError
+from .llm import LLM, LLMError, OllamaProvider
 from .normalize import speakable
 from . import schemas
 from .playbooks import PLAYBOOKS, cadence_for
@@ -99,6 +99,33 @@ class EpisodeCallLimit(LLMError):
     pass
 
 
+def atlas_cycle_order(days: list[dt.date], now: dt.datetime) -> tuple[list[dt.date], tuple[str, str]]:
+    """Prioritize urgent tomorrow every other tick and visit every later day.
+
+    Rotating the date and format separately prevents an expensive failed Short
+    from indefinitely starving long-form production or the rolling runway.
+    No episode quota, approval or publication policy is modified.
+    """
+    if now.tzinfo is None:
+        raise ValueError("Atlas production requires an aware UTC timestamp")
+    ordered = sorted(set(days))
+    tick = int(now.timestamp() // (15 * 60))
+    if len(ordered) > 1 and tick % 2:
+        pivot = 1 + (tick // 2) % (len(ordered) - 1)
+        ordered = ordered[pivot:] + ordered[:pivot]
+    formats = ("long", "short") if (tick // 2) % 2 else ("short", "long")
+    return ordered, formats
+
+
+def episode_call_allowance(channel: str, fmt: str, llm: LLM) -> int:
+    """Bound a local Atlas attempt to leave room for other videos each cycle."""
+    if channel == "Counterfactual Atlas" and any(
+        isinstance(provider, OllamaProvider) for provider in llm.providers
+    ):
+        return 9 if fmt == "short" else 12
+    return 18 if fmt == "short" else 36
+
+
 class Planner:
     def __init__(self, llm: LLM, *, max_calls: int = 400, log=print):
         self.llm, self.max_calls, self.log = llm, max_calls, log
@@ -117,6 +144,44 @@ class Planner:
             if limit < self.max_calls and self.llm.calls >= limit and str(error) == "call budget for this run is used up":
                 raise EpisodeCallLimit("provider attempt limit reached for this episode") from error
             raise
+
+    def hold_for_independent_edit(self, spec: dict, review: dict) -> None:
+        """Store a valid-shaped but critic-rejected draft outside publishable specs.
+
+        Never turn a model verdict into a release authorization. Keep the
+        concrete objections for a separate reviewer or a manual factual edit.
+        """
+        if spec.get("channel") != "Counterfactual Atlas":
+            return
+        safe = json.loads(json.dumps(spec, ensure_ascii=False))
+        meta = safe.setdefault("meta", {})
+        meta["model"] = self.llm.last_model
+        meta["review"] = {
+            "pass": False,
+            "hook": review.get("hook"),
+            "originality": review.get("originality"),
+            "accuracy": review.get("accuracy"),
+            "fixes": list(review.get("fixes") or []),
+            "unsupported_claims": list(review.get("unsupported_claims") or []),
+        }
+        meta["reviewStatus"] = "MODEL_REJECTED_DRAFT_INDEPENDENT_EDIT_REQUIRED"
+        base = pathlib.Path(os.environ.get("CONTINUUM_STATE_DIR") or (ROOT / "var" / "planning"))
+        dest = base / "editorial_holds"
+        dest.mkdir(parents=True, exist_ok=True, mode=0o700)
+        target = dest / (safe["id"] + ".json")
+        with tempfile.NamedTemporaryFile(
+            mode="w", dir=dest, encoding="utf-8", delete=False, prefix=".atlas-hold-"
+        ) as output:
+            draft = pathlib.Path(output.name)
+            os.chmod(draft, 0o600)
+            json.dump(safe, output, ensure_ascii=False, indent=2)
+            output.write("\n")
+            output.flush()
+            os.fsync(output.fileno())
+        try:
+            draft.replace(target)
+        finally:
+            draft.unlink(missing_ok=True)
 
     # ---- topics ---------------------------------------------------------------------------------
     def pick_topic(self, channel: str, fmt: str) -> dict:
@@ -140,6 +205,7 @@ class Planner:
                 f"OWN-CHANNEL VERIFIED ANALYTICS:\n{insights.guidance(channel, fmt)}\n"
                 f"INDEPENDENT PUBLIC DEMAND SIGNALS (noncausal):\n{market.guidance(channel)}\n"
                 f"Production constraints: {pb.get('topic_constraints', 'Follow the channel promise and subject areas.')}\n\n"
+                + ('For Counterfactual Atlas, favor simple, independently computable physics with named assumptions and a verifiable numerical consequence; avoid clinical and biological predictions.\n' if channel == "Counterfactual Atlas" else '') +
                 'Brainstorm 8 video topics most likely to hold attention. Return JSON: {"topics":[{"topic":"...","axis":"one subject area","wiki_query":"2-4 words to find a Wikipedia article with the facts","why":"one line"}]} ranked best first.'
             )
             data = as_obj(self._call("You are a sharp YouTube strategist. Reply with JSON only.", user,
@@ -160,6 +226,21 @@ class Planner:
             f"Never: {'; '.join(pb['avoid'])}\nPreferred visuals: {', '.join(pb['scene_bias'])}",
             director_for(channel).prompt(),
         ]
+        if pb.get("slug") == "atlas":
+            parts.append(
+                "ATLAS SCIENCE MODEL: State the one hypothetical input being changed, "
+                "what stays fixed, and the exact physical law and assumptions for "
+                "any computed number. Distinguish an idealized mathematical ratio "
+                "from complex real-world outcomes: an eight-fold change in tidal "
+                "forcing is NOT proof of an eight-fold ocean tide height. "
+                "Do not speculate about medical thresholds, radiation sickness, "
+                "blood pressure, survivability, sudden solar gravity loss or "
+                "planetary climate without directly matching supplied source evidence. "
+                "Never add a quantitative on-screen claim that the narration cannot "
+                "derive from the grounding. Prefer fewer correct numbers over "
+                "impressive but invented consequences; use a different visual "
+                "composition for every new narrative beat."
+            )
         if pb.get("fiction"):
             parts.append(prompts.FICTION)
         if pb.get("host"):
@@ -433,6 +514,13 @@ class Planner:
                         spec["meta"]["review"]["pass"] = False
                         spec["meta"]["reviewStatus"] = "LOCAL_DRAFT_INDEPENDENT_REVIEW_REQUIRED"
                     return spec
+                # A model-rejected but structurally valid script can be edited
+                # by an independent reviewer. It is deliberately NOT saved to
+                # specs/, where a renderer or publisher could encounter it.
+                try:
+                    self.hold_for_independent_edit(spec, review)
+                except OSError as error:
+                    self.log(f"  {spec_id}: could not retain private editorial hold: {error}")
                 bad = [f"editor: {f}" for f in (review.get("fixes") or ["raise hook and accuracy"])][:5] + [f"unsupported: {c}" for c in (review.get("unsupported_claims") or [])][:3]
             self.log(f"  {spec_id}: attempt {attempt + 1} rejected ({len(bad)} issues): {bad[0][:100]}")
             fixes = bad
@@ -452,7 +540,11 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
         start = window % len(channels)
         channels = channels[start:] + channels[:start]
     strikes = 0
-    for day in sorted(days):
+    atlas_only = channels == ["Counterfactual Atlas"]
+    ordered_days, format_order = (
+        atlas_cycle_order(days, now) if atlas_only else (sorted(days), ("short", "long"))
+    )
+    for day in ordered_days:
         folder = SPECS / day.isoformat()
         by_channel: dict[str, list[dict]] = {}
         for path in folder.glob("*.json"):
@@ -483,7 +575,7 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
                     day, now, insights.slot_stats(channel, "short"), insights.slot_stats(channel, "long"),
                     existing=tuple(occupied), need_short=missing_short, need_long=missing_long,
                 )
-            for fmt in ("short", "long"):
+            for fmt in (format_order if channel == "Counterfactual Atlas" else ("short", "long")):
                 want = cadence_for(channel, day).get(fmt, 0)
                 have = sum(saved.get("format") == fmt for saved in existing)
                 missing = want - have
@@ -501,7 +593,7 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
                         if not path.exists():
                             break
                     sid = f"{day.isoformat()}-{path.stem}"
-                    planner.episode_call_limit = llm.calls + (18 if fmt == "short" else 36)
+                    planner.episode_call_limit = llm.calls + episode_call_allowance(channel, fmt, llm)
                     try:
                         spec = planner.make(channel, fmt, sid, when)
                     except (LLMError, AttributeError, TypeError, KeyError, ValueError) as e:
