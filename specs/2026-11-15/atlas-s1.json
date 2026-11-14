@@ -74,7 +74,7 @@
       "say": "Today the equator moves eastward at roughly seventeen hundred kilometres per hour.",
       "show": {
         "type": "number",
-        "from": 0,
+        "from": 1670,
         "value": 1670,
         "unit": "km/h",
         "label": "Earth equator speed"
@@ -108,7 +108,7 @@
       "say": "Without axial spin, that orbit alone changes the Sun's direction in our sky.",
       "show": {
         "type": "number",
-        "from": 1,
+        "from": 365,
         "value": 365,
         "unit": "days",
         "label": "Simplified solar day"
@@ -161,7 +161,7 @@
       }
     },
     {
-      "say": "So the surprising answer is one year between sunrises, not fifty-eight days.",
+      "say": "So in this thought experiment, the next sunrise could be a year away.",
       "show": {
         "type": "end",
         "text": "ONE SOLAR DAY = ONE YEAR"
