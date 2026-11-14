@@ -298,8 +298,8 @@ def test_network_plan_rotates_first_channel_between_windows(tmp_path, monkeypatc
 
     monkeypatch.setattr(daily.Planner, "make", exhaust_budget)
     now = dt.datetime(2026, 11, 13, tzinfo=dt.timezone.utc)
-    for offset in (0, 4):
-        daily.plan([day], llm_with(Scripted()), now + dt.timedelta(hours=offset), only=channels)
+    for offset in (0, 15):
+        daily.plan([day], llm_with(Scripted()), now + dt.timedelta(minutes=offset), only=channels)
     assert set(seen) == set(channels)
     assert len(seen) == 2
 
