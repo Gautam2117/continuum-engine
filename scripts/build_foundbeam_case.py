@@ -32,6 +32,24 @@ SECTIONS={
 }
 
 
+# Explicitly reviewed visual beats, keyed to the independently written narration.
+# Scene index is deliberately not used: inserted sentences cannot silently
+# redirect a chart to an unrelated passage. Unmatched anchors fail the build.
+REVIEWED_VISUAL_BEATS = {
+    'In his 2010 talk, cofounder Drew Houston described this a': 'split',
+    'Some recipients could ignore it. That number tells you ho': 'referral',
+    'Imagine that you can see only one line on a dashboard: to': 'split',
+    'On the invitation path, the first question is whether Sam': 'referral',
+    'Give the person receiving it a reason to care, and measur': 'return',
+    'It does not give us the probability that any single invit': 'split',
+    'The useful lesson is more concrete: show which user actio': 'return',
+    'If those are separate questions in the actual product, th': 'split',
+    'The two registration figures are snapshots many months ap': 'milestone',
+    'The other thing to keep in view is what the reward asks p': 'meter',
+    'In our illustration, Alex already has a file to send and ': 'folder',
+}
+
+
 def sections_from_markdown(source: pathlib.Path = SOURCE) -> dict[str,list[str]]:
     if not source.is_file():
         raise FileNotFoundError(source)
@@ -101,11 +119,25 @@ def build(source:pathlib.Path = SOURCE) -> dict:
     source_sections=sections_from_markdown(source)
     scenes=[]
     editorial=[]
+    overrides_seen=set()
     for chapter_index,(section,paragraphs) in enumerate(source_sections.items()):
         groups=[g for para in paragraphs for g in sentence_groups(para)]
         for j,line in enumerate(groups):
-            scenes.append({'say':line,'show':scene_for(section,line,j,len(groups),chapter_index=chapter_index)})
+            show=scene_for(section,line,j,len(groups),chapter_index=chapter_index)
+            matches=[(anchor,variant) for anchor,variant in REVIEWED_VISUAL_BEATS.items()
+                     if line.startswith(anchor)]
+            if len(matches)>1:
+                raise ValueError('Overlapping reviewed Foundbeam scene anchors')
+            if matches:
+                anchor,variant=matches[0]
+                if show['type']!='foundbeam_flow':
+                    raise ValueError('Reviewed visual anchor conflicts with a factual-number scene')
+                show={'type':'foundbeam_flow','variant':variant}
+                overrides_seen.add(anchor)
+            scenes.append({'say':line,'show':show})
             editorial.append((section,line))
+    if overrides_seen != set(REVIEWED_VISUAL_BEATS):
+        raise ValueError('Foundbeam editorial scene anchors changed; review visual assignments again')
     author_text=' '.join(para for paragraphs in source_sections.values() for para in paragraphs)
     rendered_text=' '.join(line for _,line in editorial)
     if author_text.split()!=rendered_text.split():

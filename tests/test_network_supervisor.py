@@ -145,3 +145,58 @@ def test_archive_needs_an_explicit_trusted_mount(monkeypatch,tmp_path):
     assert x['steps']['archive']['status']=='not-run'
     assert x['steps']['archive']['reason']=='trusted encrypted mount not confirmed'
     assert not (tmp_path/'otherdisk').exists()
+
+
+def test_cycle_prioritizes_private_render_before_planning(monkeypatch, tmp_path):
+    from scripts import worker
+    calls = []
+    def preflight(*args, **kwargs):
+        calls.append('preflight')
+        assert kwargs.get('require_blender') is False
+        return {'ready': True}
+    def command(argv, **kwargs):
+        calls.append(pathlib.Path(argv[1]).name)
+        return {'exit': 0, 'elapsedSec': 0.0}
+    monkeypatch.setattr(worker, 'preflight', preflight)
+    monkeypatch.setattr(sup, 'run_command', command)
+    monkeypatch.setattr(sup, 'allowed_planner', lambda: (True, 'model ready'))
+    args = sup.parser().parse_args(['cycle', '--state', str(tmp_path/'state'),
+        '--db', str(tmp_path/'worker.sqlite3'), '--specs', str(tmp_path/'specs'),
+        '--reviews', str(tmp_path/'reviews'), '--days', '1', '--plan', '--render',
+        '--require-blender', '--min-free-gib', '2'])
+    (tmp_path/'reviews').mkdir()
+    result = sup.cycle(args)
+    assert calls == ['preflight', 'worker.py', 'autopilot.py']
+    assert result['steps']['render']['exit'] == 0
+    assert result['steps']['plan']['exit'] == 0
+
+
+def test_blender_probe_only_when_next_eligible_job_is_3d(monkeypatch, tmp_path):
+    from scripts import worker
+    date = sup.now_utc()
+    root = tmp_path/'specs'/'2026-11-16'
+    root.mkdir(parents=True)
+    monkeypatch.setattr(worker, 'SPEC_ROOT', tmp_path/'specs')
+    db_path = tmp_path/'worker.sqlite3'
+    with worker.connection(db_path) as db:
+        for i, scene_type in enumerate(('say','b3d')):
+            filename = f'atlas-s{i+1}'
+            path = root/f'{filename}.json'
+            path.write_text(json.dumps({'id': f'2026-11-16-{filename}',
+                'channel': 'Counterfactual Atlas', 'format': 'short',
+                'scenes': [{'say': 'Example', 'show': {'type': scene_type}}]}))
+            db.execute("INSERT INTO jobs (job_key,spec_id,spec_path,spec_sha256,channel,format,state,eligible_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)",
+                (filename, f'2026-11-16-{filename}', str(path), 'a'*64,
+                 'Counterfactual Atlas', 'short', 'queued',
+                 (date-dt.timedelta(minutes=10-i)).isoformat(), date.isoformat()))
+        db.commit()
+    assert sup.next_queued_job_needs_blender(db_path) is False
+    with worker.connection(db_path) as db:
+        db.execute("UPDATE jobs SET state='verified' WHERE job_key='atlas-s1'")
+        db.commit()
+    assert sup.next_queued_job_needs_blender(db_path) is True
+    with worker.connection(db_path) as db:
+        db.execute("UPDATE jobs SET eligible_at=? WHERE job_key='atlas-s2'",
+                   ((date+dt.timedelta(hours=2)).isoformat(),))
+        db.commit()
+    assert sup.next_queued_job_needs_blender(db_path) is False

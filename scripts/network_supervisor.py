@@ -265,6 +265,32 @@ def allowed_planner() -> tuple[bool, str]:
     return True, "configured provider and separate zero-cost authorization present"
 
 
+def next_queued_job_needs_blender(db_path: pathlib.Path) -> bool:
+    """Probe Blender only for the next *eligible* persisted 3D render.
+
+    A new 3D spec discovered during scan still goes through native renderer and
+    strict render-evidence verification. Unknown/invalid queue entries fail
+    conservatively, but no eligible job means no expensive Blender probe.
+    """
+    if not db_path.is_file():
+        return False
+    try:
+        with sqlite3.connect(f"file:{db_path.resolve()}?mode=ro", uri=True, timeout=3) as conn:
+            row = conn.execute(
+                "SELECT spec_path FROM jobs WHERE state IN ('queued','retry') "
+                "AND eligible_at<=? ORDER BY eligible_at,job_key LIMIT 1",
+                (now_utc().isoformat(),),
+            ).fetchone()
+        if not row:
+            return False
+        spec_path = worker.spec_file(pathlib.Path(row[0]))
+        spec = json.loads(spec_path.read_text())
+        return any((scene.get("show") or {}).get("type") == "b3d"
+                   for scene in spec.get("scenes", []) if isinstance(scene, dict))
+    except (OSError, ValueError, TypeError, KeyError, json.JSONDecodeError, sqlite3.Error):
+        return True
+
+
 def cycle(args) -> dict:
     state = args.state.resolve()
     specs = args.specs.resolve()
@@ -274,20 +300,11 @@ def cycle(args) -> dict:
     started = now_utc()
     steps: dict = {}
     with singleton(state):
-        if args.plan:
-            ok, message = allowed_planner()
-            if ok:
-                steps["plan"] = run_command(
-                    [sys.executable, str(ROOT / "scripts/autopilot.py"), "plan",
-                     "--days", str(args.days), "--start-offset", "1",
-                     "--max-calls", str(args.max_calls)],
-                    timeout=args.plan_timeout, log=state/"planner.log", env=spool_env)
-            else:
-                steps["plan"] = {"status": "not-run", "reason": message}
         if args.render:
             # A gate before any expensive rendering. Rendering is private only.
             from scripts.worker import preflight
-            before = preflight(review_db, review_dir, require_blender=args.require_blender)
+            before = preflight(review_db, review_dir, require_blender=(
+                args.require_blender and next_queued_job_needs_blender(review_db)))
             if not before["ready"]:
                 steps["render"] = {"status": "not-run", "reason": "preflight requirements unavailable",
                                    "preflight": before}
@@ -304,6 +321,16 @@ def cycle(args) -> dict:
                      "--limit", str(args.render_limit), "--timeout", str(args.render_timeout)],
                     timeout=args.render_timeout * args.render_limit + 120,
                     log=state/"render.log", env=spool_env)
+        if args.plan:
+            ok, message = allowed_planner()
+            if ok:
+                steps["plan"] = run_command(
+                    [sys.executable, str(ROOT / "scripts/autopilot.py"), "plan",
+                     "--days", str(args.days), "--start-offset", "1",
+                     "--max-calls", str(args.max_calls)],
+                    timeout=args.plan_timeout, log=state/"planner.log", env=spool_env)
+            else:
+                steps["plan"] = {"status": "not-run", "reason": message}
         archive_root = os.environ.get("CONTINUUM_ARCHIVE_ROOT", "").strip()
         if archive_root:
             if os.environ.get("CONTINUUM_ARCHIVE_MOUNT_ENCRYPTED") != "1":
