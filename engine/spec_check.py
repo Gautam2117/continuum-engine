@@ -79,6 +79,17 @@ def problems(spec: dict, folder: str | None = None, *, strict: bool = False) -> 
         kinds = [(sc.get("show") or {}).get("type") for sc in scenes if isinstance(sc, dict)]
         if not any(k in ("b3d", "orbit", "fall", "image", "tide") for k in kinds):
             out.append("Counterfactual Atlas requires a visualized physical scenario, not just numbers and lists")
+    director_info = (spec.get("meta") or {}).get("creativeDirector")
+    if director_info is not None:
+        from autopilot.directors import DIRECTORS, VERSION
+        expected = DIRECTORS.get(spec["channel"])
+        if (not expected or not isinstance(director_info, dict)
+                or director_info.get("id") != spec["channel"]
+                or director_info.get("version") != VERSION
+                or director_info.get("fingerprint") != expected.fingerprint()
+                or director_info.get("camera") != expected.camera
+                or director_info.get("captions") != expected.captions):
+            out.append("creative director identity or fingerprint does not match this channel")
     words = narration_words(spec)
     minutes = words / WPM
     if fmt == "short" and minutes > 0.95:

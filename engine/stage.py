@@ -71,10 +71,11 @@ class Layout:
 class Captions:
     """Word-timed captions. One chunk on screen, always a single line that fits the safe width."""
 
-    def __init__(self, layout: Layout, style, words: list[str], t0: float, t1: float):
-        self.L, self.s, self.words = layout, style, words
+    def __init__(self, layout: Layout, style, words: list[str], t0: float, t1: float, mode: str = "impact"):
+        self.L, self.s, self.words, self.mode = layout, style, words, mode
         u = min(layout.W, layout.H) / 100
-        self.base = int(u * (7.4 if layout.vertical else 3.6))
+        scales = {"impact": 1.12, "minimal": .77, "documentary": .83, "ledger": .84, "typewriter": .90, "soft": .76}
+        self.base = int(u * (7.4 if layout.vertical else 3.6) * scales.get(mode, 1.0))
         self.maxw = layout.W * (0.86 if layout.vertical else 0.62)
         self.limit = 3 if layout.vertical else 7
         weights = [len(w) + 1.5 + (5 if w[-1:] in ".?!," else 0) for w in words]
@@ -85,13 +86,14 @@ class Captions:
             a += (t1 - t0) * w / tot
         self.times = edges
         probe = ImageDraw.Draw(Image.new("RGB", (10, 10)))
+        measure_font = "DejaVu Sans Mono:style=Bold" if mode == "typewriter" else style.display
         self.chunks: list[tuple[int, int, int]] = []  # (start, end, font size)
         i = 0
         while i < len(words):
             j = i
             while j < len(words) and j - i < self.limit:
                 trial = " ".join(self._txt(w) for w in words[i:j + 1])
-                if j > i and probe.textlength(trial, font=font(style.display, self.base)) + self.base > self.maxw:
+                if j > i and probe.textlength(trial, font=font(measure_font, self.base)) + self.base > self.maxw:
                     break
                 j += 1
                 if words[j - 1][-1:] in ".?!;:" or (words[j - 1][-1:] == "," and j - i >= 2):
@@ -99,12 +101,14 @@ class Captions:
             j = max(j, i + 1)
             size = self.base
             txt = " ".join(self._txt(w) for w in words[i:j])
-            while size > 18 and probe.textlength(txt, font=font(style.display, size)) + size > self.maxw:
+            while size > 18 and probe.textlength(txt, font=font(measure_font, size)) + size > self.maxw:
                 size = int(size * 0.92)
             self.chunks.append((i, j, size))
             i = j
 
     def _txt(self, w: str) -> str:
+        if self.mode in ("ledger", "typewriter"):
+            return w.upper()
         return w.upper() if self.s.caps_titles else w
 
     def draw(self, img: Image.Image, t: float):
@@ -117,7 +121,7 @@ class Captions:
                 break
         ci = next(k for k, (a, b, _) in enumerate(self.chunks) if a <= idx < b)
         a, b, size = self.chunks[ci]
-        f = font(self.s.display, size)
+        f = font("DejaVu Sans Mono:style=Bold", size) if self.mode == "typewriter" else font(self.s.display, size)
         d = ImageDraw.Draw(img, "RGBA")
         texts = [self._txt(w) for w in self.words[a:b]]
         space = d.textlength(" ", font=f)
@@ -130,11 +134,20 @@ class Captions:
         pad = size * 0.16
         for j, (txt, w) in enumerate(zip(texts, widths)):
             active = a + j == idx
-            if active:
-                d.rounded_rectangle([x - pad, y - pad * 0.5, x + w + pad, y + size * 1.12 + pad * 0.2], radius=size * 0.28, fill=(*rgb(self.s.accent), 255))
+            if active and self.mode in ("impact", "ledger"):
+                d.rounded_rectangle([x - pad, y - pad * 0.5, x + w + pad, y + size * 1.12 + pad * 0.2],
+                                    radius=size * (0.05 if self.mode == "ledger" else .28), fill=(*rgb(self.s.accent), 255))
                 d.text((x, y), txt, font=f, fill=rgb(self.s.bg))
+            elif active:
+                d.text((x, y), txt, font=f, fill=rgb(self.s.accent),
+                       stroke_width=0 if self.mode == "soft" else max(1, sw // 2), stroke_fill=(0, 0, 0, 150))
+                if self.mode == "typewriter":
+                    d.line([(x, y + size * 1.03), (x + w, y + size * 1.03)], fill=rgb(self.s.accent), width=3)
             else:
-                d.text((x, y), txt, font=f, fill=(*rgb(self.s.ink), int(255 * k_in)), stroke_width=sw, stroke_fill=(0, 0, 0, int(230 * k_in)))
+                opacity = int((195 if self.mode in ("minimal", "soft") else 255) * k_in)
+                d.text((x, y), txt, font=f, fill=(*rgb(self.s.ink), opacity),
+                       stroke_width=sw if self.mode == "impact" else 1,
+                       stroke_fill=(0, 0, 0, int(210 * k_in)))
             x += w + space
 
 
@@ -148,20 +161,61 @@ class Scene:
         self.mood = host.mood_for(text, kind, slug == "drift")
         self.stickers = stickers
         self.show_host = cfg.get("host", True)
+        self.camera_mode = cfg.get("camera", "push")
+        self.caption_mode = cfg.get("caption_mode", "impact")
         words = text.split()
         self.caps = None
         if cfg.get("captions", True) and words and kind not in ("say", "title", "end"):
-            self.caps = Captions(layout, style, words, 0.18, max(0.5, len(audio) / SR - 0.18))
+            self.caps = Captions(layout, style, words, 0.18, max(0.5, len(audio) / SR - 0.18), self.caption_mode)
         self.wave_at = 0.5 if ("!" in text or kind in ("number",)) else None
 
     def camera(self, view: Image.Image, t: float) -> Image.Image:
-        """Slow push-in plus a quick punch on cut-in."""
-        z = 1.0 + 0.035 * (t / max(self.dur, 1)) + (0.07 * (1 - ease(t / 0.32)) if not self.first else 0)
+        """Camera choreography selected by the channel's independent director.
+
+        Crop extents are always bounded; no border pixels or black bars are
+        introduced. These are real rendered differences, not prompt-only names.
+        """
+        mode = self.camera_mode
+        progress = max(0.0, min(1.0, t / max(self.dur, 0.001)))
+        enter = 1 - ease(t / 0.32)
+        x_motion, y_motion = 0.0, 0.0
+        if mode == "hold":
+            return view
+        if mode == "snap":
+            z = 1 + (0 if self.first else 0.085 * max(0, 1 - ease(t / .16)))
+        elif mode == "pull":
+            z = 1.075 - .07 * progress
+        elif mode == "float":
+            z = 1.026 + .012 * math.sin(progress * math.pi)
+            x_motion = .72 * math.sin(progress * math.pi * 2)
+            y_motion = .55 * math.sin(progress * math.pi)
+        elif mode == "drift_left":
+            z = 1.055
+            x_motion = 1 - 2 * progress
+        elif mode == "drift_right":
+            z = 1.055
+            x_motion = -1 + 2 * progress
+        elif mode == "parallax":
+            z = 1.05 + .012 * progress
+            x_motion = .75 * math.sin(progress * math.pi * 1.25)
+            y_motion = -.36 + .72 * progress
+        elif mode == "orbit":
+            z = 1.05
+            x_motion = .82 * math.sin(progress * math.pi * 1.8)
+            y_motion = .6 * math.cos(progress * math.pi * 1.8)
+        elif mode == "tilt":
+            z = 1.045
+            x_motion = -.65 + 1.3 * progress
+            y_motion = .5 - progress
+        else:
+            z = 1.0 + .035 * progress + (.07 * enter if not self.first else 0.0)
         if z <= 1.002:
             return view
         W, H = view.size
-        w, h = int(W / z), int(H / z)
-        x, y = (W - w) // 2, (H - h) // 2
+        w, h = max(1, int(W / z)), max(1, int(H / z))
+        mx, my = W - w, H - h
+        x = min(mx, max(0, int(mx * (.5 + x_motion * .5))))
+        y = min(my, max(0, int(my * (.5 + y_motion * .5))))
         return view.crop((x, y, x + w, y + h)).resize((W, H), Image.BILINEAR)
 
     def paint_stickers(self, view: Image.Image, t: float):
