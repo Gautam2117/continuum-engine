@@ -2,6 +2,7 @@
 import datetime as dt
 import json
 import pathlib
+import subprocess
 import sys
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
@@ -131,6 +132,14 @@ def test_short_plan_writes_a_valid_spec(tmp_path, monkeypatch):
     assert problems(spec, "2026-11-13", strict=True) == []
     assert spec["publishAt"].startswith("2026-11-13T") and "Sources" in spec["description"]
     assert any(e["id"] == spec["id"] for e in json.loads((tmp_path / "state" / "ledger.json").read_text()))
+    monkeypatch.setenv("CONTINUUM_SPEC_DIR", str(daily.SPECS))
+    worker = pathlib.Path(__file__).resolve().parents[1] / "scripts" / "worker.py"
+    scan = subprocess.run(
+        [sys.executable, str(worker), "scan", "--spec", shorts[0],
+         "--db", str(tmp_path / "worker.sqlite3")],
+        check=True, capture_output=True, text=True,
+    )
+    assert json.loads(scan.stdout) == {"imported": 1, "existing": 0, "invalid": 0}
 
 
 def test_existing_specs_are_never_overwritten(tmp_path, monkeypatch):

@@ -24,7 +24,7 @@ from contextlib import closing, contextmanager
 from importlib.util import find_spec
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SPEC_ROOT = ROOT / "specs"
+SPEC_ROOT = pathlib.Path(os.environ.get("CONTINUUM_SPEC_DIR") or (ROOT / "specs")).resolve()
 sys.path.insert(0, str(ROOT))
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -112,7 +112,7 @@ def connection(db_path: pathlib.Path) -> sqlite3.Connection:
 def spec_file(path: pathlib.Path) -> pathlib.Path:
     path = path.resolve(strict=True)
     if not path.is_file() or not path.is_relative_to(SPEC_ROOT.resolve()):
-        raise ValueError("Only repository-local specs are allowed")
+        raise ValueError("Spec is outside the configured specs directory")
     relative = path.relative_to(SPEC_ROOT.resolve()).as_posix()
     if not VALID_SPEC.fullmatch(relative):
         raise ValueError("Spec must have a specs/YYYY-MM-DD/<slug>.json path")
@@ -409,7 +409,7 @@ def main():
     p.add_argument("action", choices=["scan", "once", "cycle", "status", "preflight"])
     p.add_argument("--db", type=pathlib.Path, default=ROOT / "var" / "worker.sqlite3")
     p.add_argument("--reviews", type=pathlib.Path, default=ROOT / "var" / "reviews")
-    p.add_argument("--spec", type=pathlib.Path, help="One specific repository-local spec for scan or cycle")
+    p.add_argument("--spec", type=pathlib.Path, help="One specific spec from the configured directory for scan or cycle")
     p.add_argument("--days", type=int, default=7, help="Future-day horizon for scan (1-30)")
     p.add_argument("--start-offset", type=int, default=0, help="Start scan this many days from today")
     p.add_argument("--limit", type=int, default=1, help="Max jobs for one invocation (1-10)")

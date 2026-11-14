@@ -3,11 +3,12 @@
 feedback.json comes from Studio (/api/autopilot/feedback); ledger.json is written by the planner and ties every
 published video back to the choices that produced it (topic axis, publish slot, format)."""
 import json
+import os
 import pathlib
 import re
 import statistics
 
-STATE = pathlib.Path(__file__).parent / "state"
+STATE = pathlib.Path(os.environ.get("CONTINUUM_STATE_DIR") or (pathlib.Path(__file__).parent / "state")).resolve()
 
 
 def _norm(s: str) -> str:
