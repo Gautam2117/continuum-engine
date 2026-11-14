@@ -176,7 +176,8 @@ def recover_stale(db: sqlite3.Connection, now: dt.datetime, *, max_age_hours: fl
 
 
 def claim(db: sqlite3.Connection, now: dt.datetime | None = None, *,
-          window: tuple[dt.date, dt.date] | None = None, job_key: str | None = None) -> dict | None:
+          window: tuple[dt.date, dt.date] | None = None, job_key: str | None = None,
+          channel: str | None = None) -> dict | None:
     now = now or utcnow()
     db.execute("BEGIN IMMEDIATE")
     sql = "SELECT * FROM jobs WHERE state IN ('queued','retry') AND eligible_at <= ?"
@@ -184,6 +185,9 @@ def claim(db: sqlite3.Connection, now: dt.datetime | None = None, *,
     if job_key is not None:
         sql += " AND job_key = ?"
         params.append(job_key)
+    if channel is not None:
+        sql += " AND channel = ?"
+        params.append(channel)
     if window is not None:
         start, end = window
         sql += " AND spec_id >= ? AND spec_id < ?"
@@ -365,8 +369,9 @@ def render_one(job: dict, *, review_root: pathlib.Path, time_budget: int = 7200,
 
 def process_next(db: sqlite3.Connection, *, review_root: pathlib.Path, now: dt.datetime | None = None,
                  render_fn=render_one, time_budget: int = 7200, max_attempts: int = 3,
-                 window: tuple[dt.date, dt.date] | None = None, job_key: str | None = None) -> dict:
-    job = claim(db, now, window=window, job_key=job_key)
+                 window: tuple[dt.date, dt.date] | None = None, job_key: str | None = None,
+                 channel: str | None = None) -> dict:
+    job = claim(db, now, window=window, job_key=job_key, channel=channel)
     if job is None:
         return {"status": "idle"}
     try:
@@ -417,6 +422,7 @@ def main():
     p.add_argument("--db", type=pathlib.Path, default=ROOT / "var" / "worker.sqlite3")
     p.add_argument("--reviews", type=pathlib.Path, default=ROOT / "var" / "reviews")
     p.add_argument("--spec", type=pathlib.Path, help="One specific spec from the configured directory for scan or cycle")
+    p.add_argument("--channel", type=str, help="Optional exclusive channel focus, never changes the wider 48-channel ledger")
     p.add_argument("--days", type=int, default=7, help="Future-day horizon for scan (1-30)")
     p.add_argument("--start-offset", type=int, default=0, help="Start scan this many days from today")
     p.add_argument("--limit", type=int, default=1, help="Max jobs for one invocation (1-10)")
@@ -430,6 +436,10 @@ def main():
 
     if args.spec and args.action not in ("scan", "cycle"):
         p.error("--spec is only supported by scan or cycle")
+    if args.channel:
+        from autopilot.playbooks import PLAYBOOKS
+        if args.channel not in PLAYBOOKS:
+            p.error("--channel must be one of the 48 registered channel names")
 
     os.umask(0o077)  # protect the lock, SQLite queue, manifests and logs
 
@@ -456,6 +466,17 @@ def main():
                     except (OSError, ValueError) as error:
                         p.error(f"Invalid cycle spec: {error}")
                 files = [args.spec] if args.spec else future_specs(today=today, days=args.days, start_offset=args.start_offset)
+                if args.channel:
+                    # A malformed unrelated spec cannot crash Atlas-only cycles.
+                    selected: list[pathlib.Path] = []
+                    for path in files:
+                        try:
+                            obj = json.loads(path.read_text())
+                            if isinstance(obj, dict) and obj.get("channel") == args.channel:
+                                selected.append(path)
+                        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+                            continue  # The network audit still reports invalid specs.
+                    files = selected
                 imported = enqueue(db, files)
                 if args.action == "scan":
                     return imported
@@ -463,7 +484,8 @@ def main():
                 # Safe to recover immediately: an exclusive render lock proves
                 # no other same-host process owns any still-running jobs.
                 recovered = recover_stale(db, utcnow(), max_age_hours=0)
-                jobs = [process_next(db, review_root=args.reviews, time_budget=args.timeout, window=window, job_key=job_key)
+                jobs = [process_next(db, review_root=args.reviews, time_budget=args.timeout,
+                                     window=window, job_key=job_key, channel=args.channel)
                         for _ in range(args.limit)]
                 return {"scan": imported if args.action == "cycle" else None,
                         "recovered": recovered, "jobs": jobs}

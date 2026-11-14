@@ -213,3 +213,38 @@ def test_mac_prevents_idle_sleep_only_while_a_work_step_runs(monkeypatch):
     monkeypatch.setattr(sup.sys,'platform','darwin')
     monkeypatch.setattr(sup.shutil,'which',lambda name: None)
     assert sup.awake_argv(command)==command
+
+
+def test_atlas_focus_file_only_routes_work_not_48_channel_contract(monkeypatch,tmp_path):
+    from scripts import worker
+    root=tmp_path/'state'
+    root.mkdir()
+    (root/'focus_channel.txt').write_text('Counterfactual Atlas\n')
+    seen=[]
+    monkeypatch.setattr(worker,'preflight',lambda *a,**kw:{'ready':True})
+    monkeypatch.setattr(sup,'allowed_planner',lambda:(True,'offline local provider'))
+    def call(argv,**kw):
+        seen.append(list(argv))
+        return {'exit':0,'elapsedSec':0.0}
+    monkeypatch.setattr(sup,'run_command',call)
+    args=sup.parser().parse_args(['cycle','--state',str(root), '--db',str(tmp_path/'worker.sqlite3'),
+       '--specs',str(tmp_path/'specs'),'--reviews',str(tmp_path/'reviews'),
+       '--days','2','--plan','--render','--min-free-gib','2'])
+    (tmp_path/'reviews').mkdir()
+    report=sup.cycle(args)
+    assert report['productionFocus']=='Counterfactual Atlas'
+    assert report['channels']==48 and report['requiredEpisodes']==100
+    assert len(seen)==2
+    assert seen[0][-2:]==['--channel','Counterfactual Atlas']
+    assert seen[1][-2:]==['--only','Counterfactual Atlas']
+    assert 'scripts/worker.py' in seen[0][1]
+    assert 'scripts/autopilot.py' in seen[1][1]
+
+
+def test_unknown_focus_file_fails_closed_without_model_calls(monkeypatch,tmp_path):
+    state=tmp_path/'state';state.mkdir()
+    (state/'focus_channel.txt').write_text('Wrong Channel\n')
+    monkeypatch.setattr(sup,'run_command',lambda *_a,**_kw:pytest.fail('Cannot execute unknown channel'))
+    args=sup.parser().parse_args(['cycle','--state',str(state),'--db',str(tmp_path/'db.sqlite3')])
+    with pytest.raises(ValueError,match='Unknown focus channel'):
+        sup.cycle(args)

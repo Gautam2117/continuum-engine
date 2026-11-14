@@ -278,7 +278,7 @@ def allowed_planner() -> tuple[bool, str]:
     return True, "configured provider and separate zero-cost authorization present"
 
 
-def next_queued_job_needs_blender(db_path: pathlib.Path) -> bool:
+def next_queued_job_needs_blender(db_path: pathlib.Path, channel: str | None = None) -> bool:
     """Probe Blender only for the next *eligible* persisted 3D render.
 
     A new 3D spec discovered during scan still goes through native renderer and
@@ -289,11 +289,12 @@ def next_queued_job_needs_blender(db_path: pathlib.Path) -> bool:
         return False
     try:
         with sqlite3.connect(f"file:{db_path.resolve()}?mode=ro", uri=True, timeout=3) as conn:
-            row = conn.execute(
-                "SELECT spec_path FROM jobs WHERE state IN ('queued','retry') "
-                "AND eligible_at<=? ORDER BY eligible_at,job_key LIMIT 1",
-                (now_utc().isoformat(),),
-            ).fetchone()
+            query = "SELECT spec_path FROM jobs WHERE state IN ('queued','retry') AND eligible_at<=?"
+            params: list[str] = [now_utc().isoformat()]
+            if channel:
+                query += " AND channel=?"
+                params.append(channel)
+            row = conn.execute(query + " ORDER BY eligible_at,job_key LIMIT 1", params).fetchone()
         if not row:
             return False
         spec_path = worker.spec_file(pathlib.Path(row[0]))
@@ -306,6 +307,14 @@ def next_queued_job_needs_blender(db_path: pathlib.Path) -> bool:
 
 def cycle(args) -> dict:
     state = args.state.resolve()
+    # The owner may choose one channel without stopping or destroying the
+    # other 47 channels' specs, job receipts, or required coverage counters.
+    focus_file = state / "focus_channel.txt"
+    focus = args.focus_channel or os.environ.get("CONTINUUM_FOCUS_CHANNEL", "").strip()
+    if not focus and focus_file.is_file():
+        focus = focus_file.read_text(encoding="utf-8").strip()
+    if focus and focus not in PLAYBOOKS:
+        raise ValueError("Unknown focus channel; refuses unattended planner/render mutation")
     specs = args.specs.resolve()
     spool_env = {**os.environ, "CONTINUUM_SPEC_DIR": str(specs)}
     review_db = args.db.resolve()
@@ -317,7 +326,7 @@ def cycle(args) -> dict:
             # A gate before any expensive rendering. Rendering is private only.
             from scripts.worker import preflight
             before = preflight(review_db, review_dir, require_blender=(
-                args.require_blender and next_queued_job_needs_blender(review_db)))
+                args.require_blender and next_queued_job_needs_blender(review_db,focus or None)))
             if not before["ready"]:
                 steps["render"] = {"status": "not-run", "reason": "preflight requirements unavailable",
                                    "preflight": before}
@@ -331,7 +340,8 @@ def cycle(args) -> dict:
                     [sys.executable, str(ROOT / "scripts/worker.py"), "cycle",
                      "--days", str(args.days + 1), "--start-offset", "0",
                      "--db", str(review_db), "--reviews", str(review_dir),
-                     "--limit", str(args.render_limit), "--timeout", str(args.render_timeout)],
+                     "--limit", str(args.render_limit), "--timeout", str(args.render_timeout)]
+                    + (["--channel", focus] if focus else []),
                     timeout=args.render_timeout * args.render_limit + 120,
                     log=state/"render.log", env=spool_env)
         if args.plan:
@@ -340,7 +350,8 @@ def cycle(args) -> dict:
                 steps["plan"] = run_command(
                     [sys.executable, str(ROOT / "scripts/autopilot.py"), "plan",
                      "--days", str(args.days), "--start-offset", "1",
-                     "--max-calls", str(args.max_calls)],
+                     "--max-calls", str(args.max_calls)]
+                    + (["--only", focus] if focus else []),
                     timeout=args.plan_timeout, log=state/"planner.log", env=spool_env)
             else:
                 steps["plan"] = {"status": "not-run", "reason": message}
@@ -356,6 +367,7 @@ def cycle(args) -> dict:
                     timeout=1800, log=state/"archive.log")
         result = snapshot(specs, review_db, today=started.date(), days=args.days)
         result["steps"] = steps
+        result["productionFocus"] = focus or "all-48"
         result["supervisorHost"] = "owner-computer"  # never claim independent VM
         write_atomic(state/"latest.json", result)
     return result
@@ -370,6 +382,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--reviews", type=pathlib.Path, default=ROOT/"var"/"reviews")
     p.add_argument("--days", type=int, default=3)
     p.add_argument("--plan", action="store_true", help="Generate missing future specs only with confirmed zero-cost LLM provider")
+    p.add_argument("--focus-channel", type=str, help="Focus actual planning and rendering while continuing to audit all 48")
     p.add_argument("--render", action="store_true", help="Bounded private render-review queue")
     p.add_argument("--require-blender", action="store_true", help="Require actual Blender before rendering")
     p.add_argument("--render-limit", type=int, default=1)
@@ -388,6 +401,8 @@ def main(argv: list[str] | None = None) -> int:
             or not 60 <= args.plan_timeout <= 3600 or not 1 <= args.max_calls <= 400
             or not 2 <= args.min_free_gib <= 1024):
         raise SystemExit("Invalid horizon, render cap or time budget")
+    if args.focus_channel and args.focus_channel not in PLAYBOOKS:
+        raise SystemExit("Unknown --focus-channel")
     if args.action == "status" and (args.plan or args.render):
         raise SystemExit("status is read-only: --plan and --render require cycle")
     report = (snapshot(args.specs.resolve(), args.db.resolve(), days=args.days)

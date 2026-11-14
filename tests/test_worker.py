@@ -383,3 +383,21 @@ def test_unreviewed_local_model_draft_is_not_enqueued(tmp_path, monkeypatch):
         assert result['imported']==0 and result['invalid']==1
         assert db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0]==0
     finally:db.close()
+
+
+def test_channel_focus_claim_leaves_other_channels_untouched(tmp_path):
+    db = worker.connection(tmp_path/'private.sqlite3')
+    try:
+        for key, channel in [('a','Counterfactual Atlas'),('b','Samjho System')]:
+            db.execute("INSERT INTO jobs(job_key,spec_id,spec_path,spec_sha256,channel,format,state,eligible_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)",
+                (key,f'2026-11-16-{key}',f'/{key}.json','a'*64,channel,'short','queued',worker.iso(NOW),worker.iso(NOW)))
+        db.commit()
+        chosen = worker.claim(db,NOW,channel='Counterfactual Atlas')
+        assert chosen is not None and chosen['job_key']=='a'
+        assert worker.claim(db,NOW,channel='Counterfactual Atlas') is None
+        remaining = db.execute("SELECT state FROM jobs WHERE job_key='b'").fetchone()[0]
+        assert remaining=='queued'
+        other = worker.claim(db,NOW,channel='Samjho System')
+        assert other is not None and other['job_key']=='b'
+    finally:
+        db.close()
