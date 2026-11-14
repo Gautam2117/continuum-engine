@@ -1,0 +1,63 @@
+name: Studio account connection health
+
+# Bounded software-operation monitoring. Not a content generation/render farm.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 6 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: studio-account-readiness
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - name: Audit Studio 48-channel connections without exposing OAuth tokens
+        env:
+          AUTOPILOT_SECRET: ${{ secrets.AUTOPILOT_SECRET }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${AUTOPILOT_SECRET:-}" ]]; then
+            echo '::error::No configured Studio diagnostics secret.'
+            exit 2
+          fi
+          response="${RUNNER_TEMP}/readiness.json"
+          curl --fail-with-body --silent --show-error \
+            --connect-timeout 5 --max-time 30 --retry 1 \
+            --header "Authorization: Bearer ${AUTOPILOT_SECRET}" \
+            --header 'Accept: application/json' \
+            'https://studio.continuumarc.tech/api/autopilot/readiness' \
+            > "$response"
+          python3 - "$response" <<'PY'
+          import collections, json, os, pathlib, sys
+          p=pathlib.Path(sys.argv[1])
+          result=json.loads(p.read_text())
+          if result.get('target')!=48 or len(result.get('channels') or [])!=48:
+              raise SystemExit('Invalid 48-channel readiness result; cannot claim network coverage')
+          linked=result['recentlySynced']
+          attention=result['needsAttention']
+          if not isinstance(linked,int) or not 0<=linked<=48 or attention!=48-linked:
+              raise SystemExit('Inconsistent live connection counts')
+          counters=collections.Counter(x.get('state','unknown') for x in result['channels'])
+          report=[
+              '## Continuum Studio: actual connection evidence',
+              f'Linked and recently synced: **{linked}/48**',
+              f'Attention required: **{attention}/48**',
+              f'Duplicate explicit routing mappings: **{result.get("duplicateMappings",0)}**',
+              f'Automatic publishing switch: **{bool(result.get("youtubePublisherEnabled"))}**',
+              '', 'Readiness groups (not subscriber counts):',
+              *[f'- {name}: {count}' for name,count in sorted(counters.items())],
+              '', 'This checks configured account linkage only, not a verified upload or monetization.'
+          ]
+          content='\n'.join(report)+'\n'
+          print(content)
+          if os.environ.get('GITHUB_STEP_SUMMARY'):
+              with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as file:file.write(content)
+          PY
