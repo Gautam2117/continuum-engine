@@ -42,12 +42,14 @@ def test_harmonic_readout_matches_capsule():
 def test_falls_back_without_blender(monkeypatch):
     monkeypatch.setenv("B3D_OFF", "1")
     b3d.blender_python.cache_clear()
+    b3d.blender_runner.cache_clear()
     st = style_for("Counterfactual Atlas")
     bd = S.Backdrop(st, 216, 232)
     c = S.Ctx(st, 216, 232, bd, "Counterfactual Atlas", vertical=True)
     frames = list(S.SCENES["b3d"](c, 0.5, {"scene": "earth_tunnel", "fallback": {"type": "title", "text": "Hi"}}, ["hi"]))
     assert frames and frames[0].size == (216, 232)
     b3d.blender_python.cache_clear()
+    b3d.blender_runner.cache_clear()
 
 
 @pytest.mark.skipif(os.environ.get("B3D_TEST") != "1", reason="set B3D_TEST=1 where Blender's bpy is installed")

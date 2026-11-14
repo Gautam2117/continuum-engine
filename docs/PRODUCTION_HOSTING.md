@@ -80,3 +80,14 @@ cloud billing resources have been enabled.
 
 **Current production classification:** engineering QA operational; unattended
 cloud video render/publishing **not configured**. Never mark this as complete.
+
+## Native Blender on the existing Mac (verified 14 Nov 2026)
+
+The original B3D engine only searched for a Python wheel containing `bpy`, so
+`/opt/homebrew/bin/blender` was ignored even though Blender 5.2.1 was installed.
+Engine now invokes the installed Blender CLI directly in background mode,
+checks for actual rendered frames and binds cache identity to the Blender
+version. An original voxel actor, moving camera and foreground walking path
+rendered nine frames locally, with per-frame color/anchor checks that the
+character remained visible. This is valid **local 3D execution**, not an
+always-on independent host. The Mac being shut down still interrupts work.

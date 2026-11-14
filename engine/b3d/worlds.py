@@ -328,7 +328,9 @@ def scenes(bm):
             for y in range(-12, 13):
                 if math.hypot(x, y) > R - 0.5:
                     cube_at("water", x, y, -1)
-        for tx, ty in ((-4, 2), (3, -4), (4, 3)):
+        # Keep canopy behind the foreground walking route; otherwise the
+        # entire actor vanishes behind a front tree in the hero's final shot.
+        for tx, ty in ((-4, 2), (0, 5), (4, 3)):
             for z in range(1, 4):
                 cube_at("wood", tx, ty, z)
             for dx in (-1, 0, 1):
@@ -347,18 +349,79 @@ def scenes(bm):
             ob = bpy.data.objects.new(key, me)
             bpy.context.scene.collection.objects.link(ob)
             link(ob, mats[key])
-        hero = bm.box("hero", (0.35, 0.35, 0.5), (0, 0, 0), mat("hero", p.get("hero", "#ff7b54"), 0.5))
-        bm.box("heroeyes", (0.2, 0.05, 0.06), (0, -0.18, 0.12), mat("eyes", "#141414", 0.4)).parent = hero
-        path = [Vector((-2.5, -2.0, 1.3)), Vector((-0.5, -1.0, 1.55)), Vector((1.0, 0.2, 1.8)), Vector((2.0, 1.2, 1.55))]
+        # Original voxel actor with readable face, arms and walking cycle.
+        # A single old orange cube was concealed by trees and never read as a
+        # story protagonist in portrait frames. The root travels over actual
+        # terrain cells, and a low, forward path stays in front of the canopy.
+        root = bpy.data.objects.new("Voxel protagonist root", None)
+        bpy.context.scene.collection.objects.link(root)
+        shirt = mat("hero shirt", p.get("hero", "#ff7b54"), 0.55)
+        skin = mat("hero skin", "#dfa171", 0.63)
+        trousers = mat("hero trousers", "#354871", 0.75)
+        eyes = mat("hero eyes", "#17232d", 0.35)
+        hair = mat("hero hair", "#3a2830", 0.78)
+
+        def body_part(name, size, loc, material):
+            ob = box(name, size, loc, material)
+            ob.parent = root
+            return ob
+
+        body_part("hero torso", (0.52, 0.37, 0.61), (0, 0, 0.79), shirt)
+        body_part("hero neck", (0.17, 0.18, 0.17), (0, -0.005, 1.17), skin)
+        body_part("hero large head", (0.54, 0.48, 0.51), (0, -0.01, 1.47), skin)
+        body_part("hero hair cap", (0.58, 0.51, 0.13), (0, 0.0, 1.76), hair)
+        for side in (-1, 1):
+            sx = 0.115 * side
+            body_part(f"hero eye {side}", (0.072, 0.028, 0.076),
+                      (sx, -0.258, 1.51), eyes)
+            body_part(f"hero eyebrow {side}", (0.105, 0.03, 0.025),
+                      (sx, -0.267, 1.60), hair)
+        body_part("hero mouth", (0.115, 0.025, 0.030), (0, -0.258, 1.38), hair)
+        arms, legs = [], []
+        for side in (-1, 1):
+            arms.append(body_part(f"hero arm {side}", (0.16, 0.20, 0.53),
+                                  (side * 0.36, -0.005, 0.78), shirt))
+            body_part(f"hero hand {side}", (0.16, 0.21, 0.17),
+                      (side * 0.36, -0.01, 0.48), skin)
+            legs.append(body_part(f"hero leg {side}", (0.20, 0.24, 0.46),
+                                 (side * 0.145, 0, 0.25), trousers))
+            body_part(f"hero shoe {side}", (0.22, 0.34, 0.13),
+                      (side * 0.145, -0.09, 0.06), eyes)
+
+        # A clear visible foreground route, away from the largest tree crowns.
+        path_xy = [(-1.55, -1.18), (-0.72, -1.42), (0.16, -1.45), (1.02, -1.20)]
+        def on_surface(x, y):
+            # Original terrain coordinates are a voxel grid at half-unit scale;
+            # the nearest cell's upper face is the actor's physical floor.
+            cx, cy = round(x * 2), round(y * 2)
+            radius = math.hypot(cx, cy)
+            # Match the deterministic island height trend, avoiding arbitrary
+            # hovering in front of the terrain. Feet remain near the top face.
+            h = max(1, int(3 - radius * 0.35))
+            return (h - 1) * 0.5 + 0.28
+        path = [Vector((x, y, on_surface(x, y))) for x, y in path_xy]
 
         def at(t):
-            s_ = t * (len(path) - 1)
+            s_ = min(1.0, max(0.0, t)) * (len(path) - 1)
             i = min(int(s_), len(path) - 2)
-            u = s_ - i
-            return path[i].lerp(path[i + 1], u) + Vector((0, 0, 0.12 * abs(math.sin(t * 40))))
+            u = ease(s_ - i)
+            return path[i].lerp(path[i + 1], u) + Vector((0, 0, 0.05 * abs(math.sin(t * 18))))
 
-        bm.key_path(hero, frames, at)
-        bm.ANCHORS["hero"] = hero
+        for frame in range(1, frames + 1):
+            t = (frame - 1) / max(1, frames - 1)
+            phase = t * math.pi * 7.0
+            root.location = at(t)
+            root.rotation_euler.z = 0.10 * math.sin(t * 3.0)
+            root.keyframe_insert("location", frame=frame)
+            root.keyframe_insert("rotation_euler", frame=frame)
+            for i, ob in enumerate(arms):
+                ob.rotation_euler.x = (-1 if i == 0 else 1) * 0.42 * math.sin(phase)
+                ob.keyframe_insert("rotation_euler", frame=frame)
+            for i, ob in enumerate(legs):
+                ob.rotation_euler.x = (1 if i == 0 else -1) * 0.32 * math.sin(phase)
+                ob.keyframe_insert("rotation_euler", frame=frame)
+
+        bm.ANCHORS["hero"] = (lambda fr, actor=root: actor.matrix_world @ Vector((0, 0, 1.88)))
         if p.get("level"):
             bm.LABELS.append({"anchor": "hero", "text": str(p["level"]), "style": "tag", "hl": True})
         bm.world({**pal, "bg": "#8fd3ff"})
