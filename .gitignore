@@ -9,3 +9,4 @@ var/
 *.sqlite3-shm
 *.sqlite3-wal
 *.render.lock
+.venv/

@@ -422,6 +422,9 @@ def test_review_gate_rejects_missing_or_null_automated_editorial_scores(tmp_path
     with pytest.raises(ValueError, match="accuracy"):
         verify(spec, pack, probe, thumbnail)
     spec["meta"]["review"]["accuracy"] = 8
+    with pytest.raises(ValueError, match="editorial decision"):
+        verify(spec, pack, probe, thumbnail)
+    spec["meta"]["review"].update({"pass": True, "fixes": [], "unsupported_claims": []})
     verify(spec, pack, probe, thumbnail)
 
 

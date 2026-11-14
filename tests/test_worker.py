@@ -344,3 +344,27 @@ def test_worker_removes_generated_blender_frames_on_render_failure(tmp_path, mon
                           review_root=review)
     assert list(review.glob(".failed-*"))
     assert not list(review.rglob("frame.png"))
+
+
+def test_missing_editorial_scores_block_before_starting_a_render(tmp_path, monkeypatch):
+    spec=_sample(tmp_path, monkeypatch)
+    old=json.loads(spec.read_text())
+    old['meta']={'generator':'autopilot'}
+    old['scenes']=[{'say':'Example','show':{'type':'title','text':'AN IDEA'}}]
+    spec.write_text(json.dumps(old))
+    import scripts.worker as w
+    # Full strict validation of this tiny fixture would fail for separate
+    # reasons. The targeted test checks that the exact editorial validator
+    # itself rejects null, negative or contradictory evidence early.
+    from scripts.verify_review import editorial_gate
+    with pytest.raises(ValueError,match='Unapproved Autopilot editorial score: hook'):
+        editorial_gate(old)
+    old['meta']['review']={'hook':8,'originality':8,'accuracy':9,'pass':False,
+                           'unsupported_claims':[], 'fixes': []}
+    with pytest.raises(ValueError,match='editorial decision'):
+        editorial_gate(old)
+    old['meta']['review']['pass']=True
+    editorial_gate(old)
+    old['meta']['review']['unsupported_claims']=['Missing source']
+    with pytest.raises(ValueError,match='unsupported claims'):
+        editorial_gate(old)

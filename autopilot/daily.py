@@ -364,8 +364,13 @@ class Planner:
                 bad.append("another channel in the network covered this idea recently; choose a different angle")
             if not bad:
                 review = self.critic(channel, spec, g)
-                if review["pass"] and not review.get("unsupported_claims"):
-                    spec["meta"]["review"] = {k: review.get(k) for k in ("hook", "originality", "accuracy")}
+                if review["pass"] and not review.get("unsupported_claims") and not review.get("fixes"):
+                    spec["meta"]["review"] = {
+                        "pass": True,
+                        "hook": review["hook"], "originality": review["originality"],
+                        "accuracy": review["accuracy"],
+                        "unsupported_claims": [], "fixes": [],
+                    }
                     spec["meta"]["model"] = self.llm.last_model
                     return spec
                 bad = [f"editor: {f}" for f in (review.get("fixes") or ["raise hook and accuracy"])][:5] + [f"unsupported: {c}" for c in (review.get("unsupported_claims") or [])][:3]
