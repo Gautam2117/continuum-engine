@@ -274,3 +274,12 @@ def test_cycle_window_prioritizes_current_backlog_over_older_queued_specs(tmp_pa
         assert worker.claim(db, NOW)["spec_id"] == "2026-11-15-atlas-s1"
     finally:
         db.close()
+
+
+def test_preflight_reports_missing_host_tools(tmp_path, monkeypatch):
+    monkeypatch.setattr(worker.shutil, "which", lambda name: None if name == "ffmpeg" else name)
+    monkeypatch.setattr(worker, "find_spec", lambda name: object())
+    checks = worker.preflight(tmp_path / "state.sqlite3", tmp_path / "reviews")
+    assert checks["ready"] is False
+    assert checks["tools"] == {"ffmpeg": False, "ffprobe": True, "fc-match": True}
+    assert checks["blender"] is None
