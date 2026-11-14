@@ -131,6 +131,10 @@ def enqueue(db: sqlite3.Connection, files: list[pathlib.Path], *, now: dt.dateti
         try:
             path = spec_file(candidate)
             spec = json.loads(path.read_text())
+            from scripts.verify_review import editorial_gate
+            # Do not queue known unreviewed model drafts that would otherwise
+            # consume the worker and immediately block on editorial rejection.
+            editorial_gate(spec)
             sha = digest(path)
         except (ValueError, OSError, json.JSONDecodeError):
             invalid += 1

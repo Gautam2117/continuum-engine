@@ -232,9 +232,32 @@ def run_command(argv: list[str], *, timeout: int, log: pathlib.Path) -> dict:
 
 def allowed_planner() -> tuple[bool, str]:
     """A provider credential never implies authorization to incur a bill."""
+    from autopilot.llm import LLM
+    # A localhost-only Ollama model makes no paid network API calls.
+    # Other providers still require explicit independent zero-cost confirmation.
+    if os.environ.get("CONTINUUM_LLM_LOCAL_ONLY") == "1":
+        if not os.environ.get("OLLAMA_MODEL"):
+            return False, "local model not configured"
+        providers = LLM()
+        if not (providers.available and all(p.name == "ollama" for p in providers.providers)):
+            return False, "local-only provider guard refused remote models"
+        # Check the exact model is installed and the local server is actually
+        # reachable. A stale named model must not trigger a 34-minute retry loop.
+        import urllib.request
+        try:
+            req = urllib.request.Request("http://127.0.0.1:11434/api/tags",
+                                         headers={"User-Agent": "continuum-preflight"})
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            with opener.open(req, timeout=3) as response:
+                available = json.load(response)
+            names = {item.get("name") for item in available.get("models", [])}
+        except (OSError, ValueError, KeyError) as exc:
+            return False, f"local model server unavailable ({type(exc).__name__})"
+        if os.environ["OLLAMA_MODEL"] not in names:
+            return False, "configured local model is not installed"
+        return True, "verified on-device draft model; no remote API or autonomous editorial approval"
     if os.environ.get("CONTINUUM_ZERO_COST_LLM_CONFIRMED") != "1":
         return False, "zero-cost LLM use is not explicitly confirmed on this host"
-    from autopilot.llm import LLM
     providers = LLM()
     if not providers.available:
         return False, "no configured language model provider"
