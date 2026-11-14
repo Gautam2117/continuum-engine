@@ -26,6 +26,7 @@ def test_launchd_supervisor_is_bounded_and_private(tmp_path):
     assert 'network_supervisor.py cycle' in command
     assert '--require-blender' in command and '--render-limit 1' in command
     assert '--plan' in command and '--render' in command
+    assert conf['ProgramArguments'][0] == str(tmp_path/'.venv'/'bin'/'python')
     assert 'publish' not in command and 'upload' not in command
     assert 'API_KEY' not in str(conf) and 'TOKEN' not in str(conf)
     assert conf['EnvironmentVariables']['CONTINUUM_SPEC_DIR'].endswith('/specs')

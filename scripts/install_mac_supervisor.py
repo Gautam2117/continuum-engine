@@ -23,7 +23,9 @@ PLIST = pathlib.Path.home()/'Library'/'LaunchAgents'/f'{LABEL}.plist'
 def configuration(*, root: pathlib.Path = ROOT, interval: int = 900) -> dict:
     if interval < 600:
         raise ValueError('Rendering supervisor may not run more frequently than every 10 minutes')
-    python = (root/'.venv'/'bin'/'python').resolve()
+    # DO NOT resolve the .venv interpreter symlink: Python uses the invoked
+    # path to discover pyvenv.cfg. Resolving silently drops all dependencies.
+    python = root/'.venv'/'bin'/'python'
     runner = (root/'scripts'/'network_supervisor.py').resolve()
     if not (python.is_file() and runner.is_file()):
         raise FileNotFoundError('Create the tested .venv and checkout before installing launchd')
