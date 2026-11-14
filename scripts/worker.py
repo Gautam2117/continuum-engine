@@ -18,6 +18,7 @@ import shutil
 import sqlite3
 import subprocess
 import sys
+import tempfile
 import time
 from contextlib import closing, contextmanager
 from importlib.util import find_spec
@@ -57,7 +58,8 @@ def iso(when: dt.datetime) -> str:
 
 
 def digest(path: pathlib.Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
+    with path.open("rb") as source:
+        return hashlib.file_digest(source, "sha256").hexdigest()
 
 
 @contextmanager
@@ -208,13 +210,13 @@ def finish(db: sqlite3.Connection, job_key: str, state: str, *, error: str = "",
     return state
 
 
-def execute(command: list[str], *, cwd: pathlib.Path, timeout: int, logfile: pathlib.Path) -> None:
+def execute(command: list[str], *, cwd: pathlib.Path, timeout: int, logfile: pathlib.Path, env: dict[str, str] | None = None) -> None:
     """Abort an entire render process group on timeout, never a shell string."""
     logfile.parent.mkdir(parents=True, exist_ok=True)
     with logfile.open("a") as out:
         out.write("COMMAND " + repr(command) + "\n")
         out.flush()
-        child = subprocess.Popen(command, cwd=cwd, stdout=out, stderr=subprocess.STDOUT,
+        child = subprocess.Popen(command, cwd=cwd, env=env, stdout=out, stderr=subprocess.STDOUT,
                                  start_new_session=True, stdin=subprocess.DEVNULL)
         try:
             ret = child.wait(timeout=timeout)
@@ -302,6 +304,10 @@ def render_one(job: dict, *, review_root: pathlib.Path, time_budget: int = 7200,
         return adopt_verified_review(output, job, source)
     tmp = review_root / f".staging-{spec['id']}-{job['spec_sha256'][:12]}"
     # After a crash, preserve the stale staging evidence and start clean.
+    if tmp.is_dir() and not tmp.is_symlink():
+        for scratch in tmp.glob(".blender-*"):
+            if scratch.is_dir() and not scratch.is_symlink():
+                shutil.rmtree(scratch)
     archive_partial(tmp)
     review_root.mkdir(parents=True, exist_ok=True)
     if shutil.disk_usage(review_root).free < 2 * 1024**3:
@@ -310,8 +316,14 @@ def render_one(job: dict, *, review_root: pathlib.Path, time_budget: int = 7200,
     log = logs / f"{spec['id']}-{job['spec_sha256'][:12]}.log"
     started = time.monotonic()
     try:
-        execute([sys.executable, "-m", "engine.render", str(source), "--out", str(tmp)],
-                cwd=ROOT, timeout=time_budget, logfile=log)
+        # Keep full-size Blender frame sequences only for this render. Final
+        # review files and diagnostic logs live outside the scratch directory.
+        # Put scratch inside staging so a crash can be recovered next cycle.
+        tmp.mkdir(parents=True, exist_ok=True)
+        with tempfile.TemporaryDirectory(prefix=".blender-", dir=tmp) as scratch:
+            env = {**os.environ, "B3D_CACHE": scratch}
+            execute([sys.executable, "-m", "engine.render", str(source), "--out", str(tmp)],
+                    cwd=ROOT, timeout=time_budget, logfile=log, env=env)
         video_dir = tmp / spec["id"]
         video = video_dir / "video.mp4"
         execute(["ffmpeg", "-v", "error", "-xerror", "-i", str(video), "-f", "null", "-"],
