@@ -5,6 +5,8 @@ Source specs live in `specs/<date>/*.json`; review outputs are private-to-the-wo
 GitHub Actions artifacts, not automatic public YouTube uploads. No API keys or
 channel credentials live in this public repository.
 
+**Authoritative live-state handoff:** [`docs/OPERATIONS_HANDOFF_2026-11-14.md`](docs/OPERATIONS_HANDOFF_2026-11-14.md). It distinguishes tested code, local previews, 48 individual creative identities, unprovisioned 24/7 compute and unverified public uploads. Never equate installed agent skills with installed unattended video renderers.
+
 ## Actual production stages
 
 1. `Autopilot` runs as a **manual software QA workflow**, not as a recurring
