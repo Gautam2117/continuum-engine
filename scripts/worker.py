@@ -20,6 +20,7 @@ import subprocess
 import sys
 import time
 from contextlib import closing, contextmanager
+from importlib.util import find_spec
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SPEC_ROOT = ROOT / "specs"
@@ -367,9 +368,31 @@ def process_next(db: sqlite3.Connection, *, review_root: pathlib.Path, now: dt.d
     return {"id": job["spec_id"], "state": state, "attempt": job["attempt"]}
 
 
+def preflight(db_path: pathlib.Path, reviews: pathlib.Path, *, require_blender: bool = False) -> dict:
+    """Check deployment dependencies before the host starts claiming jobs."""
+    tools = {name: shutil.which(name) is not None for name in ("ffmpeg", "ffprobe", "fc-match")}
+    modules = {name: find_spec(name) is not None for name in ("PIL", "numpy", "num2words", "kokoro_onnx", "soundfile")}
+    storage = {}
+    for label, path in (("database", db_path.parent), ("reviews", reviews)):
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+            free = shutil.disk_usage(path).free
+            storage[label] = {"writable": os.access(path, os.W_OK | os.X_OK), "freeBytes": free}
+        except OSError:
+            storage[label] = {"writable": False, "freeBytes": 0}
+    blender = None
+    if require_blender:
+        from engine.b3d import available
+        blender = available() if modules["PIL"] else False
+    ready = (all(tools.values()) and all(modules.values())
+             and all(item["writable"] and item["freeBytes"] >= 2 * 1024**3 for item in storage.values())
+             and blender is not False)
+    return {"ready": ready, "tools": tools, "modules": modules, "storage": storage, "blender": blender}
+
+
 def main():
     p = argparse.ArgumentParser(description="Durable private review queue (NO PUBLISHING)")
-    p.add_argument("action", choices=["scan", "once", "cycle", "status"])
+    p.add_argument("action", choices=["scan", "once", "cycle", "status", "preflight"])
     p.add_argument("--db", type=pathlib.Path, default=ROOT / "var" / "worker.sqlite3")
     p.add_argument("--reviews", type=pathlib.Path, default=ROOT / "var" / "reviews")
     p.add_argument("--spec", type=pathlib.Path, help="One specific repository-local spec for scan")
@@ -377,6 +400,7 @@ def main():
     p.add_argument("--start-offset", type=int, default=0, help="Start scan this many days from today")
     p.add_argument("--limit", type=int, default=1, help="Max jobs for one invocation (1-10)")
     p.add_argument("--timeout", type=int, default=7200, help="Per-job render timeout (seconds)")
+    p.add_argument("--require-blender", action="store_true", help="Verify Blender Python during preflight")
     args = p.parse_args()
     if not 1 <= args.limit <= 10 or not 60 <= args.timeout <= 21600:
         p.error("limit must be 1-10 and timeout 60-21600 seconds")
@@ -384,6 +408,13 @@ def main():
         p.error("days must be 1-30 and start offset 0-30")
 
     os.umask(0o077)  # protect the lock, SQLite queue, manifests and logs
+
+    if args.action == "preflight":
+        result = preflight(args.db, args.reviews, require_blender=args.require_blender)
+        print(json.dumps(result, indent=2))
+        if not result["ready"]:
+            raise SystemExit(2)
+        return
 
     def run() -> dict:
         window = None

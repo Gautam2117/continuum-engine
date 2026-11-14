@@ -13,6 +13,7 @@ Failed staging directories and logs remain for diagnosis rather than being misla
 Run from a Linux or macOS checkout with `python >=3.11`, packages from `requirements.txt`, `ffmpeg`, `ffprobe`, fontconfig fonts and a compatible Blender runner if specs use 3D.
 
 ```bash
+python scripts/worker.py preflight --require-blender
 python scripts/worker.py scan --spec specs/2026-11-16/atlas-s1.json
 python scripts/worker.py status
 python scripts/worker.py once --limit 1 --timeout 7200
