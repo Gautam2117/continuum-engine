@@ -80,7 +80,7 @@ def test_report_only_cycle_is_idempotent_and_never_publishes(monkeypatch,tmp_pat
     assert r['requiredEpisodes']==101
     assert r['validSpecs']==0
     assert r['steps']['plan']['status']=='not-run'
-    assert json.loads((tmp_path/'private'/'latest.json').read_text())['missingSpecs']==100
+    assert json.loads((tmp_path/'private'/'latest.json').read_text())['missingSpecs']==101
     r2=sup.cycle(args)
     assert r2['requiredEpisodes']==101
     assert not list((tmp_path/'reviews').rglob('*.mp4')) if (tmp_path/'reviews').exists() else True
