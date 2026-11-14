@@ -164,6 +164,7 @@ def build(source:pathlib.Path = SOURCE) -> dict:
         'meta': {
             'generator':'sourced-human-editorial','topic':'Dropbox referral invitations versus shared folders',
             'axis':'early distribution tactics', 'reviewStatus':'EDITORIAL_HOLD_NOT_APPROVED',
+            'visualRevision':'distinct-episode-diagrams-v2',
             'sourceLedger':'editorial/foundbeam/dropbox-referrals-sources.md',
             'creativeDirector':{'id':'Foundbeam','fingerprint':director.fingerprint(),
                                 'version':VERSION,'camera':director.camera,'captions':director.captions},

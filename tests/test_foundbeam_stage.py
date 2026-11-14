@@ -35,3 +35,33 @@ def test_foundbeam_does_not_receive_generic_emoji_host_overlay():
     assert 'foundbeam' in NO_MASCOT
     assert 'foundbeam' in NO_STICKERS
     assert 'atlas' in NO_MASCOT
+
+
+def test_foundbeam_each_variant_has_a_distinct_composition_not_just_a_heading():
+    # Compare ONLY the picture/diagram area; titles and bottom labels alone
+    # cannot satisfy the scene-variation contract for a long-form episode.
+    from PIL import ImageChops, ImageStat
+    style=STYLES['foundbeam']
+    c=Ctx(style,640,360,Backdrop(style,640,360,seed=8),'Foundbeam')
+    pictures={}
+    for variant in sorted(VARIANTS):
+        frames=list(islice(scene_foundbeam_flow(c,1.2,{'variant':variant},[]),28))
+        assert len(frames)==28
+        pictures[variant]=frames[-1].crop((40,112,600,251))
+    for first,im in pictures.items():
+        for second,other in pictures.items():
+            if first>=second:
+                continue
+            result=ImageStat.Stat(ImageChops.difference(im,other)).mean
+            assert sum(result)/3>3.5, f'{first} and {second} look like one layout'
+
+
+def test_foundbeam_storyboards_never_change_channel_identity_or_facts():
+    # New layouts provide visual choices but cannot invent currency amounts,
+    # percentages or imply a real screenshot of a licensed Dropbox UI.
+    from inspect import getsource
+    from engine import foundbeam
+    code=getsource(foundbeam._folder_story)+getsource(foundbeam._referral_story)+getsource(foundbeam._reward_story)+getsource(foundbeam._decision_story)
+    assert '100,000' not in code and '2.8 million' not in code
+    assert '$' not in code
+    assert 'COMPANY REPORTED' not in code
