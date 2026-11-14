@@ -133,3 +133,38 @@ def test_stage_refuses_different_video_with_same_script_and_valid_checkums(tmp_p
     ) + "\n")
     with pytest.raises(gate.ReleaseRejected, match="differs from the exact cut"):
         gate.stage(spec, root, now=NOW)
+
+
+def test_private_stage_binds_worker_provenance_and_exact_media(tmp_path, monkeypatch):
+    spec, approval_path, approval = fixture(tmp_path, monkeypatch)
+    source = tmp_path / f"{approval['id']}-{approval['specSha256']}-{approval['videoSha256']}"
+    source.mkdir()
+    (source / "spec.json").write_bytes(spec.read_bytes())
+    for name in ("pack.json", "probe.json", "thumb.jpg", "video.mp4"):
+        (source / name).write_text("{}")
+    approval.pop("reviewRunId")
+    approval.update(
+        reviewSource="private-worker",
+        reviewArtifact=f"private-{approval['id']}-{approval['specSha256']}",
+    )
+    for key, filename in (("videoSha256", "video.mp4"), ("thumbnailSha256", "thumb.jpg")):
+        approval[key] = gate._sha(source / filename)
+    exact = tmp_path / f"{approval['id']}-{approval['specSha256']}-{approval['videoSha256']}"
+    source.rename(exact)
+    (exact / "checksums.txt").write_text("".join(
+        f"{gate._sha(exact / filename)}  {filename}\n" for filename in gate.CHECKSUM_FILES
+    ))
+    approval_path.write_text(json.dumps(approval))
+    monkeypatch.setattr(gate, "verify", lambda *args: None)
+    monkeypatch.setattr(gate, "verify_audio", lambda *args: None)
+    with pytest.raises(gate.ReleaseRejected):
+        gate.approval_for(spec, now=NOW)
+    result = gate.stage_private(spec, exact, tmp_path / "stage", now=NOW)
+    receipt = json.loads((result / "pack.json").read_text())["editorialApproval"]
+    assert receipt["reviewSource"] == "private-worker"
+    assert receipt["videoSha256"] == approval["videoSha256"]
+    assert (exact / "pack.json").read_text() == "{}"
+    gate.verify_checksums(result)
+    (exact / "video.mp4").write_text("replaced master")
+    with pytest.raises(gate.ReleaseRejected, match="bytes changed"):
+        gate.stage_private(spec, exact, tmp_path / "another-stage", now=NOW)

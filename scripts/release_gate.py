@@ -11,6 +11,8 @@ import hashlib
 import json
 import os
 import re
+import shutil
+import tempfile
 import sys
 from pathlib import Path
 
@@ -33,7 +35,7 @@ def _sha(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def approval_for(spec_path: Path, *, now: dt.datetime | None = None) -> dict:
+def approval_for(spec_path: Path, *, now: dt.datetime | None = None, private: bool = False) -> dict:
     """Verify owner approval for the exact spec file, never just a matching title."""
     try:
         spec_path = spec_path.resolve(strict=True)
@@ -46,6 +48,8 @@ def approval_for(spec_path: Path, *, now: dt.datetime | None = None) -> dict:
         if issues := problems(spec, spec_path.parent.name, strict=True):
             raise ReleaseRejected("Spec failed strict checks: " + "; ".join(issues[:4]))
         expected_name = review_artifact(spec_path)
+        if private:
+            expected_name = f"private-{sid}-{_sha(spec_path)}"
         path = ROOT / "approvals" / f"{sid}.json"
         approval = json.loads(path.read_text())
         if not isinstance(approval, dict):
@@ -60,7 +64,10 @@ def approval_for(spec_path: Path, *, now: dt.datetime | None = None) -> dict:
         # versions can produce different media for the exact same script.
         # Bind approval to BOTH the exact GitHub run and the watched MP4/thumbnail.
         run_id = approval.get("reviewRunId")
-        if type(run_id) is not int or run_id <= 0:
+        if private:
+            if approval.get("reviewSource") != "private-worker" or "reviewRunId" in approval:
+                raise ReleaseRejected("Private approval must identify the worker source")
+        elif type(run_id) is not int or run_id <= 0:
             raise ReleaseRejected("Approval must name the exact review run ID")
         for name in ("videoSha256", "thumbnailSha256"):
             if not isinstance(approval.get(name), str) or not SHA256.fullmatch(approval[name]):
@@ -113,6 +120,11 @@ def stage(spec_path: Path, artifact_root: Path, now: dt.datetime | None = None) 
     result = artifact_root / spec["id"]
     if not result.is_dir():
         raise ReleaseRejected("Reviewed render directory not found")
+    return stage_files(spec_path, result, approval)
+
+
+def stage_files(spec_path: Path, result: Path, approval: dict) -> Path:
+    spec = json.loads(spec_path.read_text())
     verify_checksums(result)
     if _sha(result / "video.mp4") != approval["videoSha256"]:
         raise ReleaseRejected("Rendered video differs from the exact cut the owner reviewed")
@@ -126,7 +138,9 @@ def stage(spec_path: Path, artifact_root: Path, now: dt.datetime | None = None) 
     verify_audio(result / "video.mp4")
     pack["editorialApproval"] = {
         "status": "approved", "specSha256": approval["specSha256"],
-        "reviewArtifact": approval["reviewArtifact"], "reviewedAt": approval["reviewedAt"], "reviewRunId": approval["reviewRunId"],
+        "reviewArtifact": approval["reviewArtifact"], "reviewedAt": approval["reviewedAt"],
+        **({"reviewRunId": approval["reviewRunId"]} if "reviewRunId" in approval
+           else {"reviewSource": approval["reviewSource"]}),
         "videoSha256": approval["videoSha256"], "thumbnailSha256": approval["thumbnailSha256"],
         "reviewer": "owner",
     }
@@ -134,13 +148,45 @@ def stage(spec_path: Path, artifact_root: Path, now: dt.datetime | None = None) 
     return result
 
 
+def stage_private(spec_path: Path, source: Path, output: Path, *, now: dt.datetime | None = None) -> Path:
+    """Prepare a separate local release package after explicit owner approval."""
+    approval = approval_for(spec_path, now=now, private=True)
+    expected = f"{approval['id']}-{approval['specSha256']}-{approval['videoSha256']}"
+    if source.name != expected or not source.is_dir() or source.is_symlink():
+        raise ReleaseRejected("Select the matching imported private review directory")
+    output.mkdir(parents=True, exist_ok=True, mode=0o700)
+    destination = output / expected
+    with tempfile.TemporaryDirectory(prefix=".stage-", dir=output) as temp:
+        snapshot = Path(temp) / expected
+        snapshot.mkdir(mode=0o700)
+        for name in CHECKSUM_FILES | {"checksums.txt"}:
+            item = source / name
+            if item.is_symlink() or not item.is_file():
+                raise ReleaseRejected(f"Expected regular review file: {name}")
+            shutil.copyfile(item, snapshot / name)
+        stage_files(spec_path, snapshot, approval)
+        (snapshot / "checksums.txt").write_text("".join(
+            f"{_sha(snapshot / name)}  {name}\n" for name in sorted(CHECKSUM_FILES)
+        ))
+        if destination.exists():
+            raise ReleaseRejected("Release staging directory already exists")
+        snapshot.rename(destination)
+    return destination
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("action", choices=["check", "stage"])
+    ap.add_argument("action", choices=["check", "stage", "stage-private"])
     ap.add_argument("spec", type=Path)
     ap.add_argument("--artifact-root", type=Path)
+    ap.add_argument("--output", type=Path)
     args = ap.parse_args()
     try:
+        if args.action == "stage-private":
+            if not args.artifact_root or not args.output:
+                raise ReleaseRejected("Private staging requires --artifact-root and --output")
+            print(stage_private(args.spec, args.artifact_root, args.output))
+            return
         approval = approval_for(args.spec)
         if args.action == "check":
             if output := os.environ.get("GITHUB_OUTPUT"):

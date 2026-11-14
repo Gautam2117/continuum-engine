@@ -68,3 +68,18 @@ checksums, decodes the media, and moves the package into the private inbox atomi
 Reimports of the identical cut reuse the same path. The editor can review the exact video
 and thumbnail there. Import preserves the worker's unapproved state. The existing
 GitHub release workflow still requires its own approval and artifact provenance.
+
+After the owner reviews the exact imported cut, the existing approval record can
+identify a private worker with `reviewSource: "private-worker"` and
+`reviewArtifact: "private-<spec-id>-<full-spec-sha256>"`. Omit `reviewRunId`.
+The existing spec, video, thumbnail, timestamp, notes and scheduling checks apply.
+To prepare a separate package for release review:
+
+```bash
+python scripts/release_gate.py stage-private specs/2026-11-16/atlas-s1.json \
+  --artifact-root /private/editor-inbox/EXACT_IMPORTED_DIRECTORY \
+  --output /private/release-staging
+```
+
+Local staging preserves the source inbox and performs no upload. Studio currently
+accepts only the GitHub review receipt format.
