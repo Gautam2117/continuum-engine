@@ -83,3 +83,24 @@ python scripts/release_gate.py stage-private specs/2026-11-16/atlas-s1.json \
 
 Local staging preserves the source inbox and performs no upload. Studio currently
 accepts only the GitHub review receipt format.
+
+## Connect private planning to the worker
+
+On a dedicated host, set the same `CONTINUUM_SPEC_DIR` for the planner and render
+worker. Set `CONTINUUM_STATE_DIR` for the planner's ledger and heartbeat. Put both
+directories in private writable storage owned by the service account. Set them
+explicitly in each service environment when using systemd. The source checkout
+can stay read-only.
+
+```bash
+umask 077
+export CONTINUUM_SPEC_DIR=/var/lib/continuum/specs
+export CONTINUUM_STATE_DIR=/var/lib/continuum/planning
+python scripts/autopilot.py plan --days 3 --start-offset 1
+python scripts/worker.py cycle --db /var/lib/continuum/review.sqlite3 \
+  --reviews /var/lib/continuum/reviews --days 7
+```
+
+Run one planner per spool. It writes complete JSON files atomically so the worker
+can scan alongside planning. An empty spool starts without any tracked episodes.
+With these settings the planner keeps its drafts and feedback state on the host.

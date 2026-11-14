@@ -8,6 +8,7 @@ import datetime as dt
 import json
 import os
 import time
+import tempfile
 import pathlib
 import re
 
@@ -21,7 +22,7 @@ from .playbooks import PLAYBOOKS, cadence_for
 from .slots import choose, slot_key
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SPECS = ROOT / "specs"
+SPECS = pathlib.Path(os.environ.get("CONTINUUM_SPEC_DIR") or (ROOT / "specs")).resolve()
 DISCLOSURE = "Narration is a synthetic voice. Script and visuals are produced with AI tools and checked by automated quality gates."  # shown on every video
 
 
@@ -438,7 +439,13 @@ def plan(days: list[dt.date], llm: LLM, now: dt.datetime | None = None, *, only:
                     strikes = 0
                     occupied.append(when)
                     folder.mkdir(parents=True, exist_ok=True)
-                    path.write_text(json.dumps(spec, indent=1, ensure_ascii=False) + "\n")
+                    with tempfile.NamedTemporaryFile(mode="w", dir=folder, encoding="utf-8", delete=False) as output:
+                        draft_path = pathlib.Path(output.name)
+                    try:
+                        draft_path.write_text(json.dumps(spec, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+                        draft_path.replace(path)
+                    finally:
+                        draft_path.unlink(missing_ok=True)
                     ledger.append({"id": sid, "channel": channel, "format": fmt, "title": spec["title"], "axis": spec["meta"]["axis"], "slot": spec["meta"]["slot"], "publishAt": spec["publishAt"]})
                     insights.save("ledger.json", ledger[-1500:])
                     rel = str(path.relative_to(ROOT)) if path.is_relative_to(ROOT) else str(path)
