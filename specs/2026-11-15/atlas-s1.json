@@ -117,20 +117,9 @@
     {
       "say": "Instead of sunrise every day, many places would see sunrise approximately once each year.",
       "show": {
-        "type": "bars",
+        "type": "list",
         "title": "Time between sunrises",
-        "unit": "days",
-        "items": [
-          {
-            "label": "Now",
-            "value": 1
-          },
-          {
-            "label": "No spin",
-            "value": 365,
-            "highlight": true
-          }
-        ]
+        "items": ["Today: about 1 day", "Without axial spin: about 365 days"]
       }
     },
     {
