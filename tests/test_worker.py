@@ -240,3 +240,20 @@ def test_worker_cli_status_and_empty_cycle(tmp_path):
             capture_output=True, text=True, check=True,
         )
         assert json.loads(result.stdout) == expected
+
+
+def test_scan_reactivates_a_previously_superseded_spec_after_rollback(tmp_path, monkeypatch):
+    spec = _sample(tmp_path, monkeypatch)
+    original = spec.read_bytes()
+    db = worker.connection(tmp_path / "queue.db")
+    try:
+        worker.enqueue(db, [spec], now=NOW)
+        spec.write_text(spec.read_text().replace("What if?", "Revision"))
+        worker.enqueue(db, [spec], now=NOW)
+        spec.write_bytes(original)
+        assert worker.enqueue(db, [spec], now=NOW)["imported"] == 1
+        row = worker.claim(db, NOW)
+        assert row is not None and row["spec_sha256"] == hashlib.sha256(original).hexdigest()
+        assert worker.claim(db, NOW) is None
+    finally:
+        db.close()
