@@ -158,7 +158,7 @@ class OllamaProvider(Provider):
                          models=[model.strip()], best=[model.strip()])
 
     def chat(self, model: str, system: str, user: str, temperature: float,
-             max_tokens: int, want_json: bool) -> str:
+             max_tokens: int, want_json: bool, schema: dict | None = None) -> str:
         if model not in self.models:
             raise LLMError("Unknown local model")
         request_data = {
@@ -168,7 +168,7 @@ class OllamaProvider(Provider):
             "options": {"temperature": temperature, "num_predict": max_tokens},
         }
         if want_json:
-            request_data["format"] = "json"
+            request_data["format"] = schema if schema is not None else "json"
         request = urllib.request.Request(
             "http://127.0.0.1:11434/api/chat",
             data=json.dumps(request_data).encode("utf-8"),
@@ -239,7 +239,7 @@ class LLM:
     def available(self) -> bool:
         return bool(self.providers)
 
-    def complete(self, system: str, user: str, *, want_json: bool = True, temperature: float = 0.8, max_tokens: int = 6000, tier: str = "bulk", max_calls: int | None = None, deadline: float | None = None):
+    def complete(self, system: str, user: str, *, want_json: bool = True, temperature: float = 0.8, max_tokens: int = 6000, tier: str = "bulk", max_calls: int | None = None, deadline: float | None = None, schema: dict | None = None):
         """Returns parsed JSON when want_json, else text. Fails over across providers and models.
         tier="best" tries the strongest models first (scripts, editor); "bulk" tries the highest-quota ones (topic ideas).
         Busy-server errors (503 and friends) are retried with backoff and never mark a model dead; only a spent
@@ -278,7 +278,15 @@ class LLM:
                             self.calls += 1
                             model_id = f"{prov.name}:{model}"
                             self.attempts_by_model[model_id] = self.attempts_by_model.get(model_id, 0) + 1
-                            text = prov.chat(model, system, user, temperature, max_tokens, want_json)
+                            # The local native Ollama API supports schema-constrained
+                            # decoding. Other providers use their established
+                            # clients unchanged, with strict validators after it.
+                            if schema is not None and isinstance(prov, OllamaProvider):
+                                text = prov.chat(model, system, user, temperature,
+                                                 max_tokens, want_json, schema=schema)
+                            else:
+                                text = prov.chat(model, system, user, temperature,
+                                                 max_tokens, want_json)
                             result = extract_json(text) if want_json else text
                             prov.busy_hits = 0  # noqa
                             self.last_model = model_id

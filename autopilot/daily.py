@@ -19,6 +19,7 @@ from .directors import director_for
 from .ground import ground, ground_news, news_items
 from .llm import LLM, LLMError
 from .normalize import speakable
+from . import schemas
 from .playbooks import PLAYBOOKS, cadence_for
 from .slots import choose, slot_key
 
@@ -141,7 +142,8 @@ class Planner:
                 f"Production constraints: {pb.get('topic_constraints', 'Follow the channel promise and subject areas.')}\n\n"
                 'Brainstorm 8 video topics most likely to hold attention. Return JSON: {"topics":[{"topic":"...","axis":"one subject area","wiki_query":"2-4 words to find a Wikipedia article with the facts","why":"one line"}]} ranked best first.'
             )
-            data = as_obj(self._call("You are a sharp YouTube strategist. Reply with JSON only.", user, temperature=0.9), "topics")
+            data = as_obj(self._call("You are a sharp YouTube strategist. Reply with JSON only.", user,
+                                     temperature=0.9, schema=schemas.TOPICS), "topics")
             others = network_topics(channel)
             pool = [t for t in data.get("topics", []) if isinstance(t, dict) and t.get("topic") and not too_similar(t["topic"], recent) and not too_similar(t["topic"], others, 0.5)]
             if not pool:
@@ -208,7 +210,8 @@ class Planner:
         if fixes:
             user += "\n\nYOUR PREVIOUS ATTEMPT WAS REJECTED. Fix all of these:\n- " + "\n- ".join(fixes)
         system = self._system(channel)
-        raw = as_obj(self._call(system, user, temperature=0.65, tier="best"), "scenes")
+        raw = as_obj(self._call(system, user, temperature=0.65, tier="best",
+                                schema=schemas.short_script(channel)), "scenes")
         scenes = raw.get("scenes")
         if (isinstance(scenes, list) and scenes and any(
             isinstance(scene, dict) and not str(scene.get("say", "")).strip()
@@ -227,7 +230,8 @@ class Planner:
                 "claims. Return the complete corrected JSON object only.\n"
                 + json.dumps(raw, ensure_ascii=False)
             )
-            return as_obj(self._call(system, repair, temperature=0.35, tier="best"), "scenes")
+            return as_obj(self._call(system, repair, temperature=0.35, tier="best",
+                                     schema=schemas.short_script(channel)), "scenes")
         return raw
 
     def draft_long(self, channel: str, topic: dict, g: dict, fixes: list[str] | None = None) -> dict:
@@ -241,7 +245,8 @@ class Planner:
         outline = self.long_outlines.get(key)
         if outline is None:
             prompt = prompts.LONG_OUTLINE.replace("{minutes}", str(round(words / 150))).replace("{chapters}", str(n_ch))
-            outline = as_obj(self._call(system, base + prompt, temperature=0.8, tier="best"), "chapters")
+            outline = as_obj(self._call(system, base + prompt, temperature=0.8, tier="best",
+                                        schema=schemas.long_outline(n_ch)), "chapters")
         chapters = [c for c in outline.get("chapters", []) if isinstance(c, dict)][:n_ch]
         if len(chapters) < 4:
             raise LLMError("outline too short")
@@ -262,7 +267,8 @@ class Planner:
                 prompt += f"\nPrevious chapter ended with: {scenes[-1].get('say', '')}"
             if fixes:
                 prompt += "\nEditor notes to apply: " + "; ".join(fixes[:4])
-            part = as_obj(self._call(system, base + prompt, temperature=0.8, tier="best"), "scenes")
+            part = as_obj(self._call(system, base + prompt, temperature=0.8, tier="best",
+                                     schema=schemas.chapter(channel)), "scenes")
             scenes += [x for x in part.get("scenes", []) if isinstance(x, dict)]
         return {**{k: outline.get(k) for k in ("title", "thumb", "description", "tags")}, "scenes": scenes}
 
@@ -358,7 +364,8 @@ class Planner:
         fic = "This is a FICTION channel: invented characters and events are allowed and are not 'unsupported claims'. Only real-world facts need support.\n" if pb.get("fiction") else ""
         user = (f"CHANNEL BRIEF AND PRODUCTION CONSTRAINTS (violations require revision): {facts}\n{fic}GROUNDING:\n{g['text'][:6000]}\n\n"
                 f"TITLE: {spec['title']}\nDESCRIPTION: {spec['description']}\nSCRIPT:\n{script}")
-        review = as_obj(self._call(prompts.CRITIC, user, temperature=0.2, max_tokens=1200, tier="best"), "fixes")
+        review = as_obj(self._call(prompts.CRITIC, user, temperature=0.2, max_tokens=1200,
+                                    tier="best", schema=schemas.EDITOR), "fixes")
         if type(review.get("pass")) is not bool:
             raise LLMError("editor response is missing a valid pass decision")
         for key in ("fixes", "unsupported_claims"):
