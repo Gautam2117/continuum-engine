@@ -230,7 +230,8 @@ def render(spec_path: pathlib.Path, out_root: pathlib.Path, preview: float | Non
         "-c:v", "libx264", "-preset", "veryfast", "-crf", "24" if fmt == "long" else "22", "-pix_fmt", "yuv420p", "-movflags", "+faststart",
         "-c:a", "aac", "-b:a", "160k", "-shortest", str(video),
     ], stdin=subprocess.PIPE)
-    layout = stage.Layout(W, H, fmt, no_host=style.slug in NO_MASCOT)
+    layout = stage.Layout(W, H, fmt, no_host=style.slug in NO_MASCOT,
+                          world_focus=style.slug == "pixel")
     bd = S.Backdrop(style, W, H, seed=len(spec["id"]))
     ctx = S.Ctx(style, W, layout.view_h, bd, spec["channel"], vertical=layout.vertical)
     slug = style.slug
