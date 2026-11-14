@@ -1,118 +1,73 @@
 {
- "id": "2026-11-14-10sec-s1",
- "channel": "10SecScientist",
- "format": "short",
- "title": "Why do onions make you cry? #shorts",
- "thumb": "Why onions sting",
- "description": "Slicing an onion starts an enzyme reaction that releases a volatile eye irritant. This animation follows that irritant from the cut cells to your eyes.\n\nSources: Imai et al., Nature (2002), https://www.nature.com/articles/419685a and Løkke et al., Sensors (2012), https://pmc.ncbi.nlm.nih.gov/articles/PMC3571771/\n\nNarration uses a synthetic voice.",
- "tags": [
-  "onion",
-  "crying",
-  "kitchen science",
-  "chemistry",
-  "quick tip",
-  "food hack",
-  "shorts",
-  "science",
-  "science facts",
-  "explained",
-  "learn",
-  "physics"
- ],
- "links": [
-  {
-   "label": "More from Continuum Arc",
-   "url": "https://continuumarc.tech"
-  }
- ],
- "publishAt": "2026-11-14T14:02:00Z",
- "meta": {
-  "generator": "autopilot",
-  "topic": "Why do onions make you cry?",
-  "axis": "chemistry in the kitchen",
-  "slot": "14:00",
-  "model": "groq:openai/gpt-oss-120b"
- },
- "scenes": [
-  {
-   "say": "Why do onions make you cry?",
-   "show": {
-    "type": "title",
-    "text": "Why do onions sting?",
-    "kicker": "Kitchen chemistry"
-   }
+  "id": "2026-11-14-10sec-s1",
+  "channel": "10SecScientist",
+  "format": "short",
+  "title": "Why do onions make you cry? #shorts",
+  "thumb": "Why onions sting",
+  "description": "Slicing an onion starts an enzyme reaction that releases a volatile eye irritant. This animation follows that irritant from the cut cells to your eyes.\n\nSources: Imai et al., Nature (2002), https://www.nature.com/articles/419685a and Løkke et al., Sensors (2012), https://pmc.ncbi.nlm.nih.gov/articles/PMC3571771/\n\nNarration uses a synthetic voice.",
+  "tags": [
+    "onion",
+    "crying",
+    "kitchen science",
+    "chemistry",
+    "quick tip",
+    "food hack",
+    "shorts",
+    "science",
+    "science facts",
+    "explained",
+    "learn",
+    "physics"
+  ],
+  "links": [
+    {
+      "label": "More from Continuum Arc",
+      "url": "https://continuumarc.tech"
+    }
+  ],
+  "publishAt": "2026-11-14T14:02:00Z",
+  "meta": {
+    "generator": "autopilot",
+    "topic": "Why do onions make you cry?",
+    "axis": "chemistry in the kitchen",
+    "slot": "14:00",
+    "model": "groq:openai/gpt-oss-120b",
+    "reviewStatus": "REWRITTEN_REQUIRES_FRESH_VISUAL_REVIEW"
   },
-  {
-   "say": "An enzyme called alliinase starts the reaction the moment your knife breaks the onion cells.",
-   "show": {
-    "type": "say",
-    "text": "Cut cells mix their contents"
-   }
-  },
-  {
-   "say": "In the intact onion, that enzyme and the sulfur compounds it acts on are kept apart.",
-   "show": {
-    "type": "list",
-    "title": "Before the cut",
-    "items": [
-     "Alliinase",
-     "Sulfur compounds",
-     "Kept apart"
-    ]
-   }
-  },
-  {
-   "say": "Once they mix, alliinase produces an intermediate that a second enzyme turns into the onion’s tear factor.",
-   "show": {
-    "type": "timeline",
-    "events": [
-     {
-      "year": "1",
-      "label": "The cut breaks cells"
-     },
-     {
-      "year": "2",
-      "label": "Alliinase starts the reaction"
-     },
-     {
-      "year": "3",
-      "label": "A second enzyme makes the irritant"
-     }
-    ]
-   }
-  },
-  {
-   "say": "The product is propanethial S oxide. It evaporates from the freshly cut surface.",
-   "show": {
-    "type": "say",
-    "text": "A volatile irritant escapes"
-   }
-  },
-  {
-   "say": "When the vapor reaches your eyes, it irritates the sensitive surface.",
-   "show": {
-    "type": "list",
-    "title": "From board to eyes",
-    "items": [
-     "Cut surface",
-     "Air",
-     "Eye surface"
-    ]
-   }
-  },
-  {
-   "say": "Your eyes respond by releasing tears that help wash the irritant away.",
-   "show": {
-    "type": "say",
-    "text": "Tears flush the irritant"
-   }
-  },
-  {
-   "say": "The sting starts with a cut, but your tears are your eyes’ response.",
-   "show": {
-    "type": "end",
-    "text": "One cut starts the reaction"
-   }
-  }
- ]
+  "scenes": [
+    {
+      "say": "Why do onions make you cry?",
+      "show": {
+        "type": "title",
+        "text": "ONIONS MAKE TEARS",
+        "kicker": "10 SECOND SCIENCE"
+      }
+    },
+    {
+      "say": "Cutting breaks cells. Enzymes form an eye irritant.",
+      "show": {
+        "type": "list",
+        "title": "THE CUT",
+        "items": [
+          "Cells break",
+          "Chemical reactions begin",
+          "Irritant forms"
+        ]
+      }
+    },
+    {
+      "say": "Its vapor reaches your eyes, triggering tears.",
+      "show": {
+        "type": "say",
+        "text": "IRRITANT IN THE AIR"
+      }
+    },
+    {
+      "say": "Tears help wash it away.",
+      "show": {
+        "type": "end",
+        "text": "YOUR EYES RESPOND"
+      }
+    }
+  ]
 }

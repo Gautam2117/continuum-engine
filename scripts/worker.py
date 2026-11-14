@@ -298,6 +298,9 @@ def render_one(job: dict, *, review_root: pathlib.Path, time_budget: int = 7200,
     failures = problems(spec, source.parent.name, strict=True)
     if failures:
         raise ValueError("Strict spec rejected: " + "; ".join(failures[:4]))
+    from scripts.verify_review import editorial_gate
+    # Fail closed before TTS, Blender, ffmpeg or private media storage costs.
+    editorial_gate(spec)
     key = job["job_key"]
     output = review_root / f"{spec['id']}-{job['spec_sha256'][:12]}"
     if output.exists():
@@ -472,6 +475,10 @@ def main():
     except RuntimeError as error:
         p.exit(2, f"Worker busy or unavailable: {error}\n")
     print(json.dumps(outcome, indent=2))
+    if args.action in ("cycle", "once") and any(
+            job.get("state") in ("blocked", "retry", "superseded")
+            for job in outcome.get("jobs", [])):
+        raise SystemExit(2)
 
 
 if __name__ == "__main__":

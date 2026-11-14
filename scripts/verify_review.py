@@ -56,16 +56,30 @@ def verify(spec: dict, pack: dict, probe: dict, thumbnail: Path) -> None:
             raise ValueError("Expected JPEG thumbnail")
         image.load()
 
-    # Model-generated content is not accepted just because it parsed as JSON.
-    # Review scores must be present and exceed the editorial minimums. This
-    # rejects old specs with null scores that previously slipped through.
+    editorial_gate(spec)
+
+
+def editorial_gate(spec: dict) -> None:
+    """Check model critic evidence before any expensive rendering or release.
+
+    This does not constitute human owner approval, but every model-generated
+    episode needs documented validated critic scores. Earlier planning output
+    with missing/null scores must not be rendered repeatedly on cron.
+    """
     meta = spec.get("meta") or {}
-    if meta.get("generator") == "autopilot":
-        review = meta.get("review") or {}
-        for name, minimum in (("hook", 6), ("originality", 6), ("accuracy", 7)):
-            score = review.get(name)
-            if type(score) is not int or score < minimum or score > 10:
-                raise ValueError(f"Unapproved Autopilot editorial score: {name}")
+    if meta.get("generator") != "autopilot":
+        return
+    review = meta.get("review") or {}
+    if not isinstance(review, dict):
+        raise ValueError("Unapproved Autopilot editorial review")
+    for name, minimum in (("hook", 6), ("originality", 6), ("accuracy", 7)):
+        score = review.get(name)
+        if type(score) is not int or score < minimum or score > 10:
+            raise ValueError(f"Unapproved Autopilot editorial score: {name}")
+    if (review.get("pass") is not True
+            or review.get("unsupported_claims") != []
+            or review.get("fixes") != []):
+        raise ValueError("Unapproved Autopilot editorial decision, fixes, or unsupported claims")
 
 
 def verify_audio(video: Path) -> tuple[float, float]:
