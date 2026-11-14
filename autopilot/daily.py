@@ -341,8 +341,21 @@ class Planner:
                 value = ch.get(field)
                 fields[placeholder] = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False) if value is not None else ""
             prompt = (prompts.CHAPTER.replace("{i}", str(i)).replace("{n}", str(len(chapters)))
-                      .replace("{words}", str(per)).replace("{scenes}", str(max(3, per // 55)))
+                      .replace("{words}", str(per)).replace(
+                          "{scenes}", str(12 if channel == "Counterfactual Atlas" else max(3, per // 55)))
                       .replace("{first}", first).replace("{last}", last))
+            if channel == "Counterfactual Atlas":
+                prompt += (
+                    "\nATLAS LONG-FORM NARRATION CONTRACT: Produce exactly TWELVE "
+                    "different visual scenes in this chapter. Each spoken sentence "
+                    "should be about 17-22 words (except the first hook and final "
+                    "payoff), with no padding or recycled sentences. The scene "
+                    "changes should match the explanation, using grounded physical "
+                    "values and explicitly named what-if assumptions. Across six "
+                    "chapters this gives roughly seventy-two concise shots and "
+                    "at least eight minutes of actual explanatory narration. "
+                    "A thin chapter is a REJECTION, not permission for filler."
+                )
             prompt = re.sub(r"\{(name|beats|loop)\}", lambda match: fields[match[1]], prompt)
             if scenes:
                 prompt += f"\nPrevious chapter ended with: {scenes[-1].get('say', '')}"
