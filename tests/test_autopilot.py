@@ -127,7 +127,7 @@ def test_short_plan_writes_a_valid_spec(tmp_path, monkeypatch):
     now = dt.datetime(2026, 11, 12, 6, 0, tzinfo=dt.timezone.utc)
     out = daily.plan([dt.date(2026, 11, 13)], llm_with(Scripted()), now, only=["Counterfactual Atlas"], log=lambda *_: None)
     shorts = [p for p in out["written"] if "-s" in p]
-    assert len(shorts) == 3, out
+    assert len(shorts) == 2, out
     spec = json.loads((tmp_path / "specs" / "2026-11-13" / pathlib.Path(shorts[0]).name).read_text())
     assert problems(spec, "2026-11-13", strict=True) == []
     assert spec["publishAt"].startswith("2026-11-13T") and "Sources" in spec["description"]
@@ -541,7 +541,7 @@ def test_planning_fills_a_missing_slot_without_overwriting_an_existing_second_sp
     monkeypatch.setattr(daily.Planner, "make", make)
     now = dt.datetime(2026, 11, 13, tzinfo=dt.timezone.utc)
     result = daily.plan([date], llm_with(Scripted()), now, only=["Counterfactual Atlas"])
-    assert result["written"] == [str(folder / "atlas-s1.json"), str(folder / "atlas-s3.json")]
+    assert result["written"] == [str(folder / "atlas-s1.json")]
     assert existing.read_text() == original
 
 
@@ -570,8 +570,8 @@ def test_inventory_reports_network_coverage_without_counting_invalid_specs(tmp_p
         (folder / f"{name}.json").write_text(json.dumps(spec))
     rows = daily.inventory([day])
     assert len({row["channel"] for row in rows}) == 48
-    assert sum(row["target"] for row in rows) == 51
-    assert sum(row["missing"] for row in rows) == 50
+    assert sum(row["target"] for row in rows) == 50
+    assert sum(row["missing"] for row in rows) == 49
 
 
 def test_extract_json_handles_fenced_script_with_trailing_bracketed_notes():

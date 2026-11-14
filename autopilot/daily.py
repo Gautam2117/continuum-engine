@@ -443,7 +443,7 @@ class Planner:
             "meta": {"generator": "autopilot", "creativeDirector": {
                          "id": channel, "fingerprint": director_for(channel).fingerprint(), "version": 1,
                          "camera": director_for(channel).camera, "captions": director_for(channel).captions},
-                     "topic": topic["topic"], "axis": topic.get("axis", ""), "slot": slot_key(when, atlas=channel == "Counterfactual Atlas"),
+                     "topic": topic["topic"], "axis": topic.get("axis", ""), "slot": slot_key(when),
                      **({"news_url": topic["news"]["url"]} if topic.get("news") else {})},
             "scenes": scenes,
         }

@@ -15,13 +15,13 @@ def test_every_channel_has_style_and_playbook():
     assert len(PLAYBOOKS) == 48
 
 
-def test_daily_plan_includes_atlas_weekly_longs():
+def test_daily_plan_is_fifty_videos():
     for d in range(14):
         day = dt.date(2026, 11, 16) + dt.timedelta(d)
         counts = {c: sum(cadence_for(c, day).values()) for c in PLAYBOOKS}
-        assert counts["Counterfactual Atlas"] == 3 + int(day.weekday() in (0,2,5))
+        assert counts["Counterfactual Atlas"] == 3
         assert all(n == 1 for c, n in counts.items() if c != "Counterfactual Atlas"), day
-        assert sum(counts.values()) == 47 + counts["Counterfactual Atlas"]
+        assert sum(counts.values()) == 50
 
 
 def test_each_channel_has_two_long_days_a_week_when_it_has_both_formats():

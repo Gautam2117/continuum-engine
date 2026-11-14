@@ -5,7 +5,6 @@ import datetime as dt
 import json
 import pathlib
 import sqlite3
-from autopilot.playbooks import ATLAS_END_DATE, ATLAS_LONG_WEEKDAYS, cadence_for
 from scripts import network_supervisor as supervisor
 
 ATLAS = "Counterfactual Atlas"
@@ -33,22 +32,19 @@ def audit(root: pathlib.Path, db_path: pathlib.Path, *, today: dt.date | None = 
         valid, eligible, invalid, held = supervisor.supply(root, day)
         shorts = len(valid.get((ATLAS, "short"), set()))
         longs = len(valid.get((ATLAS, "long"), set()))
-        target = cadence_for(ATLAS, day)
-        ready = sum(min(count, len(eligible.get((ATLAS, fmt), set())))
-                    for fmt, count in target.items())
-        dates.append({"date": day.isoformat(), "required": sum(target.values()),
-                      "validShortSpecs": min(shorts, target["short"]),
-                      "validLongSpecs": min(longs, target["long"]),
-                      "specSlotsMissing": max(0, target["short"] - shorts) + max(0, target["long"] - longs),
-                      "editorialEligible": ready,
+        ready = len(eligible.get((ATLAS, "short"), set())) + len(eligible.get((ATLAS, "long"), set()))
+        dates.append({"date": day.isoformat(), "required": 3,
+                      "validShortSpecs": min(shorts, 2), "validLongSpecs": min(longs, 1),
+                      "specSlotsMissing": max(0, 2 - shorts) + max(0, 1 - longs),
+                      "editorialEligible": min(ready, 3),
                       "editorialHeld": len([r for r in held if r.get("channel") == ATLAS]),
                       "invalidFiles": len([r for r in invalid if "atlas" in r.get("file", "")]),
                       "privateWorkerStates": states.get(day.isoformat(), {}),
                       "publicYouTubeVideos": None})
-    return {"channel": ATLAS, "dailyTarget": {"short": 3, "longWeekdays": list(ATLAS_LONG_WEEKDAYS)},
-            "auditedAt": dt.datetime.now(UTC).isoformat(), "plannedEndDate": ATLAS_END_DATE.isoformat(),
+    return {"channel": ATLAS, "dailyTarget": {"short": 2, "long": 1},
+            "auditedAt": dt.datetime.now(UTC).isoformat(), "plannedEndDate": None,
             "horizonDays": days, "runway": dates,
-            "completeSpecDays": sum(x["required"] > 0 and x["specSlotsMissing"] == 0 for x in dates),
+            "completeSpecDays": sum(x["specSlotsMissing"] == 0 for x in dates),
             "reviewedMediaIsNotPublicUpload": True,
             "publicVerification": "Read Studio YouTube channel videos, not local specs or private worker receipts"}
 
