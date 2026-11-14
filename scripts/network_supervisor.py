@@ -302,6 +302,16 @@ def cycle(args) -> dict:
                      "--limit", str(args.render_limit), "--timeout", str(args.render_timeout)],
                     timeout=args.render_timeout * args.render_limit + 120,
                     log=state/"render.log")
+        archive_root = os.environ.get("CONTINUUM_ARCHIVE_ROOT", "").strip()
+        if archive_root:
+            if os.environ.get("CONTINUUM_ARCHIVE_MOUNT_ENCRYPTED") != "1":
+                steps["archive"] = {"status": "not-run", "reason": "trusted encrypted mount not confirmed"}
+            else:
+                steps["archive"] = run_command(
+                    [sys.executable, str(ROOT / "scripts/archive_verified_reviews.py"),
+                     "--db", str(review_db), "--reviews", str(review_dir),
+                     "--destination", archive_root, "--confirm-trusted-mount"],
+                    timeout=1800, log=state/"archive.log")
         result = snapshot(specs, review_db, today=started.date(), days=args.days)
         result["steps"] = steps
         result["supervisorHost"] = "owner-computer"  # never claim independent VM
